@@ -13,9 +13,11 @@
     "@noble/hashes": "^2.0.1",
     "@privy-io/react-auth": "^3.4.1",
     "@privy-io/wagmi": "^2.0.2",
+    "clsx": "^2.1.0",
     "next": "16.0.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
+    "tailwind-merge": "^2.5.3",
     "viem": "^2.38.4"
   },
   "devDependencies": {
