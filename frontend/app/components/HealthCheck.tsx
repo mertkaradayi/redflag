@@ -81,7 +81,7 @@ export default function HealthCheck() {
             {error}
           </p>
           <p className="text-xs text-red-600 dark:text-red-400 mt-2">
-            Make sure the backend is running on port 3001
+            Backend URL: {process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'}
           </p>
         </div>
       )}
