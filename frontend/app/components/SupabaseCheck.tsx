@@ -49,7 +49,17 @@ export default function SupabaseCheck() {
         <Button
           onClick={checkSupabaseHealth}
           disabled={loading}
-          className="w-full bg-indigo-600 hover:bg-indigo-700 focus-visible:outline-indigo-600"
+          className="w-full"
+          style={{
+            backgroundColor: 'rgb(79 70 229)', // indigo-600
+            color: 'white',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgb(67 56 202)'; // indigo-700
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgb(79 70 229)'; // indigo-600
+          }}
         >
           {loading ? (
             <span className="flex items-center gap-2">

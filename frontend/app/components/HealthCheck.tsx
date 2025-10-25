@@ -49,7 +49,17 @@ export default function HealthCheck() {
         <Button
           onClick={checkHealth}
           disabled={loading}
-          className="w-full bg-emerald-600 hover:bg-emerald-700 focus-visible:outline-emerald-600"
+          className="w-full"
+          style={{
+            backgroundColor: 'rgb(5 150 105)', // emerald-600
+            color: 'white',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgb(4 120 87)'; // emerald-700
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgb(5 150 105)'; // emerald-600
+          }}
         >
           {loading ? (
             <span className="flex items-center gap-2">
