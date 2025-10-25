@@ -1,0 +1,9 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'Backend not implemented yet'",
+    "build": "echo 'Backend not implemented yet'"
+  }
+}
