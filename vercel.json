@@ -1,0 +1,7 @@
+{
+  "buildCommand": "cd frontend && yarn build",
+  "outputDirectory": "frontend/.next",
+  "installCommand": "yarn install",
+  "framework": "nextjs",
+  "rootDirectory": "frontend"
+}
