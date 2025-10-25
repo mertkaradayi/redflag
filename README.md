@@ -60,6 +60,11 @@ yarn dev:frontend
 yarn dev:backend
 ```
 
+**Both simultaneously:**
+```bash
+yarn dev
+```
+
 **Both (in separate terminals):**
 ```bash
 # Terminal 1
@@ -83,6 +88,7 @@ yarn build:backend
 
 ## 🌐 Deployment
 
+### Frontend (Vercel)
 This project is configured for deployment on Vercel:
 
 - **Framework**: Next.js
@@ -91,6 +97,29 @@ This project is configured for deployment on Vercel:
 - **Root Directory**: `frontend`
 
 The deployment configuration is defined in `vercel.json`.
+
+### Backend (Railway)
+The backend is configured for deployment on Railway:
+
+1. **Create Railway Account**: Go to [railway.app](https://railway.app) and sign up
+2. **Connect GitHub**: Link your GitHub account and select this repository
+3. **Create New Project**: 
+   - Click "New Project"
+   - Select "Deploy from GitHub repo"
+   - Choose your `redflag` repository
+4. **Configure Service**:
+   - Set **Root Directory** to `backend`
+   - Railway will auto-detect the `railway.json` configuration
+5. **Set Environment Variables**:
+   - `NODE_ENV=production`
+   - `FRONTEND_URL=https://your-vercel-domain.vercel.app`
+6. **Deploy**: Railway will automatically build and deploy your backend
+7. **Get Backend URL**: Railway will provide a URL like `https://your-backend.railway.app`
+
+### Backend API Endpoints
+Once deployed, your backend will have:
+- **Health Check**: `GET /health` - Returns service status
+- **API Status**: `GET /api/status` - Returns API information
 
 ## 📁 Workspace Commands
 
