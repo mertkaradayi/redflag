@@ -25,8 +25,10 @@ redflag/
 - **Linting**: ESLint with Next.js config
 
 ### Backend
-- **Status**: To be implemented
-- **Language**: TypeScript (planned)
+- **Framework**: Express.js with TypeScript
+- **Database**: Supabase (PostgreSQL)
+- **Authentication**: Privy (planned)
+- **Deployment**: Railway
 
 ### Development Tools
 - **Package Manager**: Yarn with workspaces
@@ -49,11 +51,48 @@ yarn install
 3. Set up environment variables:
 ```bash
 # Backend environment setup
-cp backend/.env.example backend/.env
+# Create backend/.env with the following variables:
+PORT=3001
+NODE_ENV=development
+FRONTEND_URL=http://localhost:3000
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_KEY=your-service-role-key-here
 
-# Frontend environment setup  
-cp frontend/.env.example frontend/.env.local
+# Frontend environment setup
+# Create frontend/.env.local with:
+NEXT_PUBLIC_BACKEND_URL=http://localhost:3001
 ```
+
+## 🗄️ Supabase Setup
+
+### 1. Create Supabase Project
+1. Go to [supabase.com](https://supabase.com) and sign up
+2. Click "New Project"
+3. Choose your organization
+4. Enter project details:
+   - **Name**: `redflag-db` (or your preferred name)
+   - **Database Password**: Generate a strong password
+   - **Region**: Choose closest to your users
+5. Click "Create new project"
+
+### 2. Get Supabase Credentials
+1. Go to your project dashboard
+2. Click "Settings" (gear icon) → "API"
+3. Copy the following values:
+   - **Project URL** → Use as `SUPABASE_URL`
+   - **service_role key** (secret) → Use as `SUPABASE_SERVICE_KEY`
+
+### 3. Configure Environment Variables
+Add these to your `backend/.env` file:
+```bash
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_KEY=your-service-role-key-here
+```
+
+### 4. Test Connection
+- Start your backend: `yarn dev:backend`
+- Visit: `http://localhost:3001/api/supabase/health`
+- Or use the frontend test button on the homepage
 
 ## 🔧 Environment Setup
 
@@ -71,6 +110,8 @@ The project is configured to work with local development by default:
 PORT=3001
 NODE_ENV=development
 FRONTEND_URL=http://localhost:3000
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_KEY=your-service-role-key-here
 ```
 
 #### Frontend (`.env.local`)
@@ -93,6 +134,8 @@ Set these in your Railway dashboard under your service → Variables:
 ```bash
 FRONTEND_URL=https://redflag-liart.vercel.app
 NODE_ENV=production
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_KEY=your-service-role-key-here
 ```
 
 ## 🛠️ Development
@@ -182,6 +225,7 @@ The frontend is configured for deployment on Vercel:
 Once deployed, your backend will have:
 - **Health Check**: `GET /health` - Returns service status
 - **API Status**: `GET /api/status` - Returns API information
+- **Supabase Health**: `GET /api/supabase/health` - Tests Supabase database connection
 
 ## 📁 Workspace Commands
 

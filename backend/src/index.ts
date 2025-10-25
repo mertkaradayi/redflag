@@ -1,5 +1,7 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import { testSupabaseConnection } from './lib/supabase';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -48,11 +50,26 @@ app.get('/api/status', (req, res) => {
   });
 });
 
+// Supabase health check endpoint
+app.get('/api/supabase/health', async (req, res) => {
+  try {
+    const result = await testSupabaseConnection();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: `Supabase health check failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 RedFlag Backend running on port ${PORT}`);
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
   console.log(`🔗 API status: http://localhost:${PORT}/api/status`);
+  console.log(`🗄️ Supabase health: http://localhost:${PORT}/api/supabase/health`);
 });
 
 export default app;
