@@ -1,6 +1,7 @@
 import Image from "next/image";
 import HealthCheck from "./components/HealthCheck";
 import SupabaseCheck from "./components/SupabaseCheck";
+import Auth from "./components/Auth";
 
 export default function Home() {
   return (
@@ -27,6 +28,7 @@ export default function Home() {
         <div className="w-full max-w-md space-y-6">
           <HealthCheck />
           <SupabaseCheck />
+          <Auth />
         </div>
         <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
           <a

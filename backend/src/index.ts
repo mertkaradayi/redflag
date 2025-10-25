@@ -64,6 +64,7 @@ app.get('/api/supabase/health', async (req, res) => {
   }
 });
 
+
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 RedFlag Backend running on port ${PORT}`);
