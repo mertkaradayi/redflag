@@ -18,7 +18,7 @@ export default function HealthCheck() {
     setError(null);
     
     try {
-      // Use environment variable for backend URL in production
+      // Use environment variable for backend URL, default to localhost for development
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
       const response = await fetch(`${backendUrl}/health`);
       

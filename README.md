@@ -46,6 +46,55 @@ cd redflag
 yarn install
 ```
 
+3. Set up environment variables:
+```bash
+# Backend environment setup
+cp backend/.env.example backend/.env
+
+# Frontend environment setup  
+cp frontend/.env.example frontend/.env.local
+```
+
+## 🔧 Environment Setup
+
+### Local Development
+
+The project is configured to work with local development by default:
+
+- **Frontend**: `http://localhost:3000` (connects to local backend)
+- **Backend**: `http://localhost:3001` (accepts requests from localhost:3000)
+
+### Environment Variables
+
+#### Backend (`.env`)
+```bash
+PORT=3001
+NODE_ENV=development
+FRONTEND_URL=http://localhost:3000
+```
+
+#### Frontend (`.env.local`)
+```bash
+NEXT_PUBLIC_BACKEND_URL=http://localhost:3001
+```
+
+### Production Environment Variables
+
+#### Vercel (Frontend)
+Set these in your Vercel dashboard under Project Settings → Environment Variables:
+
+```bash
+NEXT_PUBLIC_BACKEND_URL=https://backend-production-6d04.up.railway.app
+```
+
+#### Railway (Backend)
+Set these in your Railway dashboard under your service → Variables:
+
+```bash
+FRONTEND_URL=https://redflag-liart.vercel.app
+NODE_ENV=production
+```
+
 ## 🛠️ Development
 
 ### Start Development Servers
@@ -112,9 +161,22 @@ The backend is configured for deployment on Railway:
    - Railway will auto-detect the `railway.json` configuration
 5. **Set Environment Variables**:
    - `NODE_ENV=production`
-   - `FRONTEND_URL=https://your-vercel-domain.vercel.app`
+   - `FRONTEND_URL=https://redflag-liart.vercel.app`
 6. **Deploy**: Railway will automatically build and deploy your backend
 7. **Get Backend URL**: Railway will provide a URL like `https://your-backend.railway.app`
+
+### Frontend (Vercel)
+The frontend is configured for deployment on Vercel:
+
+1. **Connect GitHub**: Link your GitHub account and select this repository
+2. **Configure Project**:
+   - Framework: Next.js (auto-detected)
+   - Root Directory: `frontend`
+   - Build Command: `yarn build` (runs in frontend directory)
+   - Output Directory: `.next`
+3. **Set Environment Variables**:
+   - `NEXT_PUBLIC_BACKEND_URL=https://backend-production-6d04.up.railway.app`
+4. **Deploy**: Vercel will automatically build and deploy your frontend
 
 ### Backend API Endpoints
 Once deployed, your backend will have:
@@ -143,6 +205,25 @@ The root `package.json` includes convenient scripts for managing the monorepo:
 - The project uses the new JSX transform (`"jsx": "react-jsx"`), so React imports are not required in components
 - Tailwind CSS v4 is configured for modern styling
 - TypeScript is strictly configured for better development experience
+
+## 🐛 Troubleshooting
+
+### CORS Issues
+If you see CORS errors in the browser console:
+1. Ensure your backend is running on `http://localhost:3001`
+2. Check that `FRONTEND_URL` in backend `.env` is set to `http://localhost:3000`
+3. Verify the backend CORS configuration includes your frontend URL
+
+### Connection Issues
+If the frontend can't connect to the backend:
+1. Check that `NEXT_PUBLIC_BACKEND_URL` in frontend `.env.local` is set to `http://localhost:3001`
+2. Ensure the backend is running and accessible at the configured URL
+3. Check browser network tab for failed requests
+
+### Production Deployment Issues
+1. **Vercel**: Ensure `NEXT_PUBLIC_BACKEND_URL` is set in Vercel dashboard
+2. **Railway**: Ensure `FRONTEND_URL` and `NODE_ENV` are set in Railway dashboard
+3. **CORS**: Verify Railway backend allows your Vercel domain in CORS configuration
 
 ## 📝 License
 
