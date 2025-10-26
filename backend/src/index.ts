@@ -1,9 +1,11 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import { testSupabaseConnection, getDeployments } from './lib/supabase';
+import { testSupabaseConnection, getDeployments, getAnalysisResult, getRecentAnalyses, getHighRiskAnalyses } from './lib/supabase';
 import { getRecentPublishTransactions, testSuiConnection } from './lib/sui-client';
 import { startMonitoring, stopMonitoring, getMonitoringStatus } from './workers/sui-monitor';
+import { runFullAnalysisChain, getAnalysis } from './lib/llm-analyzer';
+import { SuiClient } from '@mysten/sui/client';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -309,6 +311,254 @@ app.get('/api/sui/debug', async (req, res) => {
     res.status(500).json({
       success: false,
       message: `Debug failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// ----------------------------------------------------------------
+// LLM CONTRACT ANALYSIS ENDPOINTS
+// ----------------------------------------------------------------
+
+// Analyze a specific contract package
+app.post('/api/llm/analyze', async (req, res) => {
+  try {
+    const { package_id, network } = req.body;
+    
+    // Validate required parameters
+    if (!package_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'package_id is required',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Validate network parameter
+    const validatedNetwork = (network === 'testnet') ? 'testnet' : 'mainnet';
+    
+    console.log(`[LLM] Analyzing package_id: ${package_id} on ${validatedNetwork}`);
+    
+    // Define RPC URL based on network
+    const rpcUrl = validatedNetwork === 'testnet' 
+      ? 'https://fullnode.testnet.sui.io:443' 
+      : 'https://fullnode.mainnet.sui.io:443';
+    console.log(`[LLM] Using RPC URL: ${rpcUrl}`);
+    
+    // Create Sui client for this request
+    const suiClient = new SuiClient({ url: rpcUrl });
+    
+    // Check database first
+    const dbResult = await getAnalysisResult(package_id, validatedNetwork);
+    if (dbResult.success && dbResult.analysis) {
+      console.log(`[LLM] Database hit! Returning stored result for ${package_id}`);
+      return res.status(200).json({
+        success: true,
+        message: `Analysis successful (from database - ${validatedNetwork})`,
+        timestamp: new Date().toISOString(),
+        package_id,
+        network: validatedNetwork,
+        safetyCard: dbResult.analysis
+      });
+    }
+    
+    // Run full analysis chain (will save to database)
+    console.log(`[LLM] Running full analysis chain for ${package_id}...`);
+    const cacheKey = `${package_id}@${validatedNetwork}`;
+    const finalSafetyCard = await runFullAnalysisChain(package_id, validatedNetwork, suiClient, cacheKey);
+    
+    return res.status(200).json({
+      success: true,
+      message: `Analysis successful (${validatedNetwork})`,
+      timestamp: new Date().toISOString(),
+      package_id,
+      network: validatedNetwork,
+      safetyCard: finalSafetyCard
+    });
+    
+  } catch (error) {
+    console.error('[LLM] Analysis error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Contract analysis failed',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Get analysis result from database
+app.get('/api/llm/analyze/:packageId', async (req, res) => {
+  try {
+    const { packageId } = req.params;
+    const { network = 'mainnet' } = req.query;
+    
+    const validatedNetwork = (network === 'testnet') ? 'testnet' : 'mainnet';
+    const dbResult = await getAnalysisResult(packageId, validatedNetwork);
+    
+    if (dbResult.success && dbResult.analysis) {
+      return res.status(200).json({
+        success: true,
+        message: 'Analysis found in database',
+        timestamp: new Date().toISOString(),
+        package_id: packageId,
+        network: validatedNetwork,
+        safetyCard: dbResult.analysis
+      });
+    } else {
+      return res.status(404).json({
+        success: false,
+        message: 'No analysis found for this package',
+        timestamp: new Date().toISOString(),
+        package_id: packageId,
+        network: validatedNetwork
+      });
+    }
+  } catch (error) {
+    console.error('[LLM] Database lookup error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Database lookup failed',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Get recent analyses from database
+app.get('/api/llm/recent-analyses', async (req, res) => {
+  try {
+    const limitParam = Array.isArray(req.query.limit) ? req.query.limit[0] : req.query.limit;
+    const offsetParam = Array.isArray(req.query.offset) ? req.query.offset[0] : req.query.offset;
+
+    const parsedLimit = typeof limitParam === 'string' ? Number.parseInt(limitParam, 10) : Number.NaN;
+    const parsedOffset = typeof offsetParam === 'string' ? Number.parseInt(offsetParam, 10) : Number.NaN;
+
+    const limit = Number.isNaN(parsedLimit) ? undefined : Math.min(Math.max(parsedLimit, 1), 100);
+    const offset = Number.isNaN(parsedOffset) ? undefined : Math.max(parsedOffset, 0);
+
+    const result = await getRecentAnalyses({ limit, offset });
+
+    if (result.success) {
+      res.json({
+        success: true,
+        message: `Retrieved ${result.analyses.length} analyses`,
+        timestamp: new Date().toISOString(),
+        analyses: result.analyses,
+        totalCount: result.totalCount,
+        limit: limit || 50,
+        offset: offset || 0
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: result.error || 'Failed to retrieve analyses',
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get recent analyses',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Get high-risk analyses from database
+app.get('/api/llm/high-risk', async (req, res) => {
+  try {
+    const limitParam = Array.isArray(req.query.limit) ? req.query.limit[0] : req.query.limit;
+    const parsedLimit = typeof limitParam === 'string' ? Number.parseInt(limitParam, 10) : Number.NaN;
+    const limit = Number.isNaN(parsedLimit) ? undefined : Math.min(Math.max(parsedLimit, 1), 100);
+
+    const result = await getHighRiskAnalyses({ limit });
+
+    if (result.success) {
+      res.json({
+        success: true,
+        message: `Retrieved ${result.analyses.length} high-risk analyses`,
+        timestamp: new Date().toISOString(),
+        analyses: result.analyses
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: result.error || 'Failed to retrieve high-risk analyses',
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get high-risk analyses',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// LLM health check
+app.get('/api/llm/health', async (req, res) => {
+  const hasGoogleApiKey = !!process.env.GOOGLE_API_KEY;
+  
+  // Get database stats
+  const dbStats = await getRecentAnalyses({ limit: 1 });
+  
+  res.json({
+    success: true,
+    message: 'LLM service status',
+    timestamp: new Date().toISOString(),
+    llm: {
+      configured: hasGoogleApiKey,
+      status: hasGoogleApiKey ? 'ready' : 'missing GOOGLE_API_KEY',
+      database_analyses: dbStats.totalCount || 0
+    }
+  });
+});
+
+// Get All Analyzed Contracts (alias for recent-analyses)
+app.get('/api/llm/analyzed-contracts', async (req, res) => {
+  try {
+    const result = await getRecentAnalyses({ limit: 100 });
+
+    if (result.success) {
+      const contracts = result.analyses.map(analysis => ({
+        package_id: analysis.package_id,
+        network: analysis.network,
+        analysis: {
+          summary: analysis.summary,
+          risky_functions: analysis.risky_functions,
+          rug_pull_indicators: analysis.rug_pull_indicators,
+          impact_on_user: analysis.impact_on_user,
+          why_risky_one_liner: analysis.why_risky_one_liner,
+          risk_score: analysis.risk_score,
+          risk_level: analysis.risk_level
+        },
+        analyzed_at: analysis.analyzed_at
+      }));
+
+      res.json({
+        success: true,
+        message: 'Analyzed contracts retrieved successfully',
+        timestamp: new Date().toISOString(),
+        total: result.totalCount,
+        contracts
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: result.error || 'Failed to retrieve analyzed contracts',
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    console.error('❌ Failed to get analyzed contracts:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get analyzed contracts',
+      error: error instanceof Error ? error.message : 'Unknown error',
       timestamp: new Date().toISOString()
     });
   }

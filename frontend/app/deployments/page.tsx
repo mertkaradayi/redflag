@@ -50,6 +50,29 @@ export default function DeploymentsPage() {
           </div>
         </section>
 
+        {/* Contract Analysis Link */}
+        <section className="w-full">
+          <div className="mx-auto max-w-4xl mb-8">
+            <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 rounded-lg p-6 border border-purple-200 dark:border-purple-800">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-2">
+                    Contract Security Analysis
+                  </h3>
+                  <p className="text-zinc-600 dark:text-zinc-300">
+                    Analyze any smart contract for security risks using our AI-powered analysis engine.
+                  </p>
+                </div>
+                <Link href="/analyze">
+                  <Button className="bg-purple-600 hover:bg-purple-700 text-white">
+                    Analyze Contracts
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Deployments Table */}
         <section className="w-full">
           <DeploymentsTable autoRefresh={true} refreshInterval={30000} />

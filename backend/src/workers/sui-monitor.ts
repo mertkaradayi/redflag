@@ -1,5 +1,7 @@
 import { getRecentPublishTransactions } from '../lib/sui-client';
-import { upsertDeployments, getLastProcessedCheckpoint } from '../lib/supabase';
+import { upsertDeployments, getLastProcessedCheckpoint, getAnalysisResult } from '../lib/supabase';
+import { runFullAnalysisChain } from '../lib/llm-analyzer';
+import { SuiClient } from '@mysten/sui/client';
 
 // Singleton pattern to prevent multiple monitors
 let monitorInterval: NodeJS.Timeout | null = null;
@@ -102,6 +104,9 @@ async function performMonitoringCheck(): Promise<void> {
     
     if (upsertResult.success) {
       console.log(`✅ Successfully stored ${upsertResult.count} deployment(s) to database`);
+      
+      // Trigger LLM analysis for new deployments
+      await analyzeNewDeployments(deployments);
     } else {
       console.error('❌ Failed to store deployments:', upsertResult.message);
     }
@@ -109,6 +114,66 @@ async function performMonitoringCheck(): Promise<void> {
   } catch (error) {
     console.error('💥 Unexpected error in monitoring check:', error);
   }
+}
+
+/**
+ * Analyze new deployments with LLM
+ */
+async function analyzeNewDeployments(deployments: any[]): Promise<void> {
+  if (!process.env.GOOGLE_API_KEY) {
+    console.log('⚠️  GOOGLE_API_KEY not configured, skipping LLM analysis');
+    return;
+  }
+
+  console.log(`🤖 Starting LLM analysis for ${deployments.length} new deployment(s)...`);
+  
+  // Determine network based on RPC URL
+  const rpcUrl = process.env.SUI_RPC_URL || 'https://fullnode.testnet.sui.io:443';
+  const network = rpcUrl.includes('testnet') ? 'testnet' : 'mainnet';
+  
+  // Create Sui client
+  const suiClient = new SuiClient({ url: rpcUrl });
+  
+  // Analyze each deployment
+  for (const deployment of deployments) {
+    try {
+      const packageId = deployment.packageId;
+      if (!packageId) {
+        console.log(`⚠️  Skipping deployment without packageId: ${deployment.digest}`);
+        continue;
+      }
+      
+      // Check if already analyzed in database
+      const dbResult = await getAnalysisResult(packageId, network);
+      if (dbResult.success && dbResult.analysis) {
+        console.log(`📋 Package ${packageId} already analyzed, skipping...`);
+        continue;
+      }
+      
+      console.log(`🔍 Analyzing package ${packageId}...`);
+      
+      // Run LLM analysis (will save to database)
+      const cacheKey = `${packageId}@${network}`;
+      const analysisResult = await runFullAnalysisChain(packageId, network, suiClient, cacheKey);
+      
+      // Log risk level
+      const riskLevel = analysisResult.risk_level;
+      const riskScore = analysisResult.risk_score;
+      
+      if (riskLevel === 'critical' || riskLevel === 'high') {
+        console.log(`🚨 HIGH RISK DETECTED: Package ${packageId} - Risk Level: ${riskLevel} (Score: ${riskScore})`);
+        console.log(`   Summary: ${analysisResult.summary}`);
+        console.log(`   Risk: ${analysisResult.why_risky_one_liner}`);
+      } else {
+        console.log(`✅ Package ${packageId} analyzed - Risk Level: ${riskLevel} (Score: ${riskScore})`);
+      }
+      
+    } catch (error) {
+      console.error(`❌ Failed to analyze package ${deployment.packageId}:`, error);
+    }
+  }
+  
+  console.log(`🤖 LLM analysis complete for ${deployments.length} deployment(s)`);
 }
 
 /**

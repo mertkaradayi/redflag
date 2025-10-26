@@ -36,6 +36,52 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Contract Analysis Section */}
+        <section className="w-full">
+          <div className="mx-auto max-w-4xl">
+            <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 rounded-lg p-6 border border-purple-200 dark:border-purple-800">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-2">
+                    AI-Powered Contract Analysis
+                  </h3>
+                  <p className="text-zinc-600 dark:text-zinc-300">
+                    Analyze smart contracts for security risks using our advanced 4-Agent + 1-Critic AI system.
+                  </p>
+                </div>
+                <Link href="/analyze">
+                  <Button className="bg-purple-600 hover:bg-purple-700 text-white">
+                    Analyze Contracts
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Analysis Dashboard Link */}
+        <section className="w-full">
+          <div className="mx-auto max-w-4xl">
+            <div className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20 rounded-lg p-6 border border-emerald-200 dark:border-emerald-800">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-2">
+                    Analysis Dashboard
+                  </h3>
+                  <p className="text-zinc-600 dark:text-zinc-300">
+                    View all analyzed contracts with risk levels, detailed reports, and security insights.
+                  </p>
+                </div>
+                <Link href="/dashboard">
+                  <Button className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                    View Dashboard
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Deployments Dashboard Link */}
         <section className="w-full">
           <div className="mx-auto max-w-4xl">

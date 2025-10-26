@@ -137,11 +137,31 @@ export default function DeploymentCard({ deployment }: DeploymentCardProps) {
             </div>
           </div>
 
-          {/* First Seen */}
-          <div className="pt-2 border-t border-zinc-200 dark:border-zinc-700">
+          {/* Action Buttons */}
+          <div className="pt-2 border-t border-zinc-200 dark:border-zinc-700 flex justify-between items-center">
             <span className="text-xs text-zinc-400">
               First detected: {new Date(deployment.first_seen_at).toLocaleString()}
             </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                // Scroll to LLM analysis section and populate package ID
+                const analysisSection = document.querySelector('[data-llm-analysis]');
+                if (analysisSection) {
+                  analysisSection.scrollIntoView({ behavior: 'smooth' });
+                  // Trigger package ID input update
+                  const packageInput = document.querySelector('input[placeholder="0x..."]') as HTMLInputElement;
+                  if (packageInput) {
+                    packageInput.value = deployment.package_id;
+                    packageInput.dispatchEvent(new Event('input', { bubbles: true }));
+                  }
+                }
+              }}
+              className="text-xs"
+            >
+              🔍 Analyze Security
+            </Button>
           </div>
         </div>
       </CardContent>
