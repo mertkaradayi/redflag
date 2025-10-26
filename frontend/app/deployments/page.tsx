@@ -1,101 +1,177 @@
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import DeploymentsTable from '../components/DeploymentsTable';
+import type { ReactNode } from "react";
+import Link from "next/link";
+import { ArrowLeft, ArrowRight, GaugeCircle, Globe2, Radar, RefreshCcw, ServerCog, Sparkles } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import DeploymentsTable from "../components/DeploymentsTable";
+
+interface HighlightCard {
+  label: string;
+  title: string;
+  description: string;
+  icon: ReactNode;
+}
+
+const highlightCards: HighlightCard[] = [
+  {
+    label: "Live Feed",
+    title: "Always-on deployment watchers",
+    description:
+      "Background workers ingest new Move packages from Sui in near real time, tagging each deployer and checkpoint.",
+    icon: <Radar className="h-6 w-6 text-[#D12226]" />,
+  },
+  {
+    label: "Signal Over Noise",
+    title: "Context-rich metadata",
+    description:
+      "Package, deployer, and transaction context ship together so you can jump straight into audits or runbook triage.",
+    icon: <ServerCog className="h-6 w-6 text-[#D12226]" />,
+  },
+  {
+    label: "Fast Hand-offs",
+    title: "Deep-link to security analysis",
+    description:
+      "Kick off the AI analyzer on any deployment with one click and compare risk timelines across your portfolio.",
+    icon: <Sparkles className="h-6 w-6 text-[#D12226]" />,
+  },
+  {
+    label: "Time To Insight",
+    title: "< 30s refresh cadence",
+    description:
+      "The feed auto-refreshes every 30 seconds so reviewers see the latest packages without smashing reload.",
+    icon: <GaugeCircle className="h-6 w-6 text-[#D12226]" />,
+  },
+];
+
+const deploymentLegend = [
+  { swatch: "bg-[#D12226]", label: "Deployed in the last hour" },
+  { swatch: "bg-white", label: "Within the last 24 hours" },
+  { swatch: "bg-yellow-300", label: "Within the last 7 days" },
+  { swatch: "bg-zinc-600", label: "Older deployments" },
+];
 
 export default function DeploymentsPage() {
   return (
-    <div className="flex min-h-screen justify-center bg-zinc-50 font-sans text-zinc-900 dark:bg-black dark:text-zinc-50">
-      <main className="flex min-h-screen w-full max-w-7xl flex-col gap-8 px-6 py-16 sm:px-12">
-        {/* Header */}
-        <header className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-4 mb-2">
-              <Link href="/">
-                <Button variant="ghost" size="sm" className="text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300">
-                  ← Back to Home
+    <div className="relative min-h-screen overflow-hidden bg-black text-white">
+      <div className="absolute inset-0 -z-10">
+        <div className="absolute inset-x-0 top-[-15%] h-[520px] bg-[radial-gradient(circle_at_center,_rgba(209,34,38,0.26),_transparent_60%)]" />
+        <div className="absolute left-1/2 top-1/2 h-[560px] w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,_rgba(209,34,38,0.18),_transparent_60%)] blur-3xl" />
+      </div>
+
+      <main className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-16 px-6 pb-24 pt-12 sm:px-12 lg:px-16">
+        <header className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-5">
+            <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-[0.3em] text-zinc-500">
+              <span className="rounded-full border border-[#D12226]/50 bg-[#D12226]/15 px-3 py-1 text-[#D12226]">
+                RedFlag
+              </span>
+              <span className="hidden sm:inline text-zinc-400">Deployments Monitor</span>
+            </div>
+            <div className="space-y-4">
+              <h1 className="text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
+                Track every Move deployment the instant it hits Sui.
+              </h1>
+              <p className="max-w-2xl text-base text-zinc-300">
+                RedFlag watches your environments around the clock, capturing package metadata, deployer addresses, and
+                transaction digests so security and protocol teams can respond before issues roll into production.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500">
+              <span className="rounded-full border border-white/15 px-3 py-1">Auto-refresh 30s</span>
+              <span className="rounded-full border border-white/15 px-3 py-1">Explorer Deep Links</span>
+              <span className="rounded-full border border-white/15 px-3 py-1">Analyze via Gemini 2.5</span>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <Link href="/" className="w-full sm:w-auto">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full border-white/20 text-white hover:border-white hover:bg-white/10 sm:w-auto"
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back to homepage
+                </Button>
+              </Link>
+              <Link href="/analyze" className="w-full sm:w-auto">
+                <Button className="w-full bg-[#D12226] text-white hover:bg-[#a8181b] sm:w-auto">
+                  Launch analyzer
+                  <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
             </div>
-            <p className="text-sm uppercase tracking-wide text-zinc-500">RedFlag</p>
-            <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-              Smart Contract Deployments
-            </h1>
+          </div>
+          <div className="w-full max-w-sm space-y-4 rounded-3xl border border-white/10 bg-black/40 p-6 shadow-inner backdrop-blur">
+            <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-[0.3em] text-zinc-500">
+              <RefreshCcw className="h-5 w-5 text-[#D12226]" />
+              <span>Legend</span>
+            </div>
+            <p className="text-sm text-zinc-400">
+              Card accents reflect deployment freshness so you can prioritize new launches first.
+            </p>
+            <ul className="space-y-3">
+              {deploymentLegend.map((item) => (
+                <li key={item.label} className="flex items-center gap-3 text-sm text-zinc-300">
+                  <span className={`h-2.5 w-6 rounded-full ${item.swatch}`}></span>
+                  {item.label}
+                </li>
+              ))}
+            </ul>
+            <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-xs text-zinc-400">
+              <Globe2 className="h-4 w-4 text-white/70" />
+              Monitoring Sui testnet — mainnet support coming soon.
+            </div>
           </div>
         </header>
 
-        {/* Description */}
-        <section className="max-w-3xl space-y-4">
-          <p className="text-lg leading-8 text-zinc-600 dark:text-zinc-300">
-            Real-time monitoring of smart contract deployments on Sui testnet. 
-            This dashboard shows all detected package deployments with their metadata, 
-            deployer information, and transaction details.
-          </p>
-          <div className="flex flex-wrap gap-4 text-sm text-zinc-500">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span>Very recent (last hour)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-              <span>Recent (last 24h)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-              <span>This week</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
-              <span>Older</span>
-            </div>
-          </div>
-        </section>
-
-        {/* Contract Analysis Link */}
-        <section className="w-full">
-          <div className="mx-auto max-w-4xl mb-8">
-            <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 rounded-lg p-6 border border-purple-200 dark:border-purple-800">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-2">
-                    Contract Security Analysis
-                  </h3>
-                  <p className="text-zinc-600 dark:text-zinc-300">
-                    Analyze any smart contract for security risks using our AI-powered analysis engine.
-                  </p>
-                </div>
-                <Link href="/analyze">
-                  <Button className="bg-purple-600 hover:bg-purple-700 text-white">
-                    Analyze Contracts
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Deployments Table */}
-        <section className="w-full">
-          <DeploymentsTable autoRefresh={true} refreshInterval={30000} />
-        </section>
-
-        {/* Footer Info */}
-        <footer className="text-center text-sm text-zinc-500 border-t border-zinc-200 dark:border-zinc-800 pt-8">
-          <p>
-            Data is automatically refreshed every 30 seconds. 
-            Deployments are monitored continuously via our background worker.
-          </p>
-          <p className="mt-2">
-            Click on transaction hashes to view them on{' '}
-            <a 
-              href="https://suiexplorer.com" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+        <section className="grid gap-6 sm:grid-cols-2">
+          {highlightCards.map((card) => (
+            <div
+              key={card.title}
+              className="flex h-full flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-6 text-sm text-zinc-300 shadow-lg transition hover:border-[#D12226]/40 hover:bg-[#D12226]/10 backdrop-blur"
             >
-              Sui Explorer
-            </a>
-          </p>
-        </footer>
+              <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-[#D12226]">
+                {card.icon}
+                {card.label}
+              </span>
+              <h2 className="text-lg font-semibold text-white">{card.title}</h2>
+              <p className="leading-6 text-zinc-200">{card.description}</p>
+            </div>
+          ))}
+        </section>
+
+        <section className="rounded-3xl border border-white/10 bg-black/40 p-6 shadow-lg backdrop-blur">
+          <DeploymentsTable autoRefresh refreshInterval={30000} />
+        </section>
+
+        <section className="rounded-3xl border border-white/10 bg-gradient-to-br from-[#D12226]/60 via-[#D12226]/30 to-black p-10 text-center shadow-2xl">
+          <div className="mx-auto max-w-3xl space-y-6">
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.3em] text-white/80">
+              Close the loop
+            </span>
+            <h2 className="text-3xl font-semibold text-white sm:text-4xl">
+              Turn new deployments into action with a single analysis.
+            </h2>
+            <p className="text-base text-white/80">
+              Copy any package ID from the feed and fire up RedFlag’s multi-agent reviewer to surface security concerns
+              before they reach production.
+            </p>
+            <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
+              <Link href="/dashboard" className="w-full sm:w-auto">
+                <Button
+                  variant="outline"
+                  className="w-full border-white/60 text-white hover:border-white hover:bg-white/10 sm:w-auto"
+                >
+                  View risk dashboard
+                </Button>
+              </Link>
+              <Link href="/analyze" className="w-full sm:w-auto">
+                <Button className="w-full bg-white text-[#D12226] hover:bg-zinc-100 sm:w-auto">
+                  Start analysis
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </section>
       </main>
     </div>
   );

@@ -115,19 +115,21 @@ export async function copyToClipboard(text: string): Promise<boolean> {
 /**
  * Get age-based color class for deployment cards
  */
-export function getDeploymentAgeColor(timestamp: string): string {
+export type DeploymentAgeBucket = 'lastHour' | 'last24h' | 'lastWeek' | 'older';
+
+export function getDeploymentAgeColor(timestamp: string): DeploymentAgeBucket {
   const date = new Date(timestamp);
   const now = new Date();
   const diffHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
 
   if (diffHours < 1) {
-    return 'border-l-green-500'; // Very recent - green
+    return 'lastHour';
   } else if (diffHours < 24) {
-    return 'border-l-blue-500'; // Recent - blue
+    return 'last24h';
   } else if (diffHours < 168) { // 7 days
-    return 'border-l-yellow-500'; // This week - yellow
+    return 'lastWeek';
   } else {
-    return 'border-l-gray-500'; // Older - gray
+    return 'older';
   }
 }
 

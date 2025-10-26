@@ -1,14 +1,17 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { RefreshCcw, Search } from 'lucide-react';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 import DeploymentCard from './DeploymentCard';
-import { 
-  fetchDeployments, 
-  calculateStats, 
-  type Deployment, 
-  type DeploymentsResponse 
+import {
+  calculateStats,
+  fetchDeployments,
+  type Deployment,
+  type DeploymentsResponse,
 } from '@/lib/deployments';
 
 interface DeploymentsTableProps {
@@ -16,9 +19,15 @@ interface DeploymentsTableProps {
   refreshInterval?: number;
 }
 
-export default function DeploymentsTable({ 
-  autoRefresh = true, 
-  refreshInterval = 30000 
+const ITEMS_PER_PAGE = 20;
+const SORT_LABELS: Record<'timestamp' | 'checkpoint', string> = {
+  timestamp: 'By time',
+  checkpoint: 'By checkpoint',
+};
+
+export default function DeploymentsTable({
+  autoRefresh = true,
+  refreshInterval = 30000,
 }: DeploymentsTableProps) {
   const [deployments, setDeployments] = useState<Deployment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,10 +38,7 @@ export default function DeploymentsTable({
   const [sortBy, setSortBy] = useState<'timestamp' | 'checkpoint'>('timestamp');
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
-  const ITEMS_PER_PAGE = 20;
-
-  // Fetch deployments with pagination
-  const loadDeployments = useCallback(async (offset: number = 0, append: boolean = false) => {
+  const loadDeployments = useCallback(async (offset: number = 0, append = false) => {
     try {
       if (offset === 0) {
         setLoading(true);
@@ -42,24 +48,18 @@ export default function DeploymentsTable({
       }
 
       const response: DeploymentsResponse = await fetchDeployments(ITEMS_PER_PAGE, offset);
-      
-      if (response.success) {
-        const newDeployments = response.deployments;
-        
-        if (append) {
-          setDeployments(prev => [...prev, ...newDeployments]);
-        } else {
-          setDeployments(newDeployments);
-        }
-        
-        setHasMore(newDeployments.length === ITEMS_PER_PAGE);
-        setLastUpdate(new Date());
-      } else {
+
+      if (!response.success) {
         throw new Error(response.message || 'Failed to fetch deployments');
       }
+
+      const newDeployments = response.deployments;
+      setDeployments((prev) => (append ? [...prev, ...newDeployments] : newDeployments));
+      setHasMore(newDeployments.length === ITEMS_PER_PAGE);
+      setLastUpdate(new Date());
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-      setError(errorMessage);
+      const message = err instanceof Error ? err.message : 'Unknown error occurred';
+      setError(message);
       console.error('Error fetching deployments:', err);
     } finally {
       setLoading(false);
@@ -67,230 +67,259 @@ export default function DeploymentsTable({
     }
   }, []);
 
-  // Load more deployments
+  useEffect(() => {
+    loadDeployments(0, false);
+
+    if (!autoRefresh) return;
+
+    const interval = setInterval(() => {
+      loadDeployments(0, false);
+    }, refreshInterval);
+
+    return () => clearInterval(interval);
+  }, [autoRefresh, loadDeployments, refreshInterval]);
+
+  const filteredDeployments = useMemo(() => {
+    if (!searchTerm.trim()) {
+      return deployments;
+    }
+
+    const term = searchTerm.toLowerCase();
+    return deployments.filter(
+      (deployment) =>
+        deployment.package_id.toLowerCase().includes(term) ||
+        deployment.deployer_address.toLowerCase().includes(term) ||
+        deployment.tx_digest.toLowerCase().includes(term),
+    );
+  }, [deployments, searchTerm]);
+
+  const sortedDeployments = useMemo(() => {
+    return [...filteredDeployments].sort((a, b) =>
+      sortBy === 'timestamp'
+        ? new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        : b.checkpoint - a.checkpoint,
+    );
+  }, [filteredDeployments, sortBy]);
+
+  const stats = useMemo(() => calculateStats(deployments), [deployments]);
+
   const handleLoadMore = () => {
     if (!loadingMore && hasMore) {
       loadDeployments(deployments.length, true);
     }
   };
 
-  // Refresh deployments
   const handleRefresh = () => {
     loadDeployments(0, false);
   };
 
-  // Auto-refresh effect
-  useEffect(() => {
-    loadDeployments(0, false);
+  const renderSkeleton = () => (
+    <Card className="border-white/10 bg-black/40 text-white shadow-lg backdrop-blur">
+      <CardHeader>
+        <CardTitle className="text-white">Smart contract deployments</CardTitle>
+        <CardDescription className="text-zinc-400">Loading the latest deployments…</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {[...Array(3)].map((_, index) => (
+          <div key={index} className="h-32 rounded-2xl border border-white/10 bg-white/10 animate-pulse" />
+        ))}
+      </CardContent>
+    </Card>
+  );
 
-    if (autoRefresh) {
-      const interval = setInterval(() => {
-        loadDeployments(0, false);
-      }, refreshInterval);
-
-      return () => clearInterval(interval);
-    }
-  }, [loadDeployments, autoRefresh, refreshInterval]);
-
-  // Filter deployments based on search term
-  const filteredDeployments = deployments.filter(deployment => {
-    if (!searchTerm) return true;
-    const term = searchTerm.toLowerCase();
-    return (
-      deployment.package_id.toLowerCase().includes(term) ||
-      deployment.deployer_address.toLowerCase().includes(term) ||
-      deployment.tx_digest.toLowerCase().includes(term)
-    );
-  });
-
-  // Sort deployments
-  const sortedDeployments = [...filteredDeployments].sort((a, b) => {
-    if (sortBy === 'timestamp') {
-      return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
-    } else {
-      return b.checkpoint - a.checkpoint;
-    }
-  });
-
-  // Calculate statistics
-  const stats = calculateStats(deployments);
+  const renderError = (message: string) => (
+    <Card className="border-[#D12226]/60 bg-[#D12226]/15 text-white shadow-lg backdrop-blur">
+      <CardHeader>
+        <CardTitle className="text-white">Smart contract deployments</CardTitle>
+        <CardDescription className="text-white/80">Error loading deployments</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col items-center gap-4 py-10 text-sm">
+        <p>{message}</p>
+        <Button
+          onClick={handleRefresh}
+          variant="outline"
+          className="border-white/60 text-white hover:border-white hover:bg-white/10"
+        >
+          Try again
+        </Button>
+      </CardContent>
+    </Card>
+  );
 
   if (loading && deployments.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Smart Contract Deployments</CardTitle>
-          <CardDescription>Loading deployments...</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="animate-pulse">
-                <div className="h-32 bg-zinc-200 dark:bg-zinc-800 rounded-lg"></div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    );
+    return renderSkeleton();
   }
 
   if (error) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Smart Contract Deployments</CardTitle>
-          <CardDescription>Error loading deployments</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-8">
-            <p className="text-red-600 mb-4">{error}</p>
-            <Button onClick={handleRefresh} variant="outline">
-              Try Again
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    );
+    return renderError(error);
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
+    <Card className="border-white/10 bg-black/40 text-white shadow-lg backdrop-blur">
+      <CardHeader className="space-y-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <CardTitle>Smart Contract Deployments</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-white">Smart contract deployments</CardTitle>
+            <CardDescription className="mt-2 text-sm text-zinc-400">
               {deployments.length > 0 ? (
                 <>
-                  {stats.total} total deployments
-                  {stats.last24h > 0 && ` • ${stats.last24h} in last 24h`}
+                  {stats.total} tracked deployments
+                  {stats.last24h > 0 && (
+                    <span className="text-white/70"> • {stats.last24h} in the last 24 hours</span>
+                  )}
                   {lastUpdate && (
-                    <span className="text-zinc-400">
-                      {' '}• Last updated {lastUpdate.toLocaleTimeString()}
+                    <span className="text-white/60">
+                      {' '}
+                      • Last updated {lastUpdate.toLocaleTimeString()}
                     </span>
                   )}
                 </>
               ) : (
-                'No deployments found yet'
+                'No deployments detected yet'
               )}
             </CardDescription>
           </div>
-          <Button onClick={handleRefresh} variant="outline" size="sm">
+          <Button
+            onClick={handleRefresh}
+            variant="outline"
+            size="sm"
+            className={cn(
+              'inline-flex items-center gap-2 border-[#D12226]/40 text-[#D12226] hover:bg-[#D12226]/10',
+              loading && 'pointer-events-none opacity-60',
+            )}
+          >
+            <RefreshCcw className={cn('h-4 w-4', loading && 'animate-spin')} />
             Refresh
           </Button>
         </div>
 
-        {/* Statistics Summary */}
         {deployments.length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-                {stats.total}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+              <div className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-400">Total</div>
+              <div className="mt-2 text-3xl font-semibold text-white">
+                {stats.total.toLocaleString()}
               </div>
-              <div className="text-sm text-zinc-500">Total</div>
+              <p className="mt-1 text-xs text-zinc-500">Across current feed window</p>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">
-                {stats.last24h}
+            <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+              <div className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-400">
+                Last 24h
               </div>
-              <div className="text-sm text-zinc-500">Last 24h</div>
+              <div className="mt-2 text-3xl font-semibold text-[#D12226]">
+                {stats.last24h.toLocaleString()}
+              </div>
+              <p className="mt-1 text-xs text-zinc-500">Fresh launches since yesterday</p>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">
-                {stats.latestCheckpoint?.toLocaleString() || 'N/A'}
+            <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+              <div className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-400">
+                Latest checkpoint
               </div>
-              <div className="text-sm text-zinc-500">Latest Checkpoint</div>
+              <div className="mt-2 text-3xl font-semibold text-white">
+                {stats.latestCheckpoint?.toLocaleString() ?? '—'}
+              </div>
+              <p className="mt-1 text-xs text-zinc-500">Most recent index observed</p>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-purple-600">
-                {stats.mostActiveDeployer ? 
-                  (stats.mostActiveDeployer.slice(0, 6) + '...') : 
-                  'N/A'
-                }
+            <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+              <div className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-400">
+                Most active deployer
               </div>
-              <div className="text-sm text-zinc-500">Most Active</div>
+              <div className="mt-2 text-xl font-semibold text-white">
+                {stats.mostActiveDeployer
+                  ? `${stats.mostActiveDeployer.slice(0, 6)}…${stats.mostActiveDeployer.slice(-4)}`
+                  : '—'}
+              </div>
+              <p className="mt-1 text-xs text-zinc-500">Top account in current window</p>
             </div>
           </div>
         )}
 
-        {/* Search and Sort Controls */}
         {deployments.length > 0 && (
-          <div className="flex flex-col sm:flex-row gap-4 mt-4">
-            <div className="flex-1">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="relative w-full md:max-w-sm">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
               <input
                 type="text"
-                placeholder="Search by package ID, deployer, or transaction..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Search by package, deployer, or transaction…"
+                className="w-full rounded-full border border-white/15 bg-black/60 py-2 pl-11 pr-4 text-sm text-white placeholder:text-zinc-500 focus:border-[#D12226] focus:outline-none focus:ring-2 focus:ring-[#D12226]/40"
               />
             </div>
             <div className="flex gap-2">
-              <Button
-                variant={sortBy === 'timestamp' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setSortBy('timestamp')}
-              >
-                By Time
-              </Button>
-              <Button
-                variant={sortBy === 'checkpoint' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setSortBy('checkpoint')}
-              >
-                By Checkpoint
-              </Button>
+              {(['timestamp', 'checkpoint'] as const).map((option) => {
+                const isActive = sortBy === option;
+                return (
+                  <Button
+                    key={option}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSortBy(option)}
+                    className={cn(
+                      'rounded-full border-[#D12226]/40 px-4 text-sm font-semibold capitalize transition',
+                      isActive
+                        ? 'bg-[#D12226] text-white hover:bg-[#a8181b]'
+                        : 'text-[#D12226] hover:bg-[#D12226]/10',
+                    )}
+                  >
+                    {SORT_LABELS[option]}
+                  </Button>
+                );
+              })}
             </div>
           </div>
         )}
       </CardHeader>
 
-      <CardContent>
+      <CardContent className="space-y-6">
         {sortedDeployments.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="text-6xl mb-4">📦</div>
-            <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-2">
+          <div className="flex flex-col items-center gap-4 py-16 text-center">
+            <div className="text-6xl">📦</div>
+            <h3 className="text-lg font-semibold text-white">
               {searchTerm ? 'No matching deployments' : 'No deployments yet'}
             </h3>
-            <p className="text-zinc-500 mb-4">
-              {searchTerm 
-                ? 'Try adjusting your search terms'
-                : 'Deployments will appear here as they are detected on Sui testnet'
-              }
+            <p className="max-w-md text-sm text-zinc-400">
+              {searchTerm
+                ? 'Try adjusting your search terms or clearing the search box.'
+                : 'Deployments will appear here as soon as they are detected on the Sui testnet.'}
             </p>
             {searchTerm && (
-              <Button onClick={() => setSearchTerm('')} variant="outline">
-                Clear Search
+              <Button
+                onClick={() => setSearchTerm('')}
+                variant="outline"
+                className="border-white/40 text-white hover:border-white hover:bg-white/10"
+              >
+                Clear search
               </Button>
             )}
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-6">
             <div className="grid gap-4">
               {sortedDeployments.map((deployment) => (
-                <DeploymentCard key={deployment.package_id} deployment={deployment} />
+                <DeploymentCard key={`${deployment.package_id}-${deployment.timestamp}`} deployment={deployment} />
               ))}
             </div>
 
-            {/* Load More Button */}
             {hasMore && (
-              <div className="text-center pt-6">
+              <div className="text-center">
                 <Button
                   onClick={handleLoadMore}
                   disabled={loadingMore}
                   variant="outline"
-                  className="w-full sm:w-auto"
+                  className={cn(
+                    'w-full sm:w-auto border-[#D12226]/40 text-[#D12226] hover:bg-[#D12226]/10',
+                    loadingMore && 'opacity-60',
+                  )}
                 >
-                  {loadingMore ? 'Loading...' : 'Load More'}
+                  {loadingMore ? 'Loading…' : 'Load more deployments'}
                 </Button>
               </div>
             )}
 
-            {/* End of results indicator */}
             {!hasMore && deployments.length > 0 && (
-              <div className="text-center py-4 text-zinc-500 text-sm">
-                You've reached the end of the results
+              <div className="text-center text-sm text-zinc-500">
+                You&apos;ve reached the end of the results
               </div>
             )}
           </div>
