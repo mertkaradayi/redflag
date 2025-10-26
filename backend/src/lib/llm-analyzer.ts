@@ -140,7 +140,7 @@ async function callGemini(prompt: string, isJson = false, retryWithFallback = tr
     
     try {
         const model = genAI.getGenerativeModel({ 
-            model: "gemini-2.0-flash-exp"
+            model: "gemini-2.5-flash"
         });
 
         const generationConfig = isJson 
