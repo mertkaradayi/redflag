@@ -44,7 +44,8 @@ export default function LLMAnalysis({ packageId: initialPackageId, network: init
     setAnalysisResult(null);
 
     try {
-      const response = await fetch('http://localhost:3001/api/llm/analyze', {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+      const response = await fetch(`${backendUrl}/api/llm/analyze`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

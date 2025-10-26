@@ -65,7 +65,8 @@ export default function Dashboard() {
       setLoading(true);
       setError(null);
       
-      const response = await fetch('http://localhost:3001/api/llm/analyzed-contracts');
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+      const response = await fetch(`${backendUrl}/api/llm/analyzed-contracts`);
       const result = await response.json();
       
       if (result.success) {
