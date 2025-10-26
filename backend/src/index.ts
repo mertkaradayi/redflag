@@ -1,8 +1,9 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import { testSupabaseConnection } from './lib/supabase';
+import { testSupabaseConnection, getDeployments } from './lib/supabase';
 import { getRecentPublishTransactions, testSuiConnection } from './lib/sui-client';
+import { startMonitoring, stopMonitoring, getMonitoringStatus } from './workers/sui-monitor';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -220,6 +221,57 @@ app.get('/api/sui/health', async (req, res) => {
   }
 });
 
+// Historical deployments endpoint - reads from database
+app.get('/api/sui/deployments', async (req, res) => {
+  try {
+    const limitParam = Array.isArray(req.query.limit) ? req.query.limit[0] : req.query.limit;
+    const offsetParam = Array.isArray(req.query.offset) ? req.query.offset[0] : req.query.offset;
+
+    const parsedLimit = typeof limitParam === 'string' ? Number.parseInt(limitParam, 10) : Number.NaN;
+    const parsedOffset = typeof offsetParam === 'string' ? Number.parseInt(offsetParam, 10) : Number.NaN;
+
+    const limit = Number.isNaN(parsedLimit) ? undefined : Math.min(Math.max(parsedLimit, 1), 100); // Cap at 100
+    const offset = Number.isNaN(parsedOffset) ? undefined : Math.max(parsedOffset, 0);
+
+    const result = await getDeployments({ limit, offset });
+
+    if (result.success) {
+      res.json({
+        success: true,
+        message: `Retrieved ${result.deployments.length} deployments`,
+        timestamp: new Date().toISOString(),
+        deployments: result.deployments,
+        totalCount: result.totalCount,
+        limit: limit || 50,
+        offset: offset || 0
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: result.error || 'Failed to retrieve deployments',
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: `Deployments query failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Monitor status endpoint
+app.get('/api/sui/monitor-status', (req, res) => {
+  const status = getMonitoringStatus();
+  res.json({
+    success: true,
+    message: 'Monitor status retrieved',
+    timestamp: new Date().toISOString(),
+    monitor: status
+  });
+});
+
 // Debug endpoint to see what transactions we're getting
 app.get('/api/sui/debug', async (req, res) => {
   try {
@@ -263,7 +315,7 @@ app.get('/api/sui/debug', async (req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🚀 RedFlag Backend running on port ${PORT}`);
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
   console.log(`🔗 API status: http://localhost:${PORT}/api/status`);
@@ -271,6 +323,28 @@ app.listen(PORT, () => {
   console.log(`🔗 Sui health: http://localhost:${PORT}/api/sui/health`);
   console.log(`📦 Sui deployments: http://localhost:${PORT}/api/sui/recent-deployments`);
   console.log(`🆕 Latest deployment: http://localhost:${PORT}/api/sui/latest-deployment`);
+  console.log(`📚 Historical deployments: http://localhost:${PORT}/api/sui/deployments`);
+  console.log(`📊 Monitor status: http://localhost:${PORT}/api/sui/monitor-status`);
+
+  // Start the Sui deployment monitor
+  try {
+    await startMonitoring();
+  } catch (error) {
+    console.error('❌ Failed to start Sui deployment monitor:', error);
+  }
+});
+
+// Graceful shutdown handlers
+process.on('SIGTERM', () => {
+  console.log('🛑 SIGTERM received, shutting down gracefully...');
+  stopMonitoring();
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('🛑 SIGINT received, shutting down gracefully...');
+  stopMonitoring();
+  process.exit(0);
 });
 
 export default app;

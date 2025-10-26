@@ -27,6 +27,7 @@ redflag/
 ### Backend
 - **Framework**: Express.js with TypeScript
 - **Database**: Supabase (PostgreSQL)
+- **Blockchain**: Sui testnet integration for smart contract monitoring
 - **Authentication**: Privy (planned)
 - **Deployment**: Railway
 
@@ -112,6 +113,8 @@ NODE_ENV=development
 FRONTEND_URL=http://localhost:3000
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_KEY=your-service-role-key-here
+SUI_RPC_URL=https://fullnode.testnet.sui.io:443
+POLL_INTERVAL_MS=15000
 ```
 
 #### Frontend (`.env.local`)
@@ -136,6 +139,8 @@ FRONTEND_URL=https://redflag-liart.vercel.app
 NODE_ENV=production
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_KEY=your-service-role-key-here
+SUI_RPC_URL=https://fullnode.testnet.sui.io:443
+POLL_INTERVAL_MS=15000
 ```
 
 ## 🛠️ Development
@@ -226,6 +231,10 @@ Once deployed, your backend will have:
 - **Health Check**: `GET /health` - Returns service status
 - **API Status**: `GET /api/status` - Returns API information
 - **Supabase Health**: `GET /api/supabase/health` - Tests Supabase database connection
+- **Sui Health**: `GET /api/sui/health` - Tests Sui RPC connection
+- **Recent Deployments**: `GET /api/sui/recent-deployments` - Live Sui contract deployments
+- **Historical Deployments**: `GET /api/sui/deployments` - Stored deployment history
+- **Monitor Status**: `GET /api/sui/monitor-status` - Background monitor status
 
 ## 📁 Workspace Commands
 
@@ -243,6 +252,35 @@ The root `package.json` includes convenient scripts for managing the monorepo:
 - Tailwind CSS for styling
 - Responsive design with dark mode support
 - ESLint for code quality
+
+## 🔗 Sui Blockchain Integration
+
+The backend includes a comprehensive Sui blockchain monitoring system:
+
+### Features
+- **Always-on Monitoring**: Background worker continuously polls Sui testnet for new smart contract deployments
+- **Persistent Storage**: All deployment metadata is stored in Supabase for historical analysis
+- **Checkpoint Tracking**: Resumes monitoring from the last processed checkpoint to avoid duplicates
+- **Real-time Data**: Live API endpoints for current deployment status
+
+### Environment Variables
+- `SUI_RPC_URL`: Sui RPC endpoint (defaults to testnet)
+- `POLL_INTERVAL_MS`: Monitoring frequency in milliseconds (default: 15000ms = 15s)
+
+### Database Schema
+The system creates a `sui_package_deployments` table with:
+- `package_id`: Unique identifier for deployed packages
+- `deployer_address`: Wallet address that deployed the contract
+- `tx_digest`: Transaction hash for verification
+- `checkpoint`: Sui checkpoint number for ordering
+- `timestamp`: On-chain deployment time
+- `first_seen_at`: When our monitor first detected it
+
+### API Endpoints
+- `GET /api/sui/recent-deployments` - Live deployments from Sui RPC
+- `GET /api/sui/deployments` - Historical deployments from database
+- `GET /api/sui/monitor-status` - Background monitor status
+- `GET /api/sui/health` - Sui RPC connection health
 
 ## 🔧 Development Notes
 
