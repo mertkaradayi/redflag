@@ -1,201 +1,339 @@
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import LLMAnalysis from '../components/LLMAnalysis';
+import type { ReactNode } from "react";
+import Link from "next/link";
+import { ArrowLeft, ArrowRight, BrainCircuit, Gauge, ShieldAlert } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import LLMAnalysis from "../components/LLMAnalysis";
+
+interface Highlight {
+  title: string;
+  description: string;
+  icon: ReactNode;
+}
+
+interface ProcessStep {
+  title: string;
+  summary: string;
+  detail: string;
+}
+
+interface PatternGroup {
+  title: string;
+  items: string[];
+  tone: "critical" | "high" | "moderate" | "low";
+}
+
+const highlights: Highlight[] = [
+  {
+    title: "Multi-Agent Intelligence",
+    description:
+      "Four specialist agents plus a critic interrogate every Move module before signing off on a verdict.",
+    icon: <BrainCircuit className="h-5 w-5 text-[#D12226]" />,
+  },
+  {
+    title: "Exploit-Aware Scoring",
+    description:
+      "Signals are weighted with real exploit data so high-impact flaws surface first in your queue.",
+    icon: <ShieldAlert className="h-5 w-5 text-[#D12226]" />,
+  },
+  {
+    title: "Fast Feedback Loop",
+    description:
+      "Average turnaround is under 90 seconds with cached context and streaming Gemini 2.5 responses.",
+    icon: <Gauge className="h-5 w-5 text-[#D12226]" />,
+  },
+];
+
+const processSteps: ProcessStep[] = [
+  {
+    title: "Ingest & Scope",
+    summary: "Feed RedFlag a Sui package ID and choose the network.",
+    detail: "We enrich it with deployment metadata, authority graph, and dependency lineage for full context.",
+  },
+  {
+    title: "Agent Debate",
+    summary: "Specialists propose risks, a scorer ranks severity, a critic blocks bias.",
+    detail: "Each agent challenges the others, forcing consensus on every risky call-out before it leaves the pipeline.",
+  },
+  {
+    title: "Evidence Assembly",
+    summary: "We extract Move snippets, invariants, and execution traces that prove the risk.",
+    detail: "Findings map directly to the risky function signatures so reviewers can reproduce issues instantly.",
+  },
+  {
+    title: "Delivery & Monitoring",
+    summary: "Reports render instantly here, on the dashboard, and via webhooks.",
+    detail: "You get structured JSON, score history, and upgrade alerts so fixes never fall through the cracks.",
+  },
+];
+
+const patternGroups: PatternGroup[] = [
+  {
+    title: "Critical Signals",
+    tone: "critical",
+    items: [
+      "Admin drains & unrestricted asset custody",
+      "Upgrade paths without multi-sig checkpoints",
+      "Liquidity seize or forced redemption flows",
+    ],
+  },
+  {
+    title: "High-Risk Moves",
+    tone: "high",
+    items: [
+      "Unlimited mint or burn capabilities",
+      "Fee or slippage manipulation vectors",
+      "Centralized access control without rotation",
+      "Denial switch for essential functions",
+    ],
+  },
+  {
+    title: "Moderate Exposures",
+    tone: "moderate",
+    items: [
+      "Oracle replay or drift windows",
+      "Timestamp-dependent logic branches",
+      "Reentrancy rebounds through shared objects",
+      "Flash-loan susceptible arithmetic",
+    ],
+  },
+  {
+    title: "Surface Noise",
+    tone: "low",
+    items: [
+      "Unchecked integer operations",
+      "Inefficient storage clean-up risks",
+      "Missing telemetry on irreversible actions",
+    ],
+  },
+];
+
+const toneClasses: Record<PatternGroup["tone"], string> = {
+  critical:
+    "border-[#D12226]/60 bg-[#D12226]/10 text-white",
+  high: "border-white/20 bg-white/5 text-zinc-100",
+  moderate: "border-white/15 bg-black/40 text-zinc-200",
+  low: "border-white/10 bg-black/30 text-zinc-300",
+};
 
 export default function AnalyzePage() {
   return (
-    <div className="flex min-h-screen justify-center bg-zinc-50 font-sans text-zinc-900 dark:bg-black dark:text-zinc-50">
-      <main className="flex min-h-screen w-full max-w-6xl flex-col gap-8 px-6 py-16 sm:px-12">
-        {/* Header */}
-        <header className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-4 mb-2">
-              <Link href="/">
-                <Button variant="ghost" size="sm" className="text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300">
-                  ← Back to Home
-                </Button>
-              </Link>
-            </div>
-            <p className="text-sm uppercase tracking-wide text-zinc-500">RedFlag</p>
-            <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-              Contract Security Analysis
-            </h1>
+    <div className="relative min-h-screen overflow-hidden bg-black text-white">
+      <div className="absolute inset-0 -z-10">
+        <div className="absolute inset-x-0 top-[-12%] h-[520px] bg-[radial-gradient(circle_at_center,_rgba(209,34,38,0.28),_transparent_60%)]" />
+        <div className="absolute left-1/2 top-[45%] h-[540px] w-[540px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,_rgba(209,34,38,0.18),_transparent_60%)] blur-3xl" />
+      </div>
+
+      <main className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-20 px-6 pb-24 pt-12 sm:px-12 lg:px-16">
+        <header className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-[0.3em] text-zinc-500">
+            <span className="rounded-full border border-[#D12226]/50 bg-[#D12226]/15 px-3 py-1 text-[#D12226]">
+              RedFlag
+            </span>
+            <span className="hidden sm:inline text-zinc-400">Analyze Contracts</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link href="/" className="hidden sm:block">
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-white/20 bg-transparent text-zinc-200 hover:border-white hover:text-white"
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back Home
+              </Button>
+            </Link>
+            <Link href="/dashboard">
+              <Button className="bg-[#D12226] text-white hover:bg-[#a8181b]">
+                View Dashboard
+              </Button>
+            </Link>
           </div>
         </header>
 
-        {/* Description */}
-        <section className="max-w-4xl space-y-4">
-          <p className="text-lg leading-8 text-zinc-600 dark:text-zinc-300">
-            Analyze Sui smart contracts for security risks using our advanced AI-powered analysis engine. 
-            Our system uses a 4-Agent + 1-Critic chain architecture to provide comprehensive security assessments.
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-            <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
-              <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">🤖 AI-Powered</h3>
-              <p className="text-sm text-blue-700 dark:text-blue-300">
-                Advanced AI analysis using Google Gemini with specialized security patterns
+        <section className="grid items-start gap-12 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="space-y-8">
+            <div className="space-y-6">
+              <h1 className="text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
+                Stress-test Sui contracts before they stress you.
+              </h1>
+              <p className="max-w-xl text-lg leading-8 text-zinc-300">
+                Paste a package ID, pick your network, and our multi-agent reviewer spins up a full security audit in
+                minutes. Every risky function is ranked, justified, and ready for action.
               </p>
             </div>
-            <div className="bg-green-50 dark:bg-green-950/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
-              <h3 className="font-semibold text-green-900 dark:text-green-100 mb-2">🔍 Comprehensive</h3>
-              <p className="text-sm text-green-700 dark:text-green-300">
-                Detects 12+ security patterns including rug pulls, admin drains, and more
-              </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {highlights.map((highlight) => (
+                <div
+                  key={highlight.title}
+                  className="flex h-full flex-col gap-3 rounded-2xl border border-white/15 bg-white/5 p-5 text-sm text-zinc-300 transition hover:border-[#D12226]/40 hover:bg-[#D12226]/10"
+                >
+                  <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-[#D12226]">
+                    {highlight.icon}
+                    {highlight.title}
+                  </div>
+                  <p className="leading-6 text-zinc-300">{highlight.description}</p>
+                </div>
+              ))}
             </div>
-            <div className="bg-purple-50 dark:bg-purple-950/20 p-4 rounded-lg border border-purple-200 dark:border-purple-800">
-              <h3 className="font-semibold text-purple-900 dark:text-purple-100 mb-2">⚡ Real-time</h3>
-              <p className="text-sm text-purple-700 dark:text-purple-300">
-                Instant analysis with intelligent caching for optimal performance
-              </p>
+            <div className="flex flex-wrap items-center gap-4 text-xs font-semibold uppercase tracking-[0.35em] text-zinc-400">
+              <span className="rounded-full border border-white/15 px-3 py-1">
+                Gemini 2.5 Flash
+              </span>
+              <span className="rounded-full border border-white/15 px-3 py-1">
+                Supabase Observability
+              </span>
+              <span className="rounded-full border border-white/15 px-3 py-1">
+                Move-Native Patterns
+              </span>
+            </div>
+          </div>
+          <div className="relative">
+            <div className="absolute -inset-6 rounded-3xl bg-gradient-to-br from-[#D12226]/30 via-transparent to-[#D12226]/10 blur-2xl" />
+            <div className="relative overflow-hidden rounded-3xl border border-white/15 bg-black/40 p-8 shadow-xl backdrop-blur">
+              <div className="space-y-4 text-sm text-zinc-300">
+                <h2 className="text-lg font-semibold text-white">What you’ll get</h2>
+                <ul className="space-y-3">
+                  <li className="flex items-start gap-3">
+                    <span className="mt-1 h-2 w-2 rounded-full bg-[#D12226]" />
+                    Prioritized risk report with impact, evidence, and mitigation notes.
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="mt-1 h-2 w-2 rounded-full bg-[#D12226]" />
+                    Live connection to the dashboard so new analyses populate automatically.
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="mt-1 h-2 w-2 rounded-full bg-[#D12226]" />
+                    Cached results for faster reruns and comparative drift detection.
+                  </li>
+                </ul>
+              </div>
+              <div className="mt-8 rounded-2xl border border-white/10 bg-black/30 p-5 text-sm text-zinc-300">
+                <p className="font-semibold text-white">Need to triage historical runs?</p>
+                <p className="mt-2">
+                  Head to the dashboard to replay past findings, export JSON payloads, and monitor score deltas across
+                  deployments.
+                </p>
+                <Link href="/dashboard" className="mt-4 inline-flex items-center text-sm font-semibold text-[#D12226] hover:text-[#ff3d41]">
+                  Jump to dashboard
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </div>
             </div>
           </div>
         </section>
 
-        {/* LLM Analysis Component */}
-        <section className="w-full">
-          <LLMAnalysis />
-        </section>
-
-        {/* How it Works */}
-        <section className="max-w-4xl">
-          <h2 className="text-2xl font-semibold mb-6">How It Works</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="text-center">
-              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-3">
-                <span className="text-blue-600 dark:text-blue-400 font-bold">1</span>
-              </div>
-              <h3 className="font-semibold mb-2">Triage</h3>
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                Initial scan to identify potentially risky functions based on names and parameters
+        <section className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-lg backdrop-blur-lg sm:p-10">
+          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-2xl font-semibold text-white">Run an analysis</h2>
+              <p className="text-sm text-zinc-300">
+                Enter a Move package ID to launch RedFlag’s end-to-end review pipeline.
               </p>
             </div>
-            <div className="text-center">
-              <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900 rounded-full flex items-center justify-center mx-auto mb-3">
-                <span className="text-orange-600 dark:text-orange-400 font-bold">2</span>
-              </div>
-              <h3 className="font-semibold mb-2">Technical Analysis</h3>
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                Deep forensic analysis with evidence extraction from disassembled code
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="w-12 h-12 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center mx-auto mb-3">
-                <span className="text-red-600 dark:text-red-400 font-bold">3</span>
-              </div>
-              <h3 className="font-semibold mb-2">Risk Scoring</h3>
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                Hyper-precise quantitative risk assessment with contextual modifiers
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-3">
-                <span className="text-green-600 dark:text-green-400 font-bold">4</span>
-              </div>
-              <h3 className="font-semibold mb-2">Report & Validation</h3>
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                User-friendly report generation with quality assurance validation
-              </p>
-            </div>
+            <Link href="/dashboard">
+              <Button variant="outline" className="border-[#D12226] text-[#D12226] hover:bg-[#D12226]/20 hover:text-white">
+                View completed reports
+              </Button>
+            </Link>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-black/40 p-6 sm:p-8">
+            <LLMAnalysis />
           </div>
         </section>
 
-        {/* Security Patterns */}
-        <section className="max-w-4xl">
-          <h2 className="text-2xl font-semibold mb-6">Security Patterns Detected</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-3">
-              <h3 className="font-semibold text-red-600">Critical Risks</h3>
-              <ul className="space-y-2 text-sm">
-                <li className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-red-500 rounded-full"></span>
-                  Admin Drain / Unrestricted Withdraw
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-red-500 rounded-full"></span>
-                  Unrestricted Code Upgrade
-                </li>
-              </ul>
-            </div>
-            <div className="space-y-3">
-              <h3 className="font-semibold text-orange-600">High Risks</h3>
-              <ul className="space-y-2 text-sm">
-                <li className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
-                  Unlimited Token Minting
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
-                  Contract Pausing / Freezing
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
-                  Arbitrary Fee Manipulation
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
-                  Centralized Access Control
-                </li>
-              </ul>
-            </div>
-            <div className="space-y-3">
-              <h3 className="font-semibold text-yellow-600">Medium Risks</h3>
-              <ul className="space-y-2 text-sm">
-                <li className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
-                  Oracle Manipulation Risk
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
-                  Timestamp Dependence
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
-                  Reentrancy Potential
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
-                  Flash Loan Logic Exploit
-                </li>
-              </ul>
-            </div>
-            <div className="space-y-3">
-              <h3 className="font-semibold text-gray-600">Low Risks</h3>
-              <ul className="space-y-2 text-sm">
-                <li className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-gray-500 rounded-full"></span>
-                  Integer Overflow/Underflow
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-gray-500 rounded-full"></span>
-                  Denial of Service Potential
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-gray-500 rounded-full"></span>
-                  Missing Event Emissions
-                </li>
-              </ul>
-            </div>
+        <section className="space-y-10">
+          <div className="space-y-3">
+            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#D12226]">
+              How it works
+            </p>
+            <h2 className="text-3xl font-semibold text-white sm:text-4xl">
+              From package submission to remediation guidance
+            </h2>
+            <p className="max-w-2xl text-base text-zinc-300">
+              Every stage of the pipeline is tuned to catch real exploits, document context, and accelerate your
+              engineering response.
+            </p>
+          </div>
+          <div className="grid gap-6 md:grid-cols-2">
+            {processSteps.map((step, index) => (
+              <div
+                key={step.title}
+                className="relative flex h-full flex-col gap-3 rounded-2xl border border-white/10 bg-black/40 p-6 shadow-inner transition hover:border-[#D12226]/40"
+              >
+                <span className="absolute right-6 top-6 text-xs font-semibold uppercase tracking-[0.3em] text-[#D12226]">
+                  Step {index + 1}
+                </span>
+                <h3 className="text-lg font-semibold text-white">{step.title}</h3>
+                <p className="text-sm font-medium text-zinc-200">{step.summary}</p>
+                <p className="text-sm text-zinc-300">{step.detail}</p>
+              </div>
+            ))}
           </div>
         </section>
 
-        {/* Footer */}
-        <footer className="text-center text-sm text-zinc-500 border-t border-zinc-200 dark:border-zinc-800 pt-8">
-          <p>
-            Analysis results are cached for performance. 
-            Use the cache management endpoints to clear or view statistics.
-          </p>
-          <p className="mt-2">
-            For more information about our analysis methodology, check our{' '}
-            <a 
-              href="https://github.com/your-repo" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-            >
-              documentation
-            </a>
-          </p>
-        </footer>
+        <section className="space-y-8">
+          <div className="space-y-3">
+            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#D12226]">
+              Signals we classify
+            </p>
+            <h2 className="text-3xl font-semibold text-white sm:text-4xl">
+              Risk pattern library aligned to Move semantics
+            </h2>
+            <p className="max-w-2xl text-base text-zinc-300">
+              RedFlag distills hundreds of attack patterns we&apos;ve collected from audits, red team engagements, and
+              live incidents across the Sui ecosystem.
+            </p>
+          </div>
+          <div className="grid gap-5 md:grid-cols-2">
+            {patternGroups.map((group) => (
+              <div
+                key={group.title}
+                className={`rounded-2xl border p-6 ${toneClasses[group.tone]}`}
+              >
+                <h3 className="text-lg font-semibold text-white">{group.title}</h3>
+                <ul className="mt-4 space-y-2 text-sm">
+                  {group.items.map((item) => (
+                    <li key={item} className="flex items-start gap-3">
+                      <span className="mt-[6px] h-1.5 w-1.5 rounded-full bg-white/80" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="rounded-3xl border border-white/10 bg-gradient-to-br from-[#D12226]/60 via-[#D12226]/30 to-black p-10 text-center shadow-2xl">
+          <div className="mx-auto max-w-3xl space-y-6">
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.3em] text-white/80">
+              Ready when you are
+            </span>
+            <h2 className="text-3xl font-semibold text-white sm:text-4xl">
+              Run your first RedFlag analysis and catch red flags before they catch you.
+            </h2>
+            <p className="text-base text-white/80">
+              Keep this tab open while you triage findings, or jump to the dashboard to monitor trends as new packages
+              are deployed.
+            </p>
+            <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
+              <Link href="/dashboard" className="w-full sm:w-auto">
+                <Button
+                  variant="outline"
+                  className="w-full border-white/60 text-white hover:border-white hover:bg-white/10 sm:w-auto"
+                >
+                  Review live dashboard
+                </Button>
+              </Link>
+              <Link href="/" className="w-full sm:w-auto">
+                <Button className="w-full bg-[#D12226] text-white hover:bg-[#a8181b] sm:w-auto">
+                  Explore homepage
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </section>
       </main>
     </div>
   );
