@@ -316,7 +316,7 @@ app.get('/api/sui/debug', async (req, res) => {
 
 // Start server
 app.listen(PORT, async () => {
-  console.log(`🚀 RedFlag Backend running on port ${PORT}`);
+  console.log(`🚀 RedFlag Backend running on port ${PORT} - Dashboard Ready!`);
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
   console.log(`🔗 API status: http://localhost:${PORT}/api/status`);
   console.log(`🗄️ Supabase health: http://localhost:${PORT}/api/supabase/health`);
