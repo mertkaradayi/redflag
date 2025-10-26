@@ -150,6 +150,9 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-3">
             <nav className="hidden items-center gap-6 text-sm text-zinc-300 sm:flex">
+              <Link href="/summary" className="transition hover:text-white">
+                Summary
+              </Link>
               <Link href="/analyze" className="transition hover:text-white">
                 Analyze
               </Link>

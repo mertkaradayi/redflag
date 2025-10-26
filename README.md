@@ -1,333 +1,212 @@
 # RedFlag
 
-A modern full-stack application built with Next.js and TypeScript, organized as a monorepo.
+RedFlag monitors new Sui smart-contract deployments, persists on-chain metadata to Supabase, runs Gemini-powered risk analysis, and presents the results in a React 19 dashboard.
 
-## 🏗️ Project Structure
-
-This project is organized as a monorepo with the following structure:
+## Monorepo Layout
 
 ```
-redflag/
-├── frontend/          # Next.js frontend application
-├── backend/           # Backend API (to be implemented)
-├── package.json       # Root package.json with workspace configuration
-├── vercel.json        # Vercel deployment configuration
-└── yarn.lock          # Yarn lockfile
+.
+├── frontend/
+│   ├── app/components/          # shared UI building blocks
+│   ├── app/dashboard/           # dashboard route, types, utilities
+│   ├── app/providers.tsx        # global providers (Privy, theme, data)
+│   └── ...
+├── backend/
+│   ├── src/index.ts             # Express entrypoint & routing
+│   ├── src/lib/                 # Supabase, Sui, LLM integrations
+│   └── src/workers/             # background monitors
+├── llm/                         # prompt experimentation & research notes
+├── package.json                 # workspace scripts
+└── yarn.lock
 ```
 
-## 🚀 Tech Stack
+The frontend uses the `@/` alias (rooted at `frontend/`) for cross-module imports. Shared providers live in `frontend/app/providers.tsx`.
 
-### Frontend
-- **Framework**: Next.js 16.0.0 with App Router
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS v4
-- **React**: React 19.2.0
-- **Linting**: ESLint with Next.js config
+## Features
 
-### Backend
-- **Framework**: Express.js with TypeScript
-- **Database**: Supabase (PostgreSQL)
-- **Blockchain**: Sui testnet integration for smart contract monitoring
-- **Authentication**: Privy (planned)
-- **Deployment**: Railway
+### Backend services (Express + Supabase + Sui)
 
-### Development Tools
-- **Package Manager**: Yarn with workspaces
-- **Deployment**: Vercel
-- **Monorepo**: Yarn workspaces
+- Configurable CORS-protected Express API served from `backend/src/index.ts`.
+- Background worker (`startMonitoring`) polls the Sui RPC (`POLL_INTERVAL_MS`, default 15s), stores new deployments in Supabase, and triggers LLM analysis for unseen packages.
+- Gemini 2.5 Flash chain (Analyzer → Scorer → Reporter) with automatic fallback API key rotation and retry/backoff logic.
+- Supabase persistence for both raw deployment metadata (`sui_package_deployments`) and generated safety cards (`contract_analyses`).
+- JSON REST endpoints for health checks, Sui telemetry, LLM analysis, and monitor status.
 
-## 📦 Installation
+### Frontend dashboard (Next.js 16 / React 19)
 
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd redflag
+- App Router experience with type-safe server components and Tailwind CSS v4 via `@tailwindcss/postcss`.
+- Dashboard (`/dashboard`) auto-refreshes every 30 seconds, caches the latest run, and supports risk-level filtering (critical → low).
+- UI primitives under `frontend/app/components` (e.g., `AnalyzedContractCard`) and shadcn-inspired utilities under `frontend/app/components/ui`.
+- Privy authentication scaffolding (via `@privy-io/react-auth`) with providers configured in `app/providers.tsx`.
+
+## Requirements
+
+- Node.js 20.x (Next.js 16 and React 19 require ≥18.18; we target 20 LTS).
+- Yarn Classic (1.22+) with workspaces enabled.
+- A Supabase project (PostgreSQL) for storing deployments and analyses.
+- Google Generative AI API key(s) for Gemini (`GOOGLE_API_KEY`, optional fallback `GOOGLE_API_KEY_FALLBACK`).
+- Sui RPC endpoint (defaults to `https://fullnode.testnet.sui.io:443`).
+- Privy application ID when enabling authentication flows.
+
+## Getting Started
+
+1. **Install dependencies**
+
+   ```bash
+   yarn install
+   ```
+
+2. **Configure environment variables**
+
+   - Copy `backend/.env.example` → `backend/.env` and `frontend/.env.example` → `frontend/.env.local`.
+   - Update the values to match the tables below. Older templates may reference `MONITORING_INTERVAL_MS`; rename it to `POLL_INTERVAL_MS` to align with the worker configuration.
+
+3. **Run the stack locally**
+
+   ```bash
+   yarn dev
+   ```
+
+   This starts Next.js on port 3000 and Express on port 3001 via `concurrently`.
+
+4. **Verify services**
+
+   - Frontend: http://localhost:3000/
+   - Backend health: http://localhost:3001/health
+   - Monitor status: http://localhost:3001/api/sui/monitor-status
+   - Dashboard data: http://localhost:3001/api/llm/analyzed-contracts
+
+## Workspace Commands
+
+- `yarn dev` – run frontend and backend together.
+- `yarn dev:frontend` / `yarn dev:backend` – focus on a single service.
+- `yarn build` – run production builds for both workspaces.
+- `yarn build:frontend` / `yarn build:backend` – per-service builds.
+- `yarn workspace frontend lint` – Next.js core-web-vitals linting (treat warnings as actionable).
+
+## Environment Variables
+
+### Backend (`backend/.env`)
+
+| Key | Required | Description | Default |
+| --- | --- | --- | --- |
+| `PORT` | No | HTTP port for the Express server. | `3001` |
+| `NODE_ENV` | No | Runtime environment flag surfaced in `/api/status`. | `development` |
+| `FRONTEND_URL` | Yes | Allowed origin for CORS (e.g., `http://localhost:3000`, production Vercel URL). | – |
+| `SUPABASE_URL` | Yes | Supabase project URL. | – |
+| `SUPABASE_SERVICE_KEY` | Yes | Supabase service role key for privileged queries. | – |
+| `SUPABASE_ANON_KEY` | No | Optional anon key; retained for future read-only client use. | – |
+| `GOOGLE_API_KEY` | Yes (for analysis) | Primary Gemini 2.5 Flash key. Required to run the analyzer and background worker. | – |
+| `GOOGLE_API_KEY_FALLBACK` | No | Secondary Gemini key used automatically when the primary hits quota. | – |
+| `SUI_RPC_URL` | No | Sui RPC endpoint (testnet by default). | `https://fullnode.testnet.sui.io:443` |
+| `POLL_INTERVAL_MS` | No | Worker polling interval in milliseconds. | `15000` |
+| `SUI_PRIVATE_KEY` | No | Optional Ed25519 private key for authenticated Sui calls. | – |
+
+### Frontend (`frontend/.env.local`)
+
+| Key | Required | Description | Default |
+| --- | --- | --- | --- |
+| `NEXT_PUBLIC_BACKEND_URL` | Yes | Base URL for API calls (`http://localhost:3001` locally). | – |
+| `NEXT_PUBLIC_PRIVY_APP_ID` | No | Privy application ID when enabling auth flows. | – |
+
+## API Surface
+
+- **Health & status**
+  - `GET /health` – Aggregated service health (Supabase + Sui + timestamps).
+  - `GET /api/status` – Lightweight status banner.
+- **Supabase & database**
+  - `GET /api/supabase/health` – Verifies Supabase client initialization.
+- **Sui monitoring**
+  - `GET /api/sui/recent-deployments` – Live deployments from RPC with cursor support.
+  - `GET /api/sui/latest-deployment` – Single most recent deployment.
+  - `GET /api/sui/deployments` – Historical deployments persisted in Supabase.
+  - `GET /api/sui/health` – RPC connectivity diagnostics.
+  - `GET /api/sui/monitor-status` – Background worker status + poll interval.
+  - `GET /api/sui/debug` – Inspect recent transactions and published packages (development aid).
+- **LLM contract analysis**
+  - `POST /api/llm/analyze` – Trigger analysis for a specific `package_id` / `network` (runs Gemini if cache miss).
+  - `GET /api/llm/analyze/:packageId` – Fetch stored analysis for a package + network.
+  - `GET /api/llm/recent-analyses` – Paginated list of recent analyses.
+  - `GET /api/llm/high-risk` – High-risk analyses (critical/high).
+  - `GET /api/llm/analyzed-contracts` – Dashboard-friendly format (used by the frontend).
+  - `GET /api/llm/health` – LLM configuration status + analysis count.
+
+## Background Monitoring & Analysis
+
+1. `startMonitoring()` (bootstrapped in `src/index.ts`) loads the last processed checkpoint from Supabase.
+2. The worker polls the Sui RPC with adaptive filters, deduplicates deployments, and upserts them into `sui_package_deployments`.
+3. For each new package the worker requests a Gemini safety card via `runFullAnalysisChain`.
+4. Results are persisted in `contract_analyses` (idempotent upsert) and exposed through `/api/llm/*` endpoints.
+5. High-risk packages are logged with elevated console output for operational awareness.
+
+## Supabase Schema (minimum viable)
+
+```sql
+-- Enable if you prefer UUID identifiers
+-- create extension if not exists pgcrypto;
+
+create table if not exists public.sui_package_deployments (
+  package_id text primary key,
+  deployer_address text not null,
+  tx_digest text not null,
+  checkpoint bigint not null,
+  timestamp timestamptz not null,
+  first_seen_at timestamptz not null default now()
+);
+
+create table if not exists public.contract_analyses (
+  id uuid default gen_random_uuid() primary key,
+  package_id text not null,
+  network text not null,
+  risk_score numeric not null,
+  risk_level text not null,
+  summary text not null,
+  why_risky_one_liner text not null,
+  risky_functions jsonb default '[]'::jsonb,
+  rug_pull_indicators jsonb default '[]'::jsonb,
+  impact_on_user text,
+  technical_findings jsonb,
+  analyzed_at timestamptz not null default now(),
+  unique (package_id, network)
+);
 ```
 
-2. Install dependencies:
-```bash
-yarn install
-```
+Adjust column types as needed for your Supabase project (e.g., replace `gen_random_uuid()` with `uuid_generate_v4()` if `pgcrypto` is unavailable).
 
-3. Set up environment variables:
-```bash
-# Backend environment setup
-# Create backend/.env with the following variables:
-PORT=3001
-NODE_ENV=development
-FRONTEND_URL=http://localhost:3000
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_KEY=your-service-role-key-here
+## Frontend Overview
 
-# Frontend environment setup
-# Create frontend/.env.local with:
-NEXT_PUBLIC_BACKEND_URL=http://localhost:3001
-```
+- Pages live under `frontend/app`; the dashboard route shares types via `app/dashboard/types.ts` and helpers via `app/dashboard/risk-utils.ts`.
+- `AnalyzedContractCard` renders each analyzed contract with risk badges, metadata, and detail disclosure.
+- Auto-refresh logic is configurable (defaults to 30 seconds) and can be paused via the toolbar.
+- Styling follows Tailwind utility grouping (layout → color → typography) and `class-variance-authority` for variants.
 
-## 🗄️ Supabase Setup
+## Development Notes
 
-### 1. Create Supabase Project
-1. Go to [supabase.com](https://supabase.com) and sign up
-2. Click "New Project"
-3. Choose your organization
-4. Enter project details:
-   - **Name**: `redflag-db` (or your preferred name)
-   - **Database Password**: Generate a strong password
-   - **Region**: Choose closest to your users
-5. Click "Create new project"
+- TypeScript is strict across services—define explicit return types in shared utilities and backend handlers.
+- Frontend components use PascalCase filenames; backend modules use kebab-case (`src/lib/supabase.ts`, `src/workers/sui-monitor.ts`).
+- Centralize environment access: backend reads from `process.env`, frontend from `NEXT_PUBLIC_*` keys only.
+- When introducing new logic, add corresponding tests (`frontend/__tests__` with Vitest + Testing Library, `backend` API tests with Supertest) or document manual verification.
+- Run `yarn workspace frontend lint` before committing; treat warnings as issues to resolve.
 
-### 2. Get Supabase Credentials
-1. Go to your project dashboard
-2. Click "Settings" (gear icon) → "API"
-3. Copy the following values:
-   - **Project URL** → Use as `SUPABASE_URL`
-   - **service_role key** (secret) → Use as `SUPABASE_SERVICE_KEY`
+## Deployment
 
-### 3. Configure Environment Variables
-Add these to your `backend/.env` file:
-```bash
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_KEY=your-service-role-key-here
-```
+- **Frontend (Vercel)**: set `NEXT_PUBLIC_BACKEND_URL` to your deployed backend and replicate any Privy IDs. Root directory should point to `frontend` with the default Next.js build.
+- **Backend (Railway or similar)**: deploy from `backend`, supply all environment variables (especially `FRONTEND_URL`) and confirm CORS origins. The worker starts automatically on boot.
+- Coordinate updates so Vercel and Railway share the same allowed origins and Supabase credentials.
 
-### 4. Test Connection
-- Start your backend: `yarn dev:backend`
-- Visit: `http://localhost:3001/api/supabase/health`
-- Or use the frontend test button on the homepage
+## Troubleshooting
 
-## 🔧 Environment Setup
+- **CORS errors**: ensure `FRONTEND_URL` matches the requesting origin exactly (protocol + host + port).
+- **LLM analysis skipped**: check that `GOOGLE_API_KEY` is set; the worker logs `⚠️  GOOGLE_API_KEY not configured` otherwise.
+- **No deployments stored**: verify Supabase tables exist and the service role key has `insert`/`upsert` permissions.
+- **Monitor idle**: inspect `/api/sui/monitor-status` and server logs; adjust `POLL_INTERVAL_MS` if rate-limited.
+- **Frontend 500s**: confirm `NEXT_PUBLIC_BACKEND_URL` is reachable and HTTPS when deployed to Vercel.
 
-### Local Development
+## Contributing
 
-The project is configured to work with local development by default:
+This is a private project. Follow the workspace coding standards, prefer small focused commits, and update this README when workflows change.
 
-- **Frontend**: `http://localhost:3000` (connects to local backend)
-- **Backend**: `http://localhost:3001` (accepts requests from localhost:3000)
+## License
 
-### Environment Variables
+Private – all rights reserved.
 
-#### Backend (`.env`)
-```bash
-PORT=3001
-NODE_ENV=development
-FRONTEND_URL=http://localhost:3000
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_KEY=your-service-role-key-here
-SUI_RPC_URL=https://fullnode.testnet.sui.io:443
-POLL_INTERVAL_MS=15000
-```
-
-#### Frontend (`.env.local`)
-```bash
-NEXT_PUBLIC_BACKEND_URL=http://localhost:3001
-```
-
-### Production Environment Variables
-
-#### Vercel (Frontend)
-Set these in your Vercel dashboard under Project Settings → Environment Variables:
-
-```bash
-NEXT_PUBLIC_BACKEND_URL=https://backend-production-6d04.up.railway.app
-```
-
-#### Railway (Backend)
-Set these in your Railway dashboard under your service → Variables:
-
-```bash
-FRONTEND_URL=https://redflag-liart.vercel.app
-NODE_ENV=production
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_KEY=your-service-role-key-here
-SUI_RPC_URL=https://fullnode.testnet.sui.io:443
-POLL_INTERVAL_MS=15000
-```
-
-## 🛠️ Development
-
-### Start Development Servers
-
-**Frontend only:**
-```bash
-yarn dev:frontend
-```
-
-**Backend only:**
-```bash
-yarn dev:backend
-```
-
-**Both simultaneously:**
-```bash
-yarn dev
-```
-
-**Both (in separate terminals):**
-```bash
-# Terminal 1
-yarn dev:frontend
-
-# Terminal 2
-yarn dev:backend
-```
-
-### Build for Production
-
-**Frontend:**
-```bash
-yarn build:frontend
-```
-
-**Backend:**
-```bash
-yarn build:backend
-```
-
-## 🌐 Deployment
-
-### Frontend (Vercel)
-This project is configured for deployment on Vercel:
-
-- **Framework**: Next.js
-- **Build Command**: `cd frontend && yarn build`
-- **Output Directory**: `frontend/.next`
-- **Root Directory**: `frontend`
-
-The deployment configuration is defined in `vercel.json`.
-
-### Backend (Railway)
-The backend is configured for deployment on Railway:
-
-1. **Create Railway Account**: Go to [railway.app](https://railway.app) and sign up
-2. **Connect GitHub**: Link your GitHub account and select this repository
-3. **Create New Project**: 
-   - Click "New Project"
-   - Select "Deploy from GitHub repo"
-   - Choose your `redflag` repository
-4. **Configure Service**:
-   - Set **Root Directory** to `backend`
-   - Railway will auto-detect the `railway.json` configuration
-5. **Set Environment Variables**:
-   - `NODE_ENV=production`
-   - `FRONTEND_URL=https://redflag-liart.vercel.app`
-6. **Deploy**: Railway will automatically build and deploy your backend
-7. **Get Backend URL**: Railway will provide a URL like `https://your-backend.railway.app`
-
-### Frontend (Vercel)
-The frontend is configured for deployment on Vercel:
-
-1. **Connect GitHub**: Link your GitHub account and select this repository
-2. **Configure Project**:
-   - Framework: Next.js (auto-detected)
-   - Root Directory: `frontend`
-   - Build Command: `yarn build` (runs in frontend directory)
-   - Output Directory: `.next`
-3. **Set Environment Variables**:
-   - `NEXT_PUBLIC_BACKEND_URL=https://backend-production-6d04.up.railway.app`
-4. **Deploy**: Vercel will automatically build and deploy your frontend
-
-### Backend API Endpoints
-Once deployed, your backend will have:
-- **Health Check**: `GET /health` - Returns service status
-- **API Status**: `GET /api/status` - Returns API information
-- **Supabase Health**: `GET /api/supabase/health` - Tests Supabase database connection
-- **Sui Health**: `GET /api/sui/health` - Tests Sui RPC connection
-- **Recent Deployments**: `GET /api/sui/recent-deployments` - Live Sui contract deployments
-- **Latest Deployment**: `GET /api/sui/latest-deployment` - Most recent deployment
-- **Historical Deployments**: `GET /api/sui/deployments` - Stored deployment history with pagination
-- **Monitor Status**: `GET /api/sui/monitor-status` - Background monitor status
-- **Debug**: `GET /api/sui/debug` - Raw transaction data for debugging
-
-## 📁 Workspace Commands
-
-The root `package.json` includes convenient scripts for managing the monorepo:
-
-- `yarn dev:frontend` - Start frontend development server
-- `yarn dev:backend` - Start backend development server
-- `yarn build:frontend` - Build frontend for production
-- `yarn build:backend` - Build backend for production
-
-## 🎨 Frontend Features
-
-- Modern Next.js App Router architecture
-- TypeScript for type safety
-- Tailwind CSS for styling
-- Responsive design with dark mode support
-- ESLint for code quality
-- **Deployments Dashboard**: Comprehensive view of all smart contract deployments
-- **Real-time Updates**: Auto-refreshing deployment monitoring
-- **Search & Filter**: Find deployments by package ID, deployer, or transaction
-- **Copy-to-Clipboard**: Easy copying of addresses and transaction hashes
-- **Sui Explorer Integration**: Direct links to view transactions on Sui Explorer
-
-## 🔗 Sui Blockchain Integration
-
-The backend includes a comprehensive Sui blockchain monitoring system:
-
-### Features
-- **Always-on Monitoring**: Background worker continuously polls Sui testnet for new smart contract deployments
-- **Persistent Storage**: All deployment metadata is stored in Supabase for historical analysis
-- **Checkpoint Tracking**: Resumes monitoring from the last processed checkpoint to avoid duplicates
-- **Real-time Data**: Live API endpoints for current deployment status
-- **Dashboard Interface**: Full-featured web dashboard for viewing and searching deployments
-- **Auto-refresh**: Frontend automatically updates every 30 seconds with new deployments
-- **Pagination**: Efficient loading of large deployment histories
-- **Statistics**: Real-time stats showing total deployments, recent activity, and key metrics
-
-### Environment Variables
-- `SUI_RPC_URL`: Sui RPC endpoint (defaults to testnet)
-- `POLL_INTERVAL_MS`: Monitoring frequency in milliseconds (default: 15000ms = 15s)
-
-### Database Schema
-The system creates a `sui_package_deployments` table with:
-- `package_id`: Unique identifier for deployed packages
-- `deployer_address`: Wallet address that deployed the contract
-- `tx_digest`: Transaction hash for verification
-- `checkpoint`: Sui checkpoint number for ordering
-- `timestamp`: On-chain deployment time
-- `first_seen_at`: When our monitor first detected it
-
-### API Endpoints
-- `GET /api/sui/recent-deployments` - Live deployments from Sui RPC
-- `GET /api/sui/latest-deployment` - Most recent deployment
-- `GET /api/sui/deployments` - Historical deployments from database (with pagination)
-- `GET /api/sui/monitor-status` - Background monitor status
-- `GET /api/sui/health` - Sui RPC connection health
-- `GET /api/sui/debug` - Raw transaction data for debugging
-
-### Frontend Routes
-- `/` - Homepage with health checks and latest deployment
-- `/deployments` - Full deployments dashboard with search, filtering, and real-time updates
-
-## 🔧 Development Notes
-
-- The project uses the new JSX transform (`"jsx": "react-jsx"`), so React imports are not required in components
-- Tailwind CSS v4 is configured for modern styling
-- TypeScript is strictly configured for better development experience
-
-## 🐛 Troubleshooting
-
-### CORS Issues
-If you see CORS errors in the browser console:
-1. Ensure your backend is running on `http://localhost:3001`
-2. Check that `FRONTEND_URL` in backend `.env` is set to `http://localhost:3000`
-3. Verify the backend CORS configuration includes your frontend URL
-
-### Connection Issues
-If the frontend can't connect to the backend:
-1. Check that `NEXT_PUBLIC_BACKEND_URL` in frontend `.env.local` is set to `http://localhost:3001`
-2. Ensure the backend is running and accessible at the configured URL
-3. Check browser network tab for failed requests
-
-### Production Deployment Issues
-1. **Vercel**: Ensure `NEXT_PUBLIC_BACKEND_URL` is set in Vercel dashboard
-2. **Railway**: Ensure `FRONTEND_URL` and `NODE_ENV` are set in Railway dashboard
-3. **CORS**: Verify Railway backend allows your Vercel domain in CORS configuration
-
-## 📝 License
-
-This project is private and proprietary.
-
-## 🤝 Contributing
-
-This is a private project. Please follow the established coding standards and use the provided linting configuration.
