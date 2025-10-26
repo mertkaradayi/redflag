@@ -1,114 +1,164 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { Activity, PauseCircle, PlayCircle, RefreshCcw } from 'lucide-react';
 
-interface AnalyzedContract {
-  package_id: string;
-  network: 'mainnet' | 'testnet';
-  analysis: {
-    summary: string;
-    risky_functions: Array<{
-      function_name: string;
-      reason: string;
-    }>;
-    rug_pull_indicators: Array<{
-      pattern_name: string;
-      evidence: string;
-    }>;
-    impact_on_user: string;
-    why_risky_one_liner: string;
-    risk_score: number;
-    risk_level: 'low' | 'moderate' | 'high' | 'critical';
-    timestamp: string;
-  };
-  analyzed_at: string;
-}
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import AnalyzedContractCard from '@/app/components/AnalyzedContractCard';
+import type { AnalyzedContract, DashboardData } from '@/app/dashboard/types';
+import { getRiskLevelBadge, getRiskLevelEmphasis, getRiskLevelIcon } from '@/app/dashboard/risk-utils';
+import { cn } from '@/lib/utils';
 
-interface DashboardData {
-  success: boolean;
-  total: number;
-  contracts: AnalyzedContract[];
-}
-
-const getRiskLevelColor = (level: string) => {
-  switch (level) {
-    case 'critical': return 'bg-red-100 dark:bg-red-950/20 text-red-800 dark:text-red-200 border-red-200 dark:border-red-800';
-    case 'high': return 'bg-orange-100 dark:bg-orange-950/20 text-orange-800 dark:text-orange-200 border-orange-200 dark:border-orange-800';
-    case 'moderate': return 'bg-yellow-100 dark:bg-yellow-950/20 text-yellow-800 dark:text-yellow-200 border-yellow-200 dark:border-yellow-800';
-    case 'low': return 'bg-green-100 dark:bg-green-950/20 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800';
-    default: return 'bg-gray-100 dark:bg-gray-950/20 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-800';
-  }
-};
-
-const getRiskLevelIcon = (level: string) => {
-  switch (level) {
-    case 'critical': return '🚨';
-    case 'high': return '⚠️';
-    case 'moderate': return '⚡';
-    case 'low': return '✅';
-    default: return '❓';
-  }
-};
+const AUTO_REFRESH_SECONDS = 30;
+const RISK_FILTERS: Array<'all' | 'critical' | 'high' | 'moderate' | 'low'> = ['all', 'critical', 'high', 'moderate', 'low'];
 
 export default function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'critical' | 'high' | 'moderate' | 'low'>('all');
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [refreshCountdown, setRefreshCountdown] = useState(AUTO_REFRESH_SECONDS);
+  const [pauseReason, setPauseReason] = useState<'toolbar' | 'details' | null>(null);
 
-  const fetchAnalyzedContracts = async () => {
+  const fetchAnalyzedContracts = useCallback(async ({ silent }: { silent?: boolean } = {}) => {
     try {
-      setLoading(true);
+      if (!silent) {
+        setIsRefreshing(true);
+      }
       setError(null);
-      
+
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
-      const response = await fetch(`${backendUrl}/api/llm/analyzed-contracts`);
-      const result = await response.json();
-      
+      const response = await fetch(`${backendUrl}/api/llm/analyzed-contracts`, {
+        cache: 'no-store',
+      });
+      const result: DashboardData = await response.json();
+
       if (result.success) {
         setData(result);
+        setLastUpdated(new Date());
+        setRefreshCountdown(AUTO_REFRESH_SECONDS);
       } else {
-        setError(result.message || 'Failed to fetch analyzed contracts');
+        throw new Error(result.message || 'Failed to fetch analyzed contracts');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error occurred');
     } finally {
       setLoading(false);
+      if (!silent) {
+        setIsRefreshing(false);
+      }
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchAnalyzedContracts();
-    
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(fetchAnalyzedContracts, 30000);
-    return () => clearInterval(interval);
+  }, [fetchAnalyzedContracts]);
+
+  useEffect(() => {
+    if (!autoRefresh || !data) {
+      return;
+    }
+
+    const refreshTimer = setInterval(() => {
+      fetchAnalyzedContracts({ silent: true });
+    }, AUTO_REFRESH_SECONDS * 1000);
+
+    return () => clearInterval(refreshTimer);
+  }, [autoRefresh, data, fetchAnalyzedContracts]);
+
+  useEffect(() => {
+    if (!autoRefresh || !data || !lastUpdated) {
+      return;
+    }
+
+    setRefreshCountdown(AUTO_REFRESH_SECONDS);
+    const countdownTimer = setInterval(
+      () =>
+        setRefreshCountdown((prev) => {
+          if (prev <= 1) {
+            return AUTO_REFRESH_SECONDS;
+          }
+          return prev - 1;
+        }),
+      1000,
+    );
+
+    return () => clearInterval(countdownTimer);
+  }, [autoRefresh, data, lastUpdated]);
+
+  const filteredContracts = useMemo(() => {
+    if (!data) {
+      return [];
+    }
+    return data.contracts.filter((contract) => filter === 'all' || contract.analysis.risk_level === filter);
+  }, [data, filter]);
+
+  const riskStats = useMemo(() => {
+    if (!data) {
+      return null;
+    }
+
+    const counts: Record<'critical' | 'high' | 'moderate' | 'low', number> = {
+      critical: 0,
+      high: 0,
+      moderate: 0,
+      low: 0,
+    };
+
+    data.contracts.forEach((contract: AnalyzedContract) => {
+      counts[contract.analysis.risk_level] += 1;
+    });
+
+    return {
+      total: data.total,
+      counts,
+    };
+  }, [data]);
+
+  const formattedLastUpdated = useMemo(() => {
+    if (!lastUpdated) {
+      return null;
+    }
+    return lastUpdated.toLocaleString();
+  }, [lastUpdated]);
+
+  const pauseAutoRefreshFromDetails = useCallback(() => {
+    setAutoRefresh((prev) => {
+      if (!prev) {
+        return prev;
+      }
+      setPauseReason('details');
+      return false;
+    });
   }, []);
 
-  const filteredContracts = data?.contracts.filter(contract => 
-    filter === 'all' || contract.analysis.risk_level === filter
-  ) || [];
+  const toggleAutoRefresh = useCallback(() => {
+    setAutoRefresh((prev) => {
+      const next = !prev;
+      setPauseReason(next ? null : 'toolbar');
+      if (next) {
+        setRefreshCountdown(AUTO_REFRESH_SECONDS);
+      }
+      return next;
+    });
+  }, []);
 
-  const riskStats = data ? {
-    total: data.total,
-    critical: data.contracts.filter(c => c.analysis.risk_level === 'critical').length,
-    high: data.contracts.filter(c => c.analysis.risk_level === 'high').length,
-    moderate: data.contracts.filter(c => c.analysis.risk_level === 'moderate').length,
-    low: data.contracts.filter(c => c.analysis.risk_level === 'low').length,
-  } : null;
+  const isEmptyState = !loading && filteredContracts.length === 0;
 
   if (loading) {
     return (
       <div className="min-h-screen bg-zinc-50 dark:bg-black">
         <div className="container mx-auto px-6 py-16">
           <div className="flex items-center justify-center min-h-[400px]">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-              <p className="text-zinc-600 dark:text-zinc-300">Loading analyzed contracts...</p>
+            <div className="flex flex-col items-center gap-4 text-center">
+              <div className="h-12 w-12 animate-spin rounded-full border-2 border-purple-300 border-t-transparent"></div>
+              <p className="text-sm text-zinc-600 dark:text-zinc-300">Loading analyzed contracts...</p>
             </div>
           </div>
         </div>
@@ -117,241 +167,176 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-black">
+    <div className="min-h-screen bg-gradient-to-b from-zinc-50 to-white dark:from-black dark:to-zinc-950">
       <div className="container mx-auto px-6 py-16">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <Link href="/">
-              <Button variant="outline" size="sm" className="flex items-center gap-2">
-                🏠 Home
-              </Button>
-            </Link>
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-3">
+              <Link href="/">
+                <Button variant="outline" size="sm" className="flex items-center gap-2">
+                  🏠 Home
+                </Button>
+              </Link>
+              <div className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
+                Live Security Insights
+              </div>
+            </div>
             <div>
-              <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">
+              <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">
                 Contract Analysis Dashboard
               </h1>
-              <p className="text-zinc-600 dark:text-zinc-300">
-                Monitor and analyze smart contract security risks
+              <p className="mt-2 max-w-2xl text-base text-zinc-600 dark:text-zinc-300">
+                Monitor Sui smart contract risks, drill into vulnerable functions, and keep track of how findings evolve over time.
               </p>
             </div>
           </div>
-          <div className="flex gap-3">
-            <Button onClick={fetchAnalyzedContracts} variant="outline">
-              🔄 Refresh
-            </Button>
-            <Link href="/analyze">
-              <Button className="bg-purple-600 hover:bg-purple-700 text-white">
-                ➕ Analyze New Contract
+          <div className="flex flex-col items-start gap-3 text-left lg:items-end lg:text-right">
+            <div className="flex gap-2">
+              <Button
+                onClick={() => fetchAnalyzedContracts()}
+                variant="outline"
+                size="sm"
+                disabled={isRefreshing}
+                className="flex items-center gap-2"
+              >
+                <RefreshCcw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
+                Refresh
               </Button>
-            </Link>
+              <Button
+                onClick={toggleAutoRefresh}
+                variant={autoRefresh ? 'default' : 'outline'}
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                {autoRefresh ? <PauseCircle className="h-4 w-4" /> : <PlayCircle className="h-4 w-4" />}
+                {autoRefresh ? 'Pause Auto Refresh' : 'Resume Auto Refresh'}
+              </Button>
+              <Link href="/analyze">
+                <Button className="bg-purple-600 hover:bg-purple-700 text-white">
+                  ➕ Analyze New Contract
+                </Button>
+              </Link>
+            </div>
+            <div className="text-xs text-zinc-500 dark:text-zinc-400">
+              {formattedLastUpdated ? `Last updated ${formattedLastUpdated}` : 'Waiting for first update'}
+              {autoRefresh
+                ? ` • Refreshing in ${refreshCountdown}s`
+                : pauseReason === 'details'
+                  ? ' • Auto refresh paused while you review contract details'
+                  : ' • Auto refresh paused'}
+            </div>
           </div>
         </div>
 
         {error && (
-          <Alert className="mb-6 border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/20">
+          <Alert className="mt-8 border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/20">
             <AlertDescription className="text-red-800 dark:text-red-200">
               {error}
             </AlertDescription>
           </Alert>
         )}
 
-        {/* Stats Cards */}
         {riskStats && (
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
-            <Card>
-              <CardContent className="p-6">
-                <div className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+          <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            <Card className="border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+              <CardContent className="flex flex-col gap-3 p-6">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                  <Activity className="h-4 w-4" />
+                  Total Analyzed
+                </div>
+                <div className="text-3xl font-semibold text-zinc-900 dark:text-zinc-100">
                   {riskStats.total}
                 </div>
-                <p className="text-sm text-zinc-600 dark:text-zinc-300">Total Analyzed</p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  {data?.contracts.length ?? 0} recent runs stored
+                </p>
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="p-6">
-                <div className="text-2xl font-bold text-red-600">
-                  {riskStats.critical}
-                </div>
-                <p className="text-sm text-zinc-600 dark:text-zinc-300">Critical Risk</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-6">
-                <div className="text-2xl font-bold text-orange-600">
-                  {riskStats.high}
-                </div>
-                <p className="text-sm text-zinc-600 dark:text-zinc-300">High Risk</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-6">
-                <div className="text-2xl font-bold text-yellow-600">
-                  {riskStats.moderate}
-                </div>
-                <p className="text-sm text-zinc-600 dark:text-zinc-300">Moderate Risk</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-6">
-                <div className="text-2xl font-bold text-green-600">
-                  {riskStats.low}
-                </div>
-                <p className="text-sm text-zinc-600 dark:text-zinc-300">Low Risk</p>
-              </CardContent>
-            </Card>
+            {(['critical', 'high', 'moderate', 'low'] as const).map((level) => (
+              <Card
+                key={level}
+                className="border border-zinc-200 bg-white shadow-sm transition hover:border-zinc-300 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950"
+              >
+                <CardContent className="flex flex-col gap-3 p-6">
+                  <div
+                    className={cn(
+                      'inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide',
+                      getRiskLevelBadge(level),
+                    )}
+                  >
+                    {getRiskLevelIcon(level)} {level}
+                  </div>
+                  <div className={cn('text-3xl font-semibold capitalize', getRiskLevelEmphasis(level))}>
+                    {riskStats.counts[level]}
+                  </div>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Contracts flagged as {level}</p>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         )}
 
-        {/* Filter Buttons */}
-        <div className="flex flex-wrap gap-2 mb-6">
-          {['all', 'critical', 'high', 'moderate', 'low'].map((level) => (
-            <Button
-              key={level}
-              variant={filter === level ? 'default' : 'outline'}
-              onClick={() => setFilter(level as any)}
-              className={filter === level ? 'bg-purple-600 text-white' : ''}
-            >
-              {level === 'all' ? 'All' : level.charAt(0).toUpperCase() + level.slice(1)}
-              {level !== 'all' && riskStats && (
-                <span className="ml-2 px-2 py-1 bg-white/20 rounded-full text-xs">
-                  {riskStats[level as keyof typeof riskStats]}
-                </span>
-              )}
-            </Button>
-          ))}
+        <div className="mt-10 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-wrap gap-2">
+              {RISK_FILTERS.map((level) => (
+                <Button
+                  key={level}
+                  variant={filter === level ? 'default' : 'outline'}
+                  onClick={() => setFilter(level)}
+                  className={cn(
+                    filter === level && 'bg-purple-600 text-white hover:bg-purple-700',
+                    'px-4 py-2 capitalize',
+                  )}
+                >
+                  {level === 'all' ? 'All' : level}
+                  {level !== 'all' && riskStats && (
+                    <span className="ml-2 rounded-full bg-white/30 px-2 py-0.5 text-xs font-medium dark:bg-zinc-900/60">
+                      {riskStats.counts[level]}
+                    </span>
+                  )}
+                </Button>
+              ))}
+            </div>
+            <div className="text-sm text-zinc-600 dark:text-zinc-300">
+              Showing {filteredContracts.length} of {data?.contracts.length ?? 0} stored analyses
+            </div>
+          </div>
         </div>
 
-        {/* Contracts List */}
-        <div className="space-y-4">
-          {filteredContracts.length === 0 ? (
-            <Card>
-              <CardContent className="p-12 text-center">
-                <div className="text-6xl mb-4">📊</div>
-                <h3 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2">
-                  No analyzed contracts found
+        {pauseReason === 'details' && !autoRefresh && (
+          <Alert className="mt-6 border-purple-200 bg-purple-50 dark:border-purple-900 dark:bg-purple-950/20">
+            <AlertDescription className="text-purple-800 dark:text-purple-200">
+              Auto refresh is paused so the results stay put while you explore a contract. Resume it from the toolbar when you&apos;re ready for new data.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <div className="mt-8 space-y-5">
+          {isEmptyState ? (
+            <Card className="border border-dashed border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
+              <CardContent className="flex flex-col items-center gap-4 p-12 text-center">
+                <div className="text-5xl">📊</div>
+                <h3 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
+                  {filter === 'all' ? 'No analyzed contracts yet' : `No ${filter} risk contracts yet`}
                 </h3>
-                <p className="text-zinc-600 dark:text-zinc-300 mb-4">
-                  {filter === 'all' 
-                    ? 'Start by analyzing your first smart contract.'
-                    : `No contracts with ${filter} risk level found.`
-                  }
+                <p className="max-w-md text-sm text-zinc-600 dark:text-zinc-300">
+                  Run an analysis to populate your dashboard, or switch filters to review previous findings.
                 </p>
                 <Link href="/analyze">
-                  <Button className="bg-purple-600 hover:bg-purple-700 text-white">
-                    Analyze Contract
+                  <Button className="bg-purple-600 text-white hover:bg-purple-700">
+                    Analyze a Contract
                   </Button>
                 </Link>
               </CardContent>
             </Card>
           ) : (
             filteredContracts.map((contract) => (
-              <Card key={`${contract.package_id}-${contract.network}`} className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="text-lg font-mono text-zinc-900 dark:text-zinc-100 break-all">
-                        {contract.package_id}
-                      </CardTitle>
-                      <CardDescription className="mt-1">
-                        {contract.network} • Analyzed {new Date(contract.analyzed_at).toLocaleString()}
-                      </CardDescription>
-                    </div>
-                    <div className={`px-3 py-1 rounded-full border text-sm font-medium ${getRiskLevelColor(contract.analysis.risk_level)}`}>
-                      {getRiskLevelIcon(contract.analysis.risk_level)} {contract.analysis.risk_level.toUpperCase()}
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {/* Risk Score */}
-                    <div className="flex items-center gap-4">
-                      <div className="text-sm text-zinc-600 dark:text-zinc-300">Risk Score:</div>
-                      <div className="flex-1 bg-zinc-100 dark:bg-zinc-800 rounded-full h-2">
-                        <div 
-                          className={`h-2 rounded-full ${
-                            contract.analysis.risk_score >= 80 ? 'bg-red-500' :
-                            contract.analysis.risk_score >= 60 ? 'bg-orange-500' :
-                            contract.analysis.risk_score >= 40 ? 'bg-yellow-500' :
-                            'bg-green-500'
-                          }`}
-                          style={{ width: `${contract.analysis.risk_score}%` }}
-                        ></div>
-                      </div>
-                      <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                        {contract.analysis.risk_score}/100
-                      </div>
-                    </div>
-
-                    {/* Summary */}
-                    <div>
-                      <h4 className="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-2">Summary</h4>
-                      <p className="text-sm text-zinc-600 dark:text-zinc-300">
-                        {contract.analysis.summary}
-                      </p>
-                    </div>
-
-                    {/* Risky Functions */}
-                    {contract.analysis.risky_functions.length > 0 && (
-                      <div>
-                        <h4 className="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-2">
-                          Risky Functions ({contract.analysis.risky_functions.length})
-                        </h4>
-                        <div className="space-y-2">
-                          {contract.analysis.risky_functions.slice(0, 3).map((func, index) => (
-                            <div key={index} className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
-                              <div className="font-mono text-sm text-red-800 dark:text-red-200">
-                                {func.function_name}
-                              </div>
-                              <div className="text-xs text-red-600 dark:text-red-300 mt-1">
-                                {func.reason}
-                              </div>
-                            </div>
-                          ))}
-                          {contract.analysis.risky_functions.length > 3 && (
-                            <div className="text-xs text-zinc-500">
-                              +{contract.analysis.risky_functions.length - 3} more functions
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Rug Pull Indicators */}
-                    {contract.analysis.rug_pull_indicators.length > 0 && (
-                      <div>
-                        <h4 className="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-2">
-                          Rug Pull Indicators ({contract.analysis.rug_pull_indicators.length})
-                        </h4>
-                        <div className="space-y-2">
-                          {contract.analysis.rug_pull_indicators.slice(0, 2).map((indicator, index) => (
-                            <div key={index} className="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg p-3">
-                              <div className="font-medium text-sm text-orange-800 dark:text-orange-200">
-                                {indicator.pattern_name}
-                              </div>
-                              <div className="text-xs text-orange-600 dark:text-orange-300 mt-1">
-                                {indicator.evidence}
-                              </div>
-                            </div>
-                          ))}
-                          {contract.analysis.rug_pull_indicators.length > 2 && (
-                            <div className="text-xs text-zinc-500">
-                              +{contract.analysis.rug_pull_indicators.length - 2} more indicators
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Impact */}
-                    <div>
-                      <h4 className="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-2">User Impact</h4>
-                      <p className="text-sm text-zinc-600 dark:text-zinc-300">
-                        {contract.analysis.impact_on_user}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <AnalyzedContractCard
+                key={`${contract.package_id}-${contract.network}-${contract.analyzed_at}`}
+                contract={contract}
+                onAutoRefreshPause={pauseAutoRefreshFromDetails}
+              />
             ))
           )}
         </div>
