@@ -4,6 +4,8 @@ import cors from 'cors';
 import { testSupabaseConnection, getDeployments } from './lib/supabase';
 import { getRecentPublishTransactions, testSuiConnection } from './lib/sui-client';
 import { startMonitoring, stopMonitoring, getMonitoringStatus } from './workers/sui-monitor';
+import { runFullAnalysisChain, getCachedAnalysis, clearAnalysisCache, getCacheStats, analysisCache } from './lib/llm-analyzer';
+import { SuiClient } from '@mysten/sui/client';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -309,6 +311,210 @@ app.get('/api/sui/debug', async (req, res) => {
     res.status(500).json({
       success: false,
       message: `Debug failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// ----------------------------------------------------------------
+// LLM CONTRACT ANALYSIS ENDPOINTS
+// ----------------------------------------------------------------
+
+// Analyze a specific contract package
+app.post('/api/llm/analyze', async (req, res) => {
+  try {
+    const { package_id, network } = req.body;
+    
+    // Validate required parameters
+    if (!package_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'package_id is required',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Validate network parameter
+    const validatedNetwork = (network === 'testnet') ? 'testnet' : 'mainnet';
+    
+    console.log(`[LLM] Analyzing package_id: ${package_id} on ${validatedNetwork}`);
+    
+    // Define RPC URL based on network
+    const rpcUrl = validatedNetwork === 'testnet' 
+      ? 'https://fullnode.testnet.sui.io:443' 
+      : 'https://fullnode.mainnet.sui.io:443';
+    console.log(`[LLM] Using RPC URL: ${rpcUrl}`);
+    
+    // Create Sui client for this request
+    const suiClient = new SuiClient({ url: rpcUrl });
+    
+    // Define network-specific cache key
+    const cacheKey = `${package_id}@${validatedNetwork}`;
+    
+    // Check cache first
+    if (getCachedAnalysis(package_id, validatedNetwork)) {
+      console.log(`[LLM] Cache hit! Returning stored result for ${cacheKey}`);
+      const cachedCard = getCachedAnalysis(package_id, validatedNetwork);
+      return res.status(200).json({
+        success: true,
+        message: `Analysis successful (from cache - ${validatedNetwork})`,
+        timestamp: new Date().toISOString(),
+        package_id,
+        network: validatedNetwork,
+        safetyCard: cachedCard
+      });
+    }
+    
+    // Run full analysis chain
+    console.log(`[LLM] Running full analysis chain for ${cacheKey}...`);
+    const finalSafetyCard = await runFullAnalysisChain(package_id, validatedNetwork, suiClient, cacheKey);
+    
+    return res.status(200).json({
+      success: true,
+      message: `Analysis successful (${validatedNetwork})`,
+      timestamp: new Date().toISOString(),
+      package_id,
+      network: validatedNetwork,
+      safetyCard: finalSafetyCard
+    });
+    
+  } catch (error) {
+    console.error('[LLM] Analysis error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Contract analysis failed',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Get cached analysis result
+app.get('/api/llm/analyze/:packageId', async (req, res) => {
+  try {
+    const { packageId } = req.params;
+    const { network = 'mainnet' } = req.query;
+    
+    const validatedNetwork = (network === 'testnet') ? 'testnet' : 'mainnet';
+    const cachedResult = getCachedAnalysis(packageId, validatedNetwork);
+    
+    if (cachedResult) {
+      return res.status(200).json({
+        success: true,
+        message: 'Cached analysis found',
+        timestamp: new Date().toISOString(),
+        package_id: packageId,
+        network: validatedNetwork,
+        safetyCard: cachedResult
+      });
+    } else {
+      return res.status(404).json({
+        success: false,
+        message: 'No cached analysis found for this package',
+        timestamp: new Date().toISOString(),
+        package_id: packageId,
+        network: validatedNetwork
+      });
+    }
+  } catch (error) {
+    console.error('[LLM] Cache lookup error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Cache lookup failed',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Get cache statistics
+app.get('/api/llm/cache-stats', (req, res) => {
+  try {
+    const stats = getCacheStats();
+    res.json({
+      success: true,
+      message: 'Cache statistics retrieved',
+      timestamp: new Date().toISOString(),
+      cache: stats
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get cache statistics',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Clear analysis cache
+app.delete('/api/llm/cache', (req, res) => {
+  try {
+    clearAnalysisCache();
+    res.json({
+      success: true,
+      message: 'Analysis cache cleared',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to clear cache',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// LLM health check
+app.get('/api/llm/health', (req, res) => {
+  const hasGoogleApiKey = !!process.env.GOOGLE_API_KEY;
+  
+  res.json({
+    success: true,
+    message: 'LLM service status',
+    timestamp: new Date().toISOString(),
+    llm: {
+      configured: hasGoogleApiKey,
+      status: hasGoogleApiKey ? 'ready' : 'missing GOOGLE_API_KEY',
+      cache_size: getCacheStats().size
+    }
+  });
+});
+
+// Get All Analyzed Contracts
+app.get('/api/llm/analyzed-contracts', (req, res) => {
+  try {
+    const cacheStats = getCacheStats();
+    const contracts = cacheStats.keys.map(key => {
+      const value = analysisCache.get(key);
+      if (!value) return null;
+      
+      const [packageId, network] = key.split('@');
+      return {
+        package_id: packageId,
+        network,
+        analysis: value,
+        analyzed_at: new Date().toISOString()
+      };
+    }).filter(Boolean);
+
+    // Sort by most recent first
+    contracts.sort((a, b) => new Date(b.analyzed_at).getTime() - new Date(a.analyzed_at).getTime());
+
+    res.json({
+      success: true,
+      message: 'Analyzed contracts retrieved successfully',
+      timestamp: new Date().toISOString(),
+      total: contracts.length,
+      contracts
+    });
+  } catch (error) {
+    console.error('❌ Failed to get analyzed contracts:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get analyzed contracts',
+      error: error instanceof Error ? error.message : 'Unknown error',
       timestamp: new Date().toISOString()
     });
   }
