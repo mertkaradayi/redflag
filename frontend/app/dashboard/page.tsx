@@ -6,14 +6,31 @@ import { Activity, PauseCircle, PlayCircle, RefreshCcw } from 'lucide-react';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import AnalyzedContractCard from '@/app/components/AnalyzedContractCard';
 import type { AnalyzedContract, DashboardData } from '@/app/dashboard/types';
-import { getRiskLevelBadge, getRiskLevelEmphasis, getRiskLevelIcon } from '@/app/dashboard/risk-utils';
+import { getRiskLevelIcon } from '@/app/dashboard/risk-utils';
 import { cn } from '@/lib/utils';
 
 const AUTO_REFRESH_SECONDS = 30;
 const RISK_FILTERS: Array<'all' | 'critical' | 'high' | 'moderate' | 'low'> = ['all', 'critical', 'high', 'moderate', 'low'];
+const RISK_LEVEL_STYLES: Record<'critical' | 'high' | 'moderate' | 'low', { chip: string; value: string }> = {
+  critical: {
+    chip: 'border-[#D12226]/60 bg-[#D12226]/15 text-[#ff8a8c]',
+    value: 'text-[#ff6b6e]',
+  },
+  high: {
+    chip: 'border-orange-500/50 bg-orange-500/12 text-orange-200',
+    value: 'text-orange-200',
+  },
+  moderate: {
+    chip: 'border-yellow-400/50 bg-yellow-400/12 text-yellow-200',
+    value: 'text-yellow-200',
+  },
+  low: {
+    chip: 'border-emerald-500/50 bg-emerald-500/12 text-emerald-200',
+    value: 'text-emerald-200',
+  },
+};
 
 export default function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
@@ -153,13 +170,15 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-black">
-        <div className="container mx-auto px-6 py-16">
-          <div className="flex items-center justify-center min-h-[400px]">
-            <div className="flex flex-col items-center gap-4 text-center">
-              <div className="h-12 w-12 animate-spin rounded-full border-2 border-[#D12226] border-t-transparent"></div>
-              <p className="text-sm text-zinc-600 dark:text-zinc-300">Loading analyzed contracts...</p>
-            </div>
+      <div className="relative min-h-screen overflow-hidden bg-black text-white">
+        <div className="absolute inset-0 -z-10">
+          <div className="absolute inset-x-0 top-[-12%] h-[520px] bg-[radial-gradient(circle_at_center,rgba(209,34,38,0.28),transparent_60%)]" />
+          <div className="absolute left-1/2 top-1/2 h-[520px] w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(209,34,38,0.18),transparent_60%)] blur-3xl" />
+        </div>
+        <div className="relative z-10 flex min-h-screen items-center justify-center px-6">
+          <div className="flex flex-col items-center gap-4 text-center">
+            <div className="h-12 w-12 animate-spin rounded-full border-2 border-[#D12226] border-t-transparent"></div>
+            <p className="text-sm text-zinc-300">Loading analyzed contracts...</p>
           </div>
         </div>
       </div>
@@ -167,31 +186,47 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-zinc-50 to-white dark:from-black dark:to-zinc-950">
-      <div className="container mx-auto px-6 py-16">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-3">
+    <div className="relative min-h-screen overflow-hidden bg-black text-white">
+      <div className="absolute inset-0 -z-10">
+        <div className="absolute inset-x-0 top-[-12%] h-[520px] bg-[radial-gradient(circle_at_center,rgba(209,34,38,0.28),transparent_60%)]" />
+        <div className="absolute left-1/2 top-[45%] h-[560px] w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(209,34,38,0.18),transparent_60%)] blur-3xl" />
+      </div>
+      <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-12 px-6 pb-24 pt-12 sm:px-12 lg:px-16">
+        <header className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-6">
+            <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-[0.3em] text-zinc-500">
+              <span className="rounded-full border border-[#D12226]/50 bg-[#D12226]/15 px-3 py-1 text-[#D12226]">
+                RedFlag
+              </span>
+              <span className="hidden sm:inline text-zinc-400">Security Dashboard</span>
+            </div>
+            <div className="space-y-4">
+              <h1 className="text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
+                View live risk intelligence across your Sui contracts.
+              </h1>
+              <p className="max-w-2xl text-base text-zinc-300">
+                Track every analyzed package, filter by severity, and pause auto-refresh when you need to dig deep into
+                a contract&apos;s red flags.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500">
+              <span className="rounded-full border border-white/15 px-3 py-1">Live Gemini Insights</span>
+              <span className="rounded-full border border-white/15 px-3 py-1">Supabase Sync</span>
+              <span className="rounded-full border border-white/15 px-3 py-1">Move Pattern Library</span>
+            </div>
+          </div>
+          <div className="flex w-full max-w-sm flex-col items-stretch gap-3 rounded-3xl border border-white/10 bg-black/40 p-6 shadow-inner">
+            <div className="flex flex-wrap gap-2">
               <Link href="/">
-                <Button variant="outline" size="sm" className="flex items-center gap-2">
+                <Button variant="outline" size="sm" className="border-white/20 text-white hover:border-white hover:bg-white/10">
                   🏠 Home
                 </Button>
               </Link>
-              <div className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
-                Live Security Insights
-              </div>
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">
-                Contract Analysis Dashboard
-              </h1>
-              <p className="mt-2 max-w-2xl text-base text-zinc-600 dark:text-zinc-300">
-                Monitor Sui smart contract risks, drill into vulnerable functions, and keep track of how findings evolve over time.
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-col items-start gap-3 text-left lg:items-end lg:text-right">
-            <div className="flex gap-2">
+              <Link href="/analyze">
+                <Button size="sm" className="bg-[#D12226] text-white hover:bg-[#a8181b]">
+                  ➕ Analyze Contract
+                </Button>
+              </Link>
               <Button
                 onClick={() => fetchAnalyzedContracts()}
                 variant="outline"
@@ -216,13 +251,8 @@ export default function Dashboard() {
                 {autoRefresh ? <PauseCircle className="h-4 w-4" /> : <PlayCircle className="h-4 w-4" />}
                 {autoRefresh ? 'Pause Auto Refresh' : 'Resume Auto Refresh'}
               </Button>
-              <Link href="/analyze">
-                <Button className="bg-[#D12226] text-white hover:bg-[#a8181b]">
-                  ➕ Analyze New Contract
-                </Button>
-              </Link>
             </div>
-            <div className="text-xs text-zinc-500 dark:text-zinc-400">
+            <div className="text-xs text-zinc-400">
               {formattedLastUpdated ? `Last updated ${formattedLastUpdated}` : 'Waiting for first update'}
               {autoRefresh
                 ? ` • Refreshing in ${refreshCountdown}s`
@@ -231,57 +261,53 @@ export default function Dashboard() {
                   : ' • Auto refresh paused'}
             </div>
           </div>
-        </div>
+        </header>
 
         {error && (
-          <Alert className="mt-8 border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/20">
-            <AlertDescription className="text-red-800 dark:text-red-200">
+          <Alert className="border-[#D12226]/60 bg-[#D12226]/15 text-white">
+            <AlertDescription className="text-white">
               {error}
             </AlertDescription>
           </Alert>
         )}
 
         {riskStats && (
-          <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-            <Card className="border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-              <CardContent className="flex flex-col gap-3 p-6">
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                  <Activity className="h-4 w-4" />
-                  Total Analyzed
-                </div>
-                <div className="text-3xl font-semibold text-zinc-900 dark:text-zinc-100">
-                  {riskStats.total}
-                </div>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                  {data?.contracts.length ?? 0} recent runs stored
-                </p>
-              </CardContent>
-            </Card>
+          <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg backdrop-blur">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-zinc-400">
+                <Activity className="h-4 w-4 text-[#D12226]" />
+                Total analyzed
+              </div>
+              <div className="mt-3 text-4xl font-semibold text-white">
+                {riskStats.total}
+              </div>
+              <p className="mt-3 text-xs text-zinc-400">
+                {data?.contracts.length ?? 0} recent runs stored
+              </p>
+            </div>
             {(['critical', 'high', 'moderate', 'low'] as const).map((level) => (
-              <Card
+              <div
                 key={level}
-                className="border border-zinc-200 bg-white shadow-sm transition hover:border-zinc-300 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950"
+                className="rounded-2xl border border-white/10 bg-black/40 p-6 shadow-lg backdrop-blur transition hover:border-white/20"
               >
-                <CardContent className="flex flex-col gap-3 p-6">
-                  <div
-                    className={cn(
-                      'inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide',
-                      getRiskLevelBadge(level),
-                    )}
-                  >
-                    {getRiskLevelIcon(level)} {level}
-                  </div>
-                  <div className={cn('text-3xl font-semibold capitalize', getRiskLevelEmphasis(level))}>
-                    {riskStats.counts[level]}
-                  </div>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Contracts flagged as {level}</p>
-                </CardContent>
-              </Card>
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em]',
+                    RISK_LEVEL_STYLES[level].chip,
+                  )}
+                >
+                  {getRiskLevelIcon(level)} {level}
+                </span>
+                <div className={cn('mt-4 text-4xl font-semibold capitalize', RISK_LEVEL_STYLES[level].value)}>
+                  {riskStats.counts[level]}
+                </div>
+                <p className="mt-2 text-xs text-zinc-400">Contracts flagged as {level}</p>
+              </div>
             ))}
-          </div>
+          </section>
         )}
 
-        <div className="mt-10 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+        <section className="rounded-3xl border border-white/10 bg-black/40 p-6 shadow-lg backdrop-blur">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="flex flex-wrap gap-2">
               {RISK_FILTERS.map((level) => (
@@ -298,45 +324,45 @@ export default function Dashboard() {
                 >
                   {level === 'all' ? 'All' : level}
                   {level !== 'all' && riskStats && (
-                    <span className="ml-2 rounded-full bg-white/20 px-2 py-0.5 text-xs font-medium dark:bg-black/60">
+                    <span className="ml-2 rounded-full bg-white/10 px-2 py-0.5 text-xs font-medium">
                       {riskStats.counts[level]}
                     </span>
                   )}
                 </Button>
               ))}
             </div>
-            <div className="text-sm text-zinc-600 dark:text-zinc-300">
+            <div className="text-sm text-zinc-400">
               Showing {filteredContracts.length} of {data?.contracts.length ?? 0} stored analyses
             </div>
           </div>
-        </div>
+        </section>
 
         {pauseReason === 'details' && !autoRefresh && (
-          <Alert className="mt-6 border-[#D12226]/40 bg-[#D12226]/10 dark:border-[#D12226]/60 dark:bg-[#D12226]/15">
-            <AlertDescription className="text-[#D12226] dark:text-white">
+          <Alert className="border-[#D12226]/60 bg-[#D12226]/15 text-white">
+            <AlertDescription className="text-white">
               Auto refresh is paused so the results stay put while you explore a contract. Resume it from the toolbar when you&apos;re ready for new data.
             </AlertDescription>
           </Alert>
         )}
 
-        <div className="mt-8 space-y-5">
+        <section className="space-y-5">
           {isEmptyState ? (
-            <Card className="border border-dashed border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-              <CardContent className="flex flex-col items-center gap-4 p-12 text-center">
-                <div className="text-5xl">📊</div>
-                <h3 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-                  {filter === 'all' ? 'No analyzed contracts yet' : `No ${filter} risk contracts yet`}
-                </h3>
-                <p className="max-w-md text-sm text-zinc-600 dark:text-zinc-300">
-                  Run an analysis to populate your dashboard, or switch filters to review previous findings.
-                </p>
+            <div className="rounded-3xl border border-dashed border-white/15 bg-black/40 p-12 text-center shadow-inner backdrop-blur">
+              <div className="text-5xl">📊</div>
+              <h3 className="mt-4 text-xl font-semibold text-white">
+                {filter === 'all' ? 'No analyzed contracts yet' : `No ${filter} risk contracts yet`}
+              </h3>
+              <p className="mt-3 max-w-md text-sm text-zinc-400 mx-auto">
+                Run an analysis to populate your dashboard, or switch filters to review previous findings.
+              </p>
+              <div className="mt-6 flex justify-center">
                 <Link href="/analyze">
                   <Button className="bg-[#D12226] text-white hover:bg-[#a8181b]">
                     Analyze a Contract
                   </Button>
                 </Link>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ) : (
             filteredContracts.map((contract) => (
               <AnalyzedContractCard
@@ -346,7 +372,7 @@ export default function Dashboard() {
               />
             ))
           )}
-        </div>
+        </section>
       </div>
     </div>
   );

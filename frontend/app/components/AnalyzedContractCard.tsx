@@ -102,7 +102,7 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
   }, [contract.package_id]);
 
   return (
-    <Card className="border border-zinc-200/60 bg-white shadow-sm transition hover:border-zinc-300 hover:shadow-md dark:border-zinc-800/80 dark:bg-zinc-950">
+    <Card className="border border-white/10 bg-black/40 text-white shadow-lg backdrop-blur transition hover:border-white/20">
       <CardHeader className="space-y-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div className="space-y-3">
@@ -116,14 +116,14 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
                 <span>{getRiskLevelIcon(contract.analysis.risk_level)}</span>
                 {contract.analysis.risk_level}
               </span>
-              <span className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-medium uppercase tracking-wide text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+              <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium uppercase tracking-wide text-white/80">
                 {contract.network}
               </span>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleCopyPackageId}
-                className="h-auto px-2 py-1 text-xs text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+                className="h-auto px-2 py-1 text-xs text-zinc-300 hover:text-white"
                 aria-label="Copy package id"
               >
                 <Copy className="h-3.5 w-3.5" />
@@ -131,30 +131,30 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
               </Button>
             </div>
             <div>
-              <CardTitle className="font-mono text-base font-semibold text-zinc-900 dark:text-zinc-100 break-all">
+              <CardTitle className="font-mono text-base font-semibold text-white break-all">
                 {contract.package_id}
               </CardTitle>
-              <CardDescription className="text-xs text-zinc-500 dark:text-zinc-400">
+              <CardDescription className="text-xs text-zinc-400">
                 Analyzed {relativeAnalyzedAt} ({absoluteAnalyzedAt})
               </CardDescription>
             </div>
           </div>
-          <div className="flex w-full max-w-[220px] flex-col items-start gap-3 rounded-lg border border-zinc-200 bg-linear-to-b from-zinc-50 to-white p-4 dark:border-zinc-800 dark:from-zinc-900 dark:to-zinc-950 md:items-end">
+          <div className="flex w-full max-w-[240px] flex-col items-start gap-3 rounded-xl border border-white/10 bg-black/40 p-4 md:items-end">
             <div className="flex items-baseline gap-2">
               <span className={cn('text-2xl font-semibold', getRiskScoreTextColor(contract.analysis.risk_score))}>
                 {contract.analysis.risk_score}
               </span>
-              <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">/ 100</span>
+              <span className="text-sm font-medium text-zinc-400">/ 100</span>
             </div>
             <div className="flex w-full items-center gap-3">
-              <div className="h-2.5 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+              <div className="h-2.5 w-full overflow-hidden rounded-full bg-white/10">
                 <div
                   className={cn('h-full rounded-full transition-all', getRiskScoreBarColor(contract.analysis.risk_score))}
                   style={{ width: `${contract.analysis.risk_score}%` }}
                 />
               </div>
             </div>
-            <div className="w-full text-right text-xs text-zinc-500 dark:text-zinc-400">
+            <div className="w-full text-right text-xs text-zinc-400">
               Generated {formatRelativeTime(contract.analysis.timestamp)}
             </div>
           </div>
@@ -162,8 +162,8 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
       </CardHeader>
       <CardContent className="space-y-6">
         <section className="space-y-3">
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Summary</h4>
-          <p className="text-sm leading-6 text-zinc-700 dark:text-zinc-300">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Summary</h4>
+          <p className="text-sm leading-6 text-zinc-200">
             {contract.analysis.summary}
           </p>
           <div
@@ -181,7 +181,7 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
             {hasRiskyFunctions && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-3">
-                  <h5 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                  <h5 className="text-sm font-semibold text-white">
                     Risky Functions ({contract.analysis.risky_functions.length})
                   </h5>
                   {contract.analysis.risky_functions.length > DEFAULT_VISIBLE_FUNCTIONS && (
@@ -189,7 +189,7 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
                       variant="ghost"
                       size="sm"
                       onClick={toggleFunctions}
-                      className="inline-flex items-center gap-1 px-2 text-xs font-semibold text-[#D12226] hover:bg-[#D12226]/10 hover:text-[#a8181b] dark:text-[#D12226] dark:hover:bg-[#D12226]/20 dark:hover:text-white"
+                      className="inline-flex items-center gap-1 px-2 text-xs font-semibold text-[#D12226] hover:bg-[#D12226]/15 hover:text-white"
                     >
                       {showAllFunctions
                         ? 'Show fewer'
@@ -204,17 +204,20 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
                   {riskyFunctions.map((func, index) => (
                     <div
                       key={`${func.function_name}-${index}`}
-                      className="space-y-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm dark:border-red-900/70 dark:bg-red-950/20"
+                      className={cn(
+                        'space-y-2 rounded-lg px-4 py-3 text-sm backdrop-blur',
+                        getRiskLevelSubtle(contract.analysis.risk_level),
+                      )}
                     >
                       <div className="flex items-center justify-between gap-3">
-                        <span className="font-mono text-sm font-semibold text-red-800 dark:text-red-200">
+                        <span className="font-mono text-sm font-semibold text-white">
                           {func.function_name}
                         </span>
-                        <span className={cn('text-xs font-medium', getRiskLevelEmphasis(contract.analysis.risk_level))}>
+                        <span className={cn('text-xs font-medium uppercase tracking-wide', getRiskLevelEmphasis(contract.analysis.risk_level))}>
                           {getRiskLevelIcon(contract.analysis.risk_level)} risk
                         </span>
                       </div>
-                      <p className="text-sm leading-6 text-red-700 dark:text-red-300">{func.reason}</p>
+                      <p className="text-sm leading-6 text-white/80">{func.reason}</p>
                     </div>
                   ))}
                 </div>
@@ -224,7 +227,7 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
             {hasRugPullIndicators && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-3">
-                  <h5 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                  <h5 className="text-sm font-semibold text-white">
                     Rug Pull Indicators ({contract.analysis.rug_pull_indicators.length})
                   </h5>
                   {contract.analysis.rug_pull_indicators.length > DEFAULT_VISIBLE_INDICATORS && (
@@ -232,7 +235,7 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
                       variant="ghost"
                       size="sm"
                       onClick={toggleIndicators}
-                      className="inline-flex items-center gap-1 px-2 text-xs font-semibold text-[#D12226] hover:bg-[#D12226]/10 hover:text-[#a8181b] dark:text-[#D12226] dark:hover:bg-[#D12226]/20 dark:hover:text-white"
+                      className="inline-flex items-center gap-1 px-2 text-xs font-semibold text-[#D12226] hover:bg-[#D12226]/15 hover:text-white"
                     >
                       {showAllIndicators
                         ? 'Show fewer'
@@ -247,12 +250,12 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
                   {rugPullIndicators.map((indicator, index) => (
                     <div
                       key={`${indicator.pattern_name}-${index}`}
-                      className="space-y-2 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm dark:border-orange-900/70 dark:bg-orange-950/20"
+                      className="space-y-2 rounded-lg border border-white/12 bg-black/35 px-4 py-3 text-sm text-white/85 backdrop-blur"
                     >
-                      <div className="font-medium text-orange-800 dark:text-orange-200">
+                      <div className="font-medium text-white">
                         {indicator.pattern_name}
                       </div>
-                      <p className="text-sm leading-6 text-orange-700 dark:text-orange-300">{indicator.evidence}</p>
+                      <p className="text-sm leading-6 text-white/70">{indicator.evidence}</p>
                     </div>
                   ))}
                 </div>
@@ -260,32 +263,32 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
             )}
           </div>
           <div className="space-y-5">
-            <div className="space-y-2 rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900">
-              <h6 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+            <div className="space-y-2 rounded-xl border border-white/10 bg-black/40 p-4">
+              <h6 className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
                 Impact On Users
               </h6>
-              <p className="text-sm leading-6 text-zinc-700 dark:text-zinc-300">
+              <p className="text-sm leading-6 text-white/75">
                 {contract.analysis.impact_on_user}
               </p>
             </div>
-            <div className="space-y-2 rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900">
-              <h6 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+            <div className="space-y-2 rounded-xl border border-white/10 bg-black/40 p-4">
+              <h6 className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
                 Data Source
               </h6>
-              <dl className="space-y-2 text-sm text-zinc-600 dark:text-zinc-300">
+              <dl className="space-y-2 text-sm text-white/70">
                 <div className="flex items-start justify-between gap-3">
-                  <dt className="uppercase tracking-wide text-xs text-zinc-500 dark:text-zinc-400">Package</dt>
-                  <dd className="max-w-[200px] truncate font-mono text-xs text-zinc-700 dark:text-zinc-200">
+                  <dt className="uppercase tracking-wide text-xs text-zinc-400">Package</dt>
+                  <dd className="max-w-[200px] truncate font-mono text-xs text-white">
                     {contract.package_id}
                   </dd>
                 </div>
                 <div className="flex items-start justify-between gap-3">
-                  <dt className="uppercase tracking-wide text-xs text-zinc-500 dark:text-zinc-400">Network</dt>
-                  <dd className="text-sm font-medium text-zinc-700 dark:text-zinc-200">{contract.network}</dd>
+                  <dt className="uppercase tracking-wide text-xs text-zinc-400">Network</dt>
+                  <dd className="text-sm font-medium text-white">{contract.network}</dd>
                 </div>
                 <div className="flex items-start justify-between gap-3">
-                  <dt className="uppercase tracking-wide text-xs text-zinc-500 dark:text-zinc-400">Generated</dt>
-                  <dd className="text-sm text-zinc-700 dark:text-zinc-200">{absoluteAnalyzedAt}</dd>
+                  <dt className="uppercase tracking-wide text-xs text-zinc-400">Generated</dt>
+                  <dd className="text-sm text-white/80">{absoluteAnalyzedAt}</dd>
                 </div>
               </dl>
             </div>

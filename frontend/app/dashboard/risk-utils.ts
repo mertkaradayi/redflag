@@ -12,35 +12,27 @@ const riskLevelTokens: Record<
   }
 > = {
   critical: {
-    badge:
-      "bg-red-100 dark:bg-red-950/20 text-red-800 dark:text-red-200 border-red-200 dark:border-red-800",
-    emphasis: "text-red-600 dark:text-red-300",
-    subtle:
-      "bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-200 border-red-100 dark:border-red-900",
+    badge: "border-[#D12226]/60 bg-[#D12226]/20 text-[#ff8a8c]",
+    emphasis: "text-[#ff6b6e]",
+    subtle: "border-[#D12226]/50 bg-[#D12226]/10 text-[#ffbdbf]",
     icon: "🚨",
   },
   high: {
-    badge:
-      "bg-orange-100 dark:bg-orange-950/20 text-orange-800 dark:text-orange-200 border-orange-200 dark:border-orange-800",
-    emphasis: "text-orange-600 dark:text-orange-300",
-    subtle:
-      "bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-200 border-orange-100 dark:border-orange-900",
+    badge: "border-orange-500/50 bg-orange-500/15 text-orange-200",
+    emphasis: "text-orange-200",
+    subtle: "border-orange-500/40 bg-orange-500/10 text-orange-100",
     icon: "⚠️",
   },
   moderate: {
-    badge:
-      "bg-yellow-100 dark:bg-yellow-950/20 text-yellow-800 dark:text-yellow-200 border-yellow-200 dark:border-yellow-800",
-    emphasis: "text-yellow-600 dark:text-yellow-300",
-    subtle:
-      "bg-yellow-50 dark:bg-yellow-950/30 text-yellow-700 dark:text-yellow-200 border-yellow-100 dark:border-yellow-900",
+    badge: "border-yellow-400/50 bg-yellow-400/15 text-yellow-200",
+    emphasis: "text-yellow-200",
+    subtle: "border-yellow-400/40 bg-yellow-400/10 text-yellow-100",
     icon: "⚡",
   },
   low: {
-    badge:
-      "bg-green-100 dark:bg-green-950/20 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800",
-    emphasis: "text-green-600 dark:text-green-300",
-    subtle:
-      "bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-200 border-green-100 dark:border-green-900",
+    badge: "border-emerald-500/50 bg-emerald-500/15 text-emerald-200",
+    emphasis: "text-emerald-200",
+    subtle: "border-emerald-500/40 bg-emerald-500/10 text-emerald-100",
     icon: "✅",
   },
 };
@@ -73,8 +65,8 @@ export const getRiskScoreBarColor = (score: number) => {
 };
 
 export const getRiskScoreTextColor = (score: number) => {
-  if (score >= 80) return "text-red-600 dark:text-red-300";
-  if (score >= 60) return "text-orange-600 dark:text-orange-300";
-  if (score >= 40) return "text-yellow-600 dark:text-yellow-300";
-  return "text-green-600 dark:text-green-300";
+  if (score >= 80) return "text-[#ff6b6e]";
+  if (score >= 60) return "text-orange-200";
+  if (score >= 40) return "text-yellow-200";
+  return "text-emerald-200";
 };
