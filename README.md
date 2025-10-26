@@ -233,8 +233,10 @@ Once deployed, your backend will have:
 - **Supabase Health**: `GET /api/supabase/health` - Tests Supabase database connection
 - **Sui Health**: `GET /api/sui/health` - Tests Sui RPC connection
 - **Recent Deployments**: `GET /api/sui/recent-deployments` - Live Sui contract deployments
-- **Historical Deployments**: `GET /api/sui/deployments` - Stored deployment history
+- **Latest Deployment**: `GET /api/sui/latest-deployment` - Most recent deployment
+- **Historical Deployments**: `GET /api/sui/deployments` - Stored deployment history with pagination
 - **Monitor Status**: `GET /api/sui/monitor-status` - Background monitor status
+- **Debug**: `GET /api/sui/debug` - Raw transaction data for debugging
 
 ## 📁 Workspace Commands
 
@@ -252,6 +254,11 @@ The root `package.json` includes convenient scripts for managing the monorepo:
 - Tailwind CSS for styling
 - Responsive design with dark mode support
 - ESLint for code quality
+- **Deployments Dashboard**: Comprehensive view of all smart contract deployments
+- **Real-time Updates**: Auto-refreshing deployment monitoring
+- **Search & Filter**: Find deployments by package ID, deployer, or transaction
+- **Copy-to-Clipboard**: Easy copying of addresses and transaction hashes
+- **Sui Explorer Integration**: Direct links to view transactions on Sui Explorer
 
 ## 🔗 Sui Blockchain Integration
 
@@ -262,6 +269,10 @@ The backend includes a comprehensive Sui blockchain monitoring system:
 - **Persistent Storage**: All deployment metadata is stored in Supabase for historical analysis
 - **Checkpoint Tracking**: Resumes monitoring from the last processed checkpoint to avoid duplicates
 - **Real-time Data**: Live API endpoints for current deployment status
+- **Dashboard Interface**: Full-featured web dashboard for viewing and searching deployments
+- **Auto-refresh**: Frontend automatically updates every 30 seconds with new deployments
+- **Pagination**: Efficient loading of large deployment histories
+- **Statistics**: Real-time stats showing total deployments, recent activity, and key metrics
 
 ### Environment Variables
 - `SUI_RPC_URL`: Sui RPC endpoint (defaults to testnet)
@@ -278,9 +289,15 @@ The system creates a `sui_package_deployments` table with:
 
 ### API Endpoints
 - `GET /api/sui/recent-deployments` - Live deployments from Sui RPC
-- `GET /api/sui/deployments` - Historical deployments from database
+- `GET /api/sui/latest-deployment` - Most recent deployment
+- `GET /api/sui/deployments` - Historical deployments from database (with pagination)
 - `GET /api/sui/monitor-status` - Background monitor status
 - `GET /api/sui/health` - Sui RPC connection health
+- `GET /api/sui/debug` - Raw transaction data for debugging
+
+### Frontend Routes
+- `/` - Homepage with health checks and latest deployment
+- `/deployments` - Full deployments dashboard with search, filtering, and real-time updates
 
 ## 🔧 Development Notes
 
