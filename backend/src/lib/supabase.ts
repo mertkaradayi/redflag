@@ -251,3 +251,296 @@ export async function getDeployments(options: {
     };
   }
 }
+
+// ================================================================
+// CONTRACT ANALYSIS OPERATIONS
+// ================================================================
+
+export interface SafetyCard {
+  summary: string;
+  risky_functions: Array<{
+    function_name: string;
+    reason: string;
+  }>;
+  rug_pull_indicators: Array<{
+    pattern_name: string;
+    evidence: string;
+  }>;
+  impact_on_user: string;
+  why_risky_one_liner: string;
+  risk_score: number;
+  risk_level: 'low' | 'moderate' | 'high' | 'critical';
+  technical_findings?: any;
+}
+
+/**
+ * Save or update contract analysis result in database
+ */
+export async function saveAnalysisResult(
+  packageId: string,
+  network: string,
+  safetyCard: SafetyCard
+): Promise<{
+  success: boolean;
+  message: string;
+  error?: string;
+}> {
+  try {
+    if (!supabase) {
+      return {
+        success: false,
+        message: 'Supabase client not initialized',
+        error: 'Missing SUPABASE_URL or SUPABASE_SERVICE_KEY'
+      };
+    }
+
+    const { data, error } = await supabase
+      .from('contract_analyses')
+      .upsert({
+        package_id: packageId,
+        network,
+        risk_score: safetyCard.risk_score,
+        risk_level: safetyCard.risk_level,
+        summary: safetyCard.summary,
+        why_risky_one_liner: safetyCard.why_risky_one_liner,
+        risky_functions: safetyCard.risky_functions,
+        rug_pull_indicators: safetyCard.rug_pull_indicators,
+        impact_on_user: safetyCard.impact_on_user,
+        technical_findings: safetyCard.technical_findings || null,
+        analyzed_at: new Date().toISOString()
+      }, {
+        onConflict: 'package_id,network'
+      })
+      .select('id');
+
+    if (error) {
+      console.error('Failed to save analysis result:', error);
+      return {
+        success: false,
+        message: `Database save failed: ${error.message}`,
+        error: error.message
+      };
+    }
+
+    console.log(`Successfully saved analysis for ${packageId} on ${network}`);
+    return {
+      success: true,
+      message: 'Analysis result saved successfully'
+    };
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Unexpected error in saveAnalysisResult:', error);
+    return {
+      success: false,
+      message: `Unexpected error: ${errorMessage}`,
+      error: errorMessage
+    };
+  }
+}
+
+/**
+ * Get contract analysis result from database
+ */
+export async function getAnalysisResult(
+  packageId: string,
+  network: string
+): Promise<{
+  success: boolean;
+  analysis: SafetyCard | null;
+  error?: string;
+}> {
+  try {
+    if (!supabase) {
+      return {
+        success: false,
+        analysis: null,
+        error: 'Supabase client not initialized'
+      };
+    }
+
+    const { data, error } = await supabase
+      .from('contract_analyses')
+      .select('*')
+      .eq('package_id', packageId)
+      .eq('network', network)
+      .single();
+
+    if (error) {
+      // PGRST116 = no rows found, which is not an error
+      if (error.code === 'PGRST116') {
+        return {
+          success: true,
+          analysis: null
+        };
+      }
+      
+      console.error('Failed to get analysis result:', error);
+      return {
+        success: false,
+        analysis: null,
+        error: error.message
+      };
+    }
+
+    if (!data) {
+      return {
+        success: true,
+        analysis: null
+      };
+    }
+
+    // Transform database row to SafetyCard format
+    const safetyCard: SafetyCard = {
+      summary: data.summary,
+      risky_functions: data.risky_functions,
+      rug_pull_indicators: data.rug_pull_indicators,
+      impact_on_user: data.impact_on_user,
+      why_risky_one_liner: data.why_risky_one_liner,
+      risk_score: data.risk_score,
+      risk_level: data.risk_level,
+      technical_findings: data.technical_findings
+    };
+
+    return {
+      success: true,
+      analysis: safetyCard
+    };
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Unexpected error in getAnalysisResult:', error);
+    return {
+      success: false,
+      analysis: null,
+      error: errorMessage
+    };
+  }
+}
+
+/**
+ * Get recent contract analyses with pagination
+ */
+export async function getRecentAnalyses(options: {
+  limit?: number;
+  offset?: number;
+} = {}): Promise<{
+  success: boolean;
+  analyses: any[];
+  totalCount: number;
+  error?: string;
+}> {
+  try {
+    if (!supabase) {
+      return {
+        success: false,
+        analyses: [],
+        totalCount: 0,
+        error: 'Supabase client not initialized'
+      };
+    }
+
+    const { limit = 50, offset = 0 } = options;
+
+    // Get total count
+    const { count, error: countError } = await supabase
+      .from('contract_analyses')
+      .select('*', { count: 'exact', head: true });
+
+    if (countError) {
+      console.error('Failed to get analyses count:', countError);
+      return {
+        success: false,
+        analyses: [],
+        totalCount: 0,
+        error: countError.message
+      };
+    }
+
+    // Get paginated analyses
+    const { data, error } = await supabase
+      .from('contract_analyses')
+      .select('*')
+      .order('analyzed_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      console.error('Failed to get analyses:', error);
+      return {
+        success: false,
+        analyses: [],
+        totalCount: 0,
+        error: error.message
+      };
+    }
+
+    return {
+      success: true,
+      analyses: data || [],
+      totalCount: count || 0
+    };
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Unexpected error in getRecentAnalyses:', error);
+    return {
+      success: false,
+      analyses: [],
+      totalCount: 0,
+      error: errorMessage
+    };
+  }
+}
+
+/**
+ * Get high-risk contract analyses
+ */
+export async function getHighRiskAnalyses(options: {
+  limit?: number;
+} = {}): Promise<{
+  success: boolean;
+  analyses: any[];
+  error?: string;
+}> {
+  try {
+    if (!supabase) {
+      return {
+        success: false,
+        analyses: [],
+        error: 'Supabase client not initialized'
+      };
+    }
+
+    const { limit = 50 } = options;
+
+    const { data, error } = await supabase
+      .from('contract_analyses')
+      .select('*')
+      .in('risk_level', ['high', 'critical'])
+      .order('risk_score', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error('Failed to get high-risk analyses:', error);
+      return {
+        success: false,
+        analyses: [],
+        error: error.message
+      };
+    }
+
+    return {
+      success: true,
+      analyses: data || []
+    };
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Unexpected error in getHighRiskAnalyses:', error);
+    return {
+      success: false,
+      analyses: [],
+      error: errorMessage
+    };
+  }
+}

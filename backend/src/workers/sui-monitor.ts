@@ -1,6 +1,6 @@
 import { getRecentPublishTransactions } from '../lib/sui-client';
-import { upsertDeployments, getLastProcessedCheckpoint } from '../lib/supabase';
-import { runFullAnalysisChain, getCachedAnalysis } from '../lib/llm-analyzer';
+import { upsertDeployments, getLastProcessedCheckpoint, getAnalysisResult } from '../lib/supabase';
+import { runFullAnalysisChain } from '../lib/llm-analyzer';
 import { SuiClient } from '@mysten/sui/client';
 
 // Singleton pattern to prevent multiple monitors
@@ -143,16 +143,17 @@ async function analyzeNewDeployments(deployments: any[]): Promise<void> {
         continue;
       }
       
-      // Check if already analyzed
-      const cacheKey = `${packageId}@${network}`;
-      if (getCachedAnalysis(packageId, network)) {
+      // Check if already analyzed in database
+      const dbResult = await getAnalysisResult(packageId, network);
+      if (dbResult.success && dbResult.analysis) {
         console.log(`📋 Package ${packageId} already analyzed, skipping...`);
         continue;
       }
       
       console.log(`🔍 Analyzing package ${packageId}...`);
       
-      // Run LLM analysis
+      // Run LLM analysis (will save to database)
+      const cacheKey = `${packageId}@${network}`;
       const analysisResult = await runFullAnalysisChain(packageId, network, suiClient, cacheKey);
       
       // Log risk level
