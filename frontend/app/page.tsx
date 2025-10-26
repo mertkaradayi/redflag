@@ -3,6 +3,7 @@ import type { ComponentType } from "react";
 import { ArrowRight, BarChart3, Lock, Radar, ShieldCheck, Sparkles, Workflow } from "lucide-react";
 
 import Auth from "./components/Auth";
+import BrandLogo from "./components/BrandLogo";
 import { Button } from "@/components/ui/button";
 
 interface StatCard {
@@ -141,11 +142,11 @@ export default function Home() {
 
       <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-20 px-6 pb-24 pt-12 sm:px-12 lg:px-16">
         <header className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-[0.3em] text-zinc-400">
-            <span className="rounded-full border border-[#D12226]/50 bg-[#D12226]/15 px-3 py-1 text-[#D12226]">
-              RedFlag
+          <div className="flex items-center gap-4">
+            <BrandLogo className="h-9" priority />
+            <span className="hidden text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500 sm:inline">
+              Sui Security Intelligence
             </span>
-            <span className="hidden sm:inline text-zinc-500">Sui Security Intelligence</span>
           </div>
           <div className="flex items-center gap-3">
             <nav className="hidden items-center gap-6 text-sm text-zinc-300 sm:flex">

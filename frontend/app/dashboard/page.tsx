@@ -6,29 +6,61 @@ import { Activity, PauseCircle, PlayCircle, RefreshCcw } from 'lucide-react';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import BrandLogo from '@/app/components/BrandLogo';
 import AnalyzedContractCard from '@/app/components/AnalyzedContractCard';
 import type { AnalyzedContract, DashboardData } from '@/app/dashboard/types';
-import { getRiskLevelIcon } from '@/app/dashboard/risk-utils';
+import { getRiskLevelIcon, getRiskLevelName } from '@/app/dashboard/risk-utils';
 import { cn } from '@/lib/utils';
 
 const AUTO_REFRESH_SECONDS = 30;
 const RISK_FILTERS: Array<'all' | 'critical' | 'high' | 'moderate' | 'low'> = ['all', 'critical', 'high', 'moderate', 'low'];
-const RISK_LEVEL_STYLES: Record<'critical' | 'high' | 'moderate' | 'low', { chip: string; value: string }> = {
+const RISK_LEVEL_STYLES: Record<
+  'critical' | 'high' | 'moderate' | 'low',
+  {
+    chip: string;
+    value: string;
+    buttonActive: string;
+    buttonInactive: string;
+    badge: string;
+  }
+> = {
   critical: {
     chip: 'border-[#D12226]/60 bg-[#D12226]/15 text-[#ff8a8c]',
     value: 'text-[#ff6b6e]',
+    buttonActive: 'bg-[#D12226] text-white hover:bg-[#a8181b]',
+    buttonInactive: 'border-[#D12226]/50 text-[#ff8a8c] hover:bg-[#D12226]/15 hover:text-white',
+    badge: 'bg-[#D12226]/25 text-[#ffbdbf]',
   },
   high: {
     chip: 'border-orange-500/50 bg-orange-500/12 text-orange-200',
     value: 'text-orange-200',
+    buttonActive: 'bg-orange-500 text-black hover:bg-orange-400',
+    buttonInactive: 'border-orange-400/60 text-orange-200 hover:bg-orange-500/20 hover:text-white',
+    badge: 'bg-orange-500/25 text-orange-100',
   },
   moderate: {
     chip: 'border-yellow-400/50 bg-yellow-400/12 text-yellow-200',
     value: 'text-yellow-200',
+    buttonActive: 'bg-yellow-400 text-black hover:bg-yellow-300',
+    buttonInactive: 'border-yellow-300/60 text-yellow-200 hover:bg-yellow-400/20 hover:text-black',
+    badge: 'bg-yellow-400/20 text-yellow-100',
   },
   low: {
     chip: 'border-emerald-500/50 bg-emerald-500/12 text-emerald-200',
     value: 'text-emerald-200',
+    buttonActive: 'bg-emerald-400 text-black hover:bg-emerald-300',
+    buttonInactive: 'border-emerald-400/60 text-emerald-200 hover:bg-emerald-400/20 hover:text-black',
+    badge: 'bg-emerald-400/20 text-emerald-100',
+  },
+};
+
+const FILTER_META = {
+  all: {
+    label: 'All Findings',
+    icon: '🧾',
+    active: 'bg-white text-black hover:bg-white/90 shadow-lg shadow-white/20',
+    inactive: 'border-white/30 text-white hover:bg-white/10',
+    badge: 'bg-white/20 text-white',
   },
 };
 
@@ -194,11 +226,11 @@ export default function Dashboard() {
       <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-12 px-6 pb-24 pt-12 sm:px-12 lg:px-16">
         <header className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-6">
-            <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-[0.3em] text-zinc-500">
-              <span className="rounded-full border border-[#D12226]/50 bg-[#D12226]/15 px-3 py-1 text-[#D12226]">
-                RedFlag
+            <div className="flex items-center gap-4">
+              <BrandLogo className="h-9" priority wrapperClassName="flex-shrink-0" />
+              <span className="hidden text-xs font-semibold uppercase tracking-[0.3em] text-zinc-400 sm:inline">
+                Security Dashboard
               </span>
-              <span className="hidden sm:inline text-zinc-400">Security Dashboard</span>
             </div>
             <div className="space-y-4">
               <h1 className="text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
@@ -296,12 +328,12 @@ export default function Dashboard() {
                     RISK_LEVEL_STYLES[level].chip,
                   )}
                 >
-                  {getRiskLevelIcon(level)} {level}
+                  {getRiskLevelIcon(level)} {getRiskLevelName(level)}
                 </span>
-                <div className={cn('mt-4 text-4xl font-semibold capitalize', RISK_LEVEL_STYLES[level].value)}>
+                <div className={cn('mt-4 text-4xl font-semibold', RISK_LEVEL_STYLES[level].value)}>
                   {riskStats.counts[level]}
                 </div>
-                <p className="mt-2 text-xs text-zinc-400">Contracts flagged as {level}</p>
+                <p className="mt-2 text-xs text-zinc-400">Contracts flagged as {getRiskLevelName(level)}</p>
               </div>
             ))}
           </section>
@@ -310,26 +342,43 @@ export default function Dashboard() {
         <section className="rounded-3xl border border-white/10 bg-black/40 p-6 shadow-lg backdrop-blur">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="flex flex-wrap gap-2">
-              {RISK_FILTERS.map((level) => (
-                <Button
-                  key={level}
-                  variant={filter === level ? 'default' : 'outline'}
-                  onClick={() => setFilter(level)}
-                  className={cn(
-                    filter === level
-                      ? 'bg-[#D12226] text-white hover:bg-[#a8181b]'
-                      : 'border-[#D12226]/40 text-[#D12226] hover:bg-[#D12226]/10',
-                    'px-4 py-2 capitalize',
-                  )}
-                >
-                  {level === 'all' ? 'All' : level}
-                  {level !== 'all' && riskStats && (
-                    <span className="ml-2 rounded-full bg-white/10 px-2 py-0.5 text-xs font-medium">
-                      {riskStats.counts[level]}
+              {RISK_FILTERS.map((level) => {
+                const isActive = filter === level;
+                const isAll = level === 'all';
+                const style = !isAll ? RISK_LEVEL_STYLES[level] : null;
+                const buttonClass = isAll
+                  ? isActive
+                    ? FILTER_META.all.active
+                    : FILTER_META.all.inactive
+                  : isActive
+                    ? style!.buttonActive
+                    : style!.buttonInactive;
+                const icon = isAll ? FILTER_META.all.icon : getRiskLevelIcon(level);
+                const label = isAll ? FILTER_META.all.label : getRiskLevelName(level);
+                const badgeClass = isAll ? FILTER_META.all.badge : style!.badge;
+                const count = isAll
+                  ? riskStats?.total ?? 0
+                  : riskStats?.counts[level] ?? 0;
+
+                return (
+                  <Button
+                    key={level}
+                    variant="outline"
+                    onClick={() => setFilter(level)}
+                    className={cn('flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold', buttonClass)}
+                  >
+                    <span className="flex items-center gap-2">
+                      <span>{icon}</span>
+                      <span>{label}</span>
                     </span>
-                  )}
-                </Button>
-              ))}
+                    {riskStats && (
+                      <span className={cn('ml-2 rounded-full px-2 py-0.5 text-xs font-medium', badgeClass)}>
+                        {count}
+                      </span>
+                    )}
+                  </Button>
+                );
+              })}
             </div>
             <div className="text-sm text-zinc-400">
               Showing {filteredContracts.length} of {data?.contracts.length ?? 0} stored analyses
@@ -350,7 +399,7 @@ export default function Dashboard() {
             <div className="rounded-3xl border border-dashed border-white/15 bg-black/40 p-12 text-center shadow-inner backdrop-blur">
               <div className="text-5xl">📊</div>
               <h3 className="mt-4 text-xl font-semibold text-white">
-                {filter === 'all' ? 'No analyzed contracts yet' : `No ${filter} risk contracts yet`}
+                {filter === 'all' ? 'No analyzed contracts yet' : `No ${getRiskLevelName(filter)} contracts yet`}
               </h3>
               <p className="mt-3 max-w-md text-sm text-zinc-400 mx-auto">
                 Run an analysis to populate your dashboard, or switch filters to review previous findings.

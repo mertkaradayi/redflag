@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, GaugeCircle, Globe2, Radar, RefreshCcw, ServerCog, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import BrandLogo from "../components/BrandLogo";
 import DeploymentsTable from "../components/DeploymentsTable";
 
 interface HighlightCard {
@@ -61,11 +62,11 @@ export default function DeploymentsPage() {
       <main className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-16 px-6 pb-24 pt-12 sm:px-12 lg:px-16">
         <header className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-5">
-            <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-[0.3em] text-zinc-500">
-              <span className="rounded-full border border-[#D12226]/50 bg-[#D12226]/15 px-3 py-1 text-[#D12226]">
-                RedFlag
+            <div className="flex items-center gap-4">
+              <BrandLogo className="h-9" priority />
+              <span className="hidden text-xs font-semibold uppercase tracking-[0.3em] text-zinc-400 sm:inline">
+                Deployments Monitor
               </span>
-              <span className="hidden sm:inline text-zinc-400">Deployments Monitor</span>
             </div>
             <div className="space-y-4">
               <h1 className="text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">

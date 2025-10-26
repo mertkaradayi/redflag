@@ -10,6 +10,7 @@ import {
   getRiskLevelBadge,
   getRiskLevelEmphasis,
   getRiskLevelIcon,
+  getRiskLevelName,
   getRiskLevelSubtle,
   getRiskScoreBarColor,
   getRiskScoreTextColor,
@@ -114,7 +115,7 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
                 )}
               >
                 <span>{getRiskLevelIcon(contract.analysis.risk_level)}</span>
-                {contract.analysis.risk_level}
+                {getRiskLevelName(contract.analysis.risk_level)}
               </span>
               <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium uppercase tracking-wide text-white/80">
                 {contract.network}
@@ -214,7 +215,7 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
                           {func.function_name}
                         </span>
                         <span className={cn('text-xs font-medium uppercase tracking-wide', getRiskLevelEmphasis(contract.analysis.risk_level))}>
-                          {getRiskLevelIcon(contract.analysis.risk_level)} risk
+                          {getRiskLevelIcon(contract.analysis.risk_level)} {getRiskLevelName(contract.analysis.risk_level)}
                         </span>
                       </div>
                       <p className="text-sm leading-6 text-white/80">{func.reason}</p>

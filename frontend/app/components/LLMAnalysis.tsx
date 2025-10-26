@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { getRiskLevelBadge, getRiskLevelIcon, getRiskLevelName } from '@/app/dashboard/risk-utils';
+import { cn } from '@/lib/utils';
 
 interface SafetyCard {
   summary: string;
@@ -71,21 +73,11 @@ export default function LLMAnalysis({ packageId: initialPackageId, network: init
     }
   };
 
-  const getRiskColor = (level: string) => {
-    switch (level) {
-      case 'critical': return 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800';
-      case 'high': return 'text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-800';
-      case 'moderate': return 'text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-800';
-      case 'low': return 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800';
-      default: return 'text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-950/20 border-gray-200 dark:border-gray-800';
-    }
-  };
-
   const getRiskScoreColor = (score: number) => {
-    if (score >= 70) return 'text-red-600 dark:text-red-400';
-    if (score >= 50) return 'text-orange-600 dark:text-orange-400';
-    if (score >= 30) return 'text-yellow-600 dark:text-yellow-400';
-    return 'text-green-600 dark:text-green-400';
+    if (score >= 70) return 'text-[#ff6b6e]';
+    if (score >= 50) return 'text-orange-200';
+    if (score >= 30) return 'text-yellow-200';
+    return 'text-emerald-200';
   };
 
   return (
@@ -155,8 +147,13 @@ export default function LLMAnalysis({ packageId: initialPackageId, network: init
               <CardTitle className="flex items-center justify-between">
                 <span>Risk Assessment</span>
                 <div className="flex items-center space-x-2">
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getRiskColor(analysisResult.risk_level)}`}>
-                    {analysisResult.risk_level.toUpperCase()}
+                  <span
+                    className={cn(
+                      'inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide',
+                      getRiskLevelBadge(analysisResult.risk_level),
+                    )}
+                  >
+                    {getRiskLevelIcon(analysisResult.risk_level)} {getRiskLevelName(analysisResult.risk_level)}
                   </span>
                   <span className={`text-2xl font-bold ${getRiskScoreColor(analysisResult.risk_score)}`}>
                     {analysisResult.risk_score}/100
@@ -194,9 +191,12 @@ export default function LLMAnalysis({ packageId: initialPackageId, network: init
               <CardContent>
                 <div className="space-y-3">
                   {analysisResult.risky_functions.map((func, index) => (
-                    <div key={index} className="p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-md">
-                      <h5 className="font-medium text-red-800 dark:text-red-200">{func.function_name}</h5>
-                      <p className="text-red-700 dark:text-red-300 text-sm mt-1">{func.reason}</p>
+                    <div
+                      key={index}
+                      className="space-y-2 rounded-xl border border-white/10 bg-black/40 p-4 text-sm text-white/80 backdrop-blur"
+                    >
+                      <h5 className="font-medium text-white">{func.function_name}</h5>
+                      <p className="text-sm text-white/70">{func.reason}</p>
                     </div>
                   ))}
                 </div>
@@ -216,9 +216,12 @@ export default function LLMAnalysis({ packageId: initialPackageId, network: init
               <CardContent>
                 <div className="space-y-3">
                   {analysisResult.rug_pull_indicators.map((indicator, index) => (
-                    <div key={index} className="p-3 bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-md">
-                      <h5 className="font-medium text-orange-800 dark:text-orange-200">{indicator.pattern_name}</h5>
-                      <p className="text-orange-700 dark:text-orange-300 text-sm mt-1">{indicator.evidence}</p>
+                    <div
+                      key={index}
+                      className="space-y-2 rounded-xl border border-white/10 bg-black/40 p-4 text-sm text-white/80 backdrop-blur"
+                    >
+                      <h5 className="font-medium text-white">{indicator.pattern_name}</h5>
+                      <p className="text-sm text-white/70">{indicator.evidence}</p>
                     </div>
                   ))}
                 </div>
