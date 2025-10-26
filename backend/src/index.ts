@@ -144,6 +144,48 @@ app.get('/api/sui/recent-deployments', async (req, res) => {
   }
 });
 
+app.get('/api/sui/latest-deployment', async (req, res) => {
+  try {
+    const result = await getRecentPublishTransactions({ limit: 1 });
+
+    if (result.success) {
+      const latestDeployment = result.deployments && result.deployments.length > 0
+        ? result.deployments[0]
+        : null;
+
+      res.json({
+        success: true,
+        message: latestDeployment
+          ? 'Latest deployment retrieved successfully'
+          : 'No deployments found',
+        timestamp: new Date().toISOString(),
+        connectionInfo: result.connectionInfo,
+        deployment: latestDeployment,
+        latestCheckpoint: result.latestCheckpoint ?? null,
+        nextCursor: result.nextCursor ?? null,
+        pollIntervalMs: result.pollIntervalMs
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        message: result.message,
+        error: result.error,
+        timestamp: new Date().toISOString(),
+        connectionInfo: result.connectionInfo,
+        latestCheckpoint: result.latestCheckpoint ?? null,
+        nextCursor: result.nextCursor ?? null,
+        pollIntervalMs: result.pollIntervalMs
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: `Latest deployment query failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Sui RPC health check endpoint
 app.get('/api/sui/health', async (req, res) => {
   try {
@@ -224,6 +266,7 @@ app.listen(PORT, () => {
   console.log(`🗄️ Supabase health: http://localhost:${PORT}/api/supabase/health`);
   console.log(`🔗 Sui health: http://localhost:${PORT}/api/sui/health`);
   console.log(`📦 Sui deployments: http://localhost:${PORT}/api/sui/recent-deployments`);
+  console.log(`🆕 Latest deployment: http://localhost:${PORT}/api/sui/latest-deployment`);
 });
 
 export default app;

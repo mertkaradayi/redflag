@@ -91,95 +91,115 @@ export async function getRecentPublishTransactions({
     let latestCheckpoint = 0;
 
     const pageSize = Math.min(Math.max(normalizedLimit * 2, 10), 50);
-    let cursor: string | null | undefined = initialCursor;
-    let hasNextPage = true;
     let pageCount = 0;
+    const MAX_PAGES = 60;
 
-    while (deployments.length < normalizedLimit && hasNextPage) {
-      const page = await client.queryTransactionBlocks({
+    const queryModes: Array<{ name: 'filtered' | 'unfiltered'; filter?: Parameters<typeof client.queryTransactionBlocks>[0]['filter'] }> = [
+      {
+        name: 'filtered',
         filter: {
           MoveFunction: {
             package: '0x2',
             module: 'package',
             function: 'publish'
           }
-        },
-        options: {
-          showEffects: true,
-          showObjectChanges: true,
-          showInput: true,
-          showBalanceChanges: false,
-          showEvents: false,
-          showRawInput: false,
-          showRawEffects: false
-        },
-        cursor: cursor ?? undefined,
-        order: 'descending',
-        limit: pageSize
-      });
+        }
+      },
+      { name: 'unfiltered' }
+    ];
 
-      pageCount += 1;
+    let nextCursorValue: string | null = null;
 
-      if (!page.data.length) {
-        hasNextPage = false;
-        break;
-      }
+    for (const mode of queryModes) {
+      let cursor: string | null | undefined = initialCursor;
+      let hasNextPage = true;
 
-      for (const tx of page.data) {
-        const checkpointValue = tx.checkpoint ? Number(tx.checkpoint) : 0;
-        if (!Number.isNaN(checkpointValue)) {
-          latestCheckpoint = Math.max(latestCheckpoint, checkpointValue);
+      while (deployments.length < normalizedLimit && hasNextPage && pageCount < MAX_PAGES) {
+        const page = await client.queryTransactionBlocks({
+          filter: mode.filter,
+          options: {
+            showEffects: true,
+            showObjectChanges: true,
+            showInput: true,
+            showBalanceChanges: false,
+            showEvents: false,
+            showRawInput: false,
+            showRawEffects: false
+          },
+          cursor: cursor ?? undefined,
+          order: 'descending',
+          limit: pageSize
+        });
+
+        pageCount += 1;
+
+        if (!page.data.length) {
+          hasNextPage = false;
+          break;
         }
 
-        if (typeof afterCheckpoint === 'number' && checkpointValue <= afterCheckpoint) {
-          continue;
-        }
+        for (const tx of page.data) {
+          const checkpointValue = tx.checkpoint ? Number(tx.checkpoint) : 0;
+          if (!Number.isNaN(checkpointValue)) {
+            latestCheckpoint = Math.max(latestCheckpoint, checkpointValue);
+          }
 
-        if (tx.effects?.status.status !== 'success') {
-          continue;
-        }
-
-        if (!tx.objectChanges?.length) {
-          continue;
-        }
-
-        for (const change of tx.objectChanges) {
-          if (change.type !== 'published' || !change.packageId) {
+          if (typeof afterCheckpoint === 'number' && checkpointValue <= afterCheckpoint) {
             continue;
           }
 
-          if (seenPackageIds.has(change.packageId) || seenTransactionDigests.has(tx.digest)) {
+          if (tx.effects?.status.status !== 'success') {
             continue;
           }
 
-          seenPackageIds.add(change.packageId);
-          seenTransactionDigests.add(tx.digest);
+          if (!tx.objectChanges?.length) {
+            continue;
+          }
 
-          const timestamp = tx.timestampMs ? Number(tx.timestampMs) : 0;
+          for (const change of tx.objectChanges) {
+            if (change.type !== 'published' || !change.packageId) {
+              continue;
+            }
 
-          deployments.push({
-            packageId: change.packageId,
-            deployer: tx.transaction?.data.sender || 'unknown',
-            txDigest: tx.digest,
-            timestamp,
-            checkpoint: checkpointValue
-          });
+            if (seenPackageIds.has(change.packageId) || seenTransactionDigests.has(tx.digest)) {
+              continue;
+            }
+
+            seenPackageIds.add(change.packageId);
+            seenTransactionDigests.add(tx.digest);
+
+            const timestamp = tx.timestampMs ? Number(tx.timestampMs) : 0;
+
+            deployments.push({
+              packageId: change.packageId,
+              deployer: tx.transaction?.data.sender || 'unknown',
+              txDigest: tx.digest,
+              timestamp,
+              checkpoint: checkpointValue
+            });
+
+            if (deployments.length >= normalizedLimit) {
+              nextCursorValue = cursor ?? null;
+              break;
+            }
+          }
 
           if (deployments.length >= normalizedLimit) {
+            nextCursorValue = cursor ?? null;
             break;
           }
         }
 
-        if (deployments.length >= normalizedLimit) {
-          break;
+        if (!page.hasNextPage || !page.nextCursor) {
+          hasNextPage = false;
+          cursor = null;
+        } else {
+          cursor = page.nextCursor;
         }
       }
 
-      if (!page.hasNextPage || !page.nextCursor) {
-        hasNextPage = false;
-        cursor = null;
-      } else {
-        cursor = page.nextCursor;
+      if (deployments.length >= normalizedLimit) {
+        break;
       }
     }
 
@@ -188,14 +208,16 @@ export async function getRecentPublishTransactions({
 
     return {
       success: true,
-      message: `Found ${limitedDeployments.length} recent contract deployments after inspecting ${pageCount} page(s)`,
+      message: limitedDeployments.length
+        ? `Found ${limitedDeployments.length} recent contract deployments after inspecting ${pageCount} page(s)`
+        : `No recent contract deployments found after inspecting ${pageCount} page(s)` ,
       deployments: limitedDeployments,
       connectionInfo: {
         url: effectiveRpcUrl,
         hasRpcUrl: hasCustomRpcUrl
       },
       latestCheckpoint,
-      nextCursor: deployments.length >= normalizedLimit ? cursor ?? null : null,
+      nextCursor: deployments.length >= normalizedLimit ? nextCursorValue : null,
       pollIntervalMs
     };
 

@@ -1,6 +1,7 @@
 import HealthCheck from "./components/HealthCheck";
 import SupabaseCheck from "./components/SupabaseCheck";
 import SuiDeploymentsCheck from "./components/SuiDeploymentsCheck";
+import LatestDeploymentFetcher from "./components/LatestDeploymentFetcher";
 import Auth from "./components/Auth";
 
 export default function Home() {
@@ -29,6 +30,7 @@ export default function Home() {
             <HealthCheck />
             <SupabaseCheck />
             <SuiDeploymentsCheck />
+            <LatestDeploymentFetcher />
           </div>
         </section>
       </main>
