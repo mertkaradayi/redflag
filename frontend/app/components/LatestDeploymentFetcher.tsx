@@ -25,6 +25,7 @@ interface LatestDeploymentResponse {
   latestCheckpoint?: number | null;
   nextCursor?: string | null;
   pollIntervalMs?: number;
+  queryStrategy?: string | null;
 }
 
 const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
@@ -117,6 +118,11 @@ export default function LatestDeploymentFetcher() {
             {typeof data.latestCheckpoint === 'number' && (
               <p>
                 <strong>Latest checkpoint inspected:</strong> {data.latestCheckpoint}
+              </p>
+            )}
+            {data.queryStrategy && (
+              <p>
+                <strong>Query strategy:</strong> {data.queryStrategy}
               </p>
             )}
 

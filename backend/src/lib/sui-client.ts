@@ -23,6 +23,7 @@ export interface SuiClientResult {
   latestCheckpoint?: number;
   nextCursor?: string | null;
   pollIntervalMs?: number;
+  queryStrategy?: 'transaction-kind' | 'move-function' | 'unfiltered';
 }
 
 export interface RecentPublishOptions {
@@ -30,6 +31,14 @@ export interface RecentPublishOptions {
   cursor?: string | null;
   afterCheckpoint?: number;
 }
+
+type QueryMode = {
+  name: 'transaction-kind' | 'move-function' | 'unfiltered';
+  filter?: Parameters<SuiClient['queryTransactionBlocks']>[0]['filter'];
+};
+
+let supportsTransactionKindFilter = true;
+let supportsMoveFunctionFilter = true;
 
 /**
  * Initialize Sui client for testnet
@@ -94,9 +103,20 @@ export async function getRecentPublishTransactions({
     let pageCount = 0;
     const MAX_PAGES = 200;
 
-    const queryModes: Array<{ name: 'filtered' | 'unfiltered'; filter?: Parameters<typeof client.queryTransactionBlocks>[0]['filter'] }> = [
-      {
-        name: 'filtered',
+    const queryModes: QueryMode[] = [];
+
+    if (supportsTransactionKindFilter) {
+      queryModes.push({
+        name: 'transaction-kind',
+        filter: {
+          TransactionKindIn: ['Publish']
+        }
+      });
+    }
+
+    if (supportsMoveFunctionFilter) {
+      queryModes.push({
+        name: 'move-function',
         filter: {
           MoveFunction: {
             package: '0x2',
@@ -104,34 +124,55 @@ export async function getRecentPublishTransactions({
             function: 'publish'
           }
         }
-      },
-      { name: 'unfiltered' }
-    ];
+      });
+    }
+
+    queryModes.push({ name: 'unfiltered' });
 
     let nextCursorValue: string | null = null;
+    let queryStrategy: QueryMode['name'] | undefined;
 
     for (const mode of queryModes) {
       let cursor: string | null | undefined = initialCursor;
       let hasNextPage = true;
+      let modeFailed = false;
 
       while (deployments.length < normalizedLimit && hasNextPage && pageCount < MAX_PAGES) {
-        const page = await client.queryTransactionBlocks({
-          filter: mode.filter,
-          options: {
-            showEffects: true,
-            showObjectChanges: true,
-            showInput: true,
-            showBalanceChanges: false,
-            showEvents: false,
-            showRawInput: false,
-            showRawEffects: false
-          },
-          cursor: cursor ?? undefined,
-          order: 'descending',
-          limit: pageSize
-        });
-
-        pageCount += 1;
+        let page;
+        try {
+          page = await client.queryTransactionBlocks({
+            filter: mode.filter,
+            options: {
+              showEffects: true,
+              showObjectChanges: true,
+              showInput: true,
+              showBalanceChanges: false,
+              showEvents: false,
+              showRawInput: false,
+              showRawEffects: false
+            },
+            cursor: cursor ?? undefined,
+            order: 'descending',
+            limit: pageSize
+          });
+          pageCount += 1;
+        } catch (error) {
+          modeFailed = true;
+          if (mode.name === 'transaction-kind') {
+            if (supportsTransactionKindFilter) {
+              supportsTransactionKindFilter = false;
+              console.warn('Transaction kind filter not supported on this RPC; disabling for future queries.');
+            }
+          } else if (mode.name === 'move-function') {
+            if (supportsMoveFunctionFilter) {
+              supportsMoveFunctionFilter = false;
+              console.warn('Move function filter not supported on this RPC; disabling for future queries.');
+            }
+          } else {
+            throw error;
+          }
+          break;
+        }
 
         if (!page.data.length) {
           hasNextPage = false;
@@ -156,6 +197,8 @@ export async function getRecentPublishTransactions({
             continue;
           }
 
+          const initialCount = deployments.length;
+
           for (const change of tx.objectChanges) {
             if (change.type !== 'published' || !change.packageId) {
               continue;
@@ -179,14 +222,21 @@ export async function getRecentPublishTransactions({
             });
 
             if (deployments.length >= normalizedLimit) {
-              nextCursorValue = cursor ?? null;
+              nextCursorValue = page.nextCursor ?? null;
+              if (!queryStrategy) {
+                queryStrategy = mode.name;
+              }
               break;
             }
           }
 
           if (deployments.length >= normalizedLimit) {
-            nextCursorValue = cursor ?? null;
+            nextCursorValue = page.nextCursor ?? null;
             break;
+          }
+
+          if (!queryStrategy && deployments.length > initialCount) {
+            queryStrategy = mode.name;
           }
         }
 
@@ -195,11 +245,16 @@ export async function getRecentPublishTransactions({
           cursor = null;
         } else {
           cursor = page.nextCursor;
+          nextCursorValue = page.nextCursor;
         }
       }
 
       if (deployments.length >= normalizedLimit) {
         break;
+      }
+
+      if (modeFailed) {
+        continue;
       }
     }
 
@@ -218,7 +273,8 @@ export async function getRecentPublishTransactions({
       },
       latestCheckpoint,
       nextCursor: deployments.length >= normalizedLimit ? nextCursorValue : null,
-      pollIntervalMs
+      pollIntervalMs,
+      queryStrategy
     };
 
   } catch (error) {
@@ -237,7 +293,8 @@ export async function getRecentPublishTransactions({
       },
       latestCheckpoint: undefined,
       nextCursor: null,
-      pollIntervalMs
+      pollIntervalMs,
+      queryStrategy: undefined
     };
   }
 }

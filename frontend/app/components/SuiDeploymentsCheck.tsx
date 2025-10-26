@@ -26,6 +26,7 @@ interface SuiDeploymentsResponse {
   latestCheckpoint?: number | null;
   nextCursor?: string | null;
   pollIntervalMs?: number;
+  queryStrategy?: string | null;
 }
 
 const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
@@ -33,15 +34,15 @@ const DEFAULT_POLL_INTERVAL = 3000;
 
 export default function SuiDeploymentsCheck() {
   const [deploymentsData, setDeploymentsData] = useState<SuiDeploymentsResponse | null>(null);
+  const [sessionDeployments, setSessionDeployments] = useState<ContractDeployment[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [polling, setPolling] = useState(false);
-  const [detectedPackageId, setDetectedPackageId] = useState<string | null>(null);
   const [resolvedPollInterval, setResolvedPollInterval] = useState(DEFAULT_POLL_INTERVAL);
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const lastSeenPackageIdRef = useRef<string | null>(null);
   const lastCheckpointRef = useRef<number | null>(null);
+  const seenPackageIdsRef = useRef<Set<string>>(new Set());
   const isFetchingRef = useRef(false);
 
   const clearPollingInterval = useCallback(() => {
@@ -89,24 +90,23 @@ export default function SuiDeploymentsCheck() {
         }
 
         if (typeof data.latestCheckpoint === 'number') {
-          lastCheckpointRef.current = data.latestCheckpoint;
+          lastCheckpointRef.current = Math.max(lastCheckpointRef.current ?? 0, data.latestCheckpoint);
         }
 
         setDeploymentsData(data);
 
         if (data.deployments && data.deployments.length > 0) {
-          const latestPackageId = data.deployments[0].packageId;
-          const previousPackageId = lastSeenPackageIdRef.current;
+          const newDeployments: ContractDeployment[] = [];
 
-          if (previousPackageId && latestPackageId !== previousPackageId) {
-            setDetectedPackageId(latestPackageId);
-            lastSeenPackageIdRef.current = latestPackageId;
-
-            if (isPollingRequest) {
-              stopPolling();
+          for (const deployment of data.deployments) {
+            if (!seenPackageIdsRef.current.has(deployment.packageId)) {
+              seenPackageIdsRef.current.add(deployment.packageId);
+              newDeployments.push(deployment);
             }
-          } else if (!previousPackageId) {
-            lastSeenPackageIdRef.current = latestPackageId;
+          }
+
+          if (newDeployments.length > 0) {
+            setSessionDeployments((prev) => [...newDeployments, ...prev]);
           }
         }
       } catch (err) {
@@ -119,12 +119,12 @@ export default function SuiDeploymentsCheck() {
         isFetchingRef.current = false;
       }
     },
-    [stopPolling]
+    []
   );
 
   const startPolling = useCallback(() => {
-    setDetectedPackageId(null);
-    lastSeenPackageIdRef.current = null;
+    setSessionDeployments([]);
+    seenPackageIdsRef.current = new Set();
     lastCheckpointRef.current = null;
     setError(null);
     setPolling(true);
@@ -179,7 +179,7 @@ export default function SuiDeploymentsCheck() {
     <Card className="h-full">
       <CardHeader>
         <CardTitle>Sui Contract Deployments</CardTitle>
-        <CardDescription>View recent smart contract deployments on Sui testnet.</CardDescription>
+        <CardDescription>Monitor smart contract publishes on the Sui testnet.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4" aria-live="polite">
         <div className="space-y-2">
@@ -207,18 +207,17 @@ export default function SuiDeploymentsCheck() {
 
           {polling && (
             <p className="text-sm text-zinc-600 dark:text-zinc-300 text-center">
-              🔍 Monitoring for new deployments every {pollIntervalString} second{pollIntervalSuffix}...
+              🔍 Monitoring every {pollIntervalString} second{pollIntervalSuffix} — detected {sessionDeployments.length} new
+              package{sessionDeployments.length === 1 ? '' : 's'} this session.
             </p>
           )}
         </div>
 
-        {detectedPackageId ? (
-          <StatusBanner variant="success" title="New deployment detected">
+        {error ? (
+          <StatusBanner variant="error" title="Deployments fetch failed">
+            <p>{error}</p>
             <p>
-              <strong>Package ID:</strong> {detectedPackageId}
-            </p>
-            <p className="text-sm text-zinc-600 dark:text-zinc-300">
-              Monitoring paused so you can review the latest publish.
+              <strong>Backend URL:</strong> {backendUrl}
             </p>
           </StatusBanner>
         ) : null}
@@ -228,7 +227,7 @@ export default function SuiDeploymentsCheck() {
             variant={deploymentsData.success ? 'success' : 'error'}
             title={
               deploymentsData.success
-                ? `Found ${deploymentsData.totalDeployments} deployment${deploymentsData.totalDeployments === 1 ? '' : 's'}`
+                ? `Latest check: ${deploymentsData.totalDeployments} deployment${deploymentsData.totalDeployments === 1 ? '' : 's'} returned`
                 : 'Failed to fetch deployments'
             }
           >
@@ -246,17 +245,20 @@ export default function SuiDeploymentsCheck() {
                 <strong>Latest checkpoint inspected:</strong> {deploymentsData.latestCheckpoint}
               </p>
             )}
-            {deploymentsData.pollIntervalMs && deploymentsData.pollIntervalMs !== resolvedPollInterval && (
+            {deploymentsData.queryStrategy && (
               <p>
-                <strong>Suggested polling interval:</strong> {Math.round(deploymentsData.pollIntervalMs / 100) / 10}s
+                <strong>Query strategy:</strong> {deploymentsData.queryStrategy}
               </p>
             )}
-            {deploymentsData.success && deploymentsData.deployments.length > 0 && (
+            {sessionDeployments.length === 0 && deploymentsData.success && deploymentsData.deployments.length > 0 && (
               <div className="mt-4 space-y-2">
-                <p className="font-semibold text-zinc-900 dark:text-zinc-100">Recent Deployments:</p>
+                <p className="font-semibold text-zinc-900 dark:text-zinc-100">Most recent deployments from RPC:</p>
                 <div className="max-h-60 overflow-y-auto space-y-2">
                   {deploymentsData.deployments.map((deployment, index) => (
-                    <div key={index} className="p-3 bg-zinc-50 dark:bg-zinc-800 rounded border border-zinc-200 dark:border-zinc-700 text-sm">
+                    <div
+                      key={`${deployment.packageId}-${deployment.txDigest}-${index}`}
+                      className="p-3 bg-zinc-50 dark:bg-zinc-800 rounded border border-zinc-200 dark:border-zinc-700 text-sm"
+                    >
                       <div className="space-y-2">
                         <div>
                           <strong className="text-zinc-900 dark:text-zinc-100">Package ID:</strong>
@@ -279,7 +281,7 @@ export default function SuiDeploymentsCheck() {
                           <strong className="text-zinc-900 dark:text-zinc-100">Transaction:</strong> {truncateAddress(deployment.txDigest)}
                         </p>
                         <p className="text-zinc-700 dark:text-zinc-300">
-                          <strong className="text-zinc-900 dark:text-zinc-100">Deployed:</strong> {formatTimestamp(deployment.timestamp)}
+                          <strong className="text-zinc-900 dark:text-zinc-100">Published:</strong> {formatTimestamp(deployment.timestamp)}
                         </p>
                         <p className="text-zinc-700 dark:text-zinc-300">
                           <strong className="text-zinc-900 dark:text-zinc-100">Checkpoint:</strong> {deployment.checkpoint}
@@ -293,14 +295,48 @@ export default function SuiDeploymentsCheck() {
           </StatusBanner>
         ) : null}
 
-        {error ? (
-          <StatusBanner variant="error" title="Deployments fetch failed">
-            <p>{error}</p>
-            <p>
-              <strong>Backend URL:</strong> {backendUrl}
+        {sessionDeployments.length > 0 && (
+          <div className="space-y-2 rounded border border-zinc-200 bg-zinc-50 p-3 text-sm dark:border-zinc-700 dark:bg-zinc-900/40">
+            <p className="font-semibold text-zinc-900 dark:text-zinc-100">
+              Detected this session ({sessionDeployments.length})
             </p>
-          </StatusBanner>
-        ) : null}
+            <div className="max-h-64 overflow-y-auto space-y-2">
+              {sessionDeployments.map((deployment) => (
+                <div
+                  key={`${deployment.packageId}-${deployment.txDigest}`}
+                  className="space-y-2 rounded border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-800"
+                >
+                  <div>
+                    <strong className="text-zinc-900 dark:text-zinc-100">Package ID:</strong>
+                    <div className="mt-1 flex items-center gap-2">
+                      <code className="break-all rounded bg-zinc-200 px-2 py-1 font-mono text-xs text-zinc-800 dark:bg-zinc-700 dark:text-zinc-200">
+                        {deployment.packageId}
+                      </code>
+                      <button
+                        onClick={() => copyToClipboard(deployment.packageId)}
+                        className="text-cyan-600 underline hover:text-cyan-700 dark:text-cyan-400 dark:hover:text-cyan-300"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-zinc-700 dark:text-zinc-300">
+                    <strong className="text-zinc-900 dark:text-zinc-100">Deployer:</strong> {truncateAddress(deployment.deployer)}
+                  </p>
+                  <p className="text-zinc-700 dark:text-zinc-300">
+                    <strong className="text-zinc-900 dark:text-zinc-100">Transaction:</strong> {truncateAddress(deployment.txDigest)}
+                  </p>
+                  <p className="text-zinc-700 dark:text-zinc-300">
+                    <strong className="text-zinc-900 dark:text-zinc-100">Published:</strong> {formatTimestamp(deployment.timestamp)}
+                  </p>
+                  <p className="text-zinc-700 dark:text-zinc-300">
+                    <strong className="text-zinc-900 dark:text-zinc-100">Checkpoint:</strong> {deployment.checkpoint}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

@@ -121,7 +121,8 @@ app.get('/api/sui/recent-deployments', async (req, res) => {
         totalDeployments: result.deployments?.length || 0,
         latestCheckpoint: result.latestCheckpoint ?? null,
         nextCursor: result.nextCursor ?? null,
-        pollIntervalMs: result.pollIntervalMs
+        pollIntervalMs: result.pollIntervalMs,
+        queryStrategy: result.queryStrategy ?? null
       });
     } else {
       res.status(400).json({
@@ -132,7 +133,8 @@ app.get('/api/sui/recent-deployments', async (req, res) => {
         connectionInfo: result.connectionInfo,
         latestCheckpoint: result.latestCheckpoint ?? null,
         nextCursor: result.nextCursor ?? null,
-        pollIntervalMs: result.pollIntervalMs
+        pollIntervalMs: result.pollIntervalMs,
+        queryStrategy: result.queryStrategy ?? null
       });
     }
   } catch (error) {
@@ -163,7 +165,8 @@ app.get('/api/sui/latest-deployment', async (req, res) => {
         deployment: latestDeployment,
         latestCheckpoint: result.latestCheckpoint ?? null,
         nextCursor: result.nextCursor ?? null,
-        pollIntervalMs: result.pollIntervalMs
+        pollIntervalMs: result.pollIntervalMs,
+        queryStrategy: result.queryStrategy ?? null
       });
     } else {
       res.status(400).json({
@@ -174,7 +177,8 @@ app.get('/api/sui/latest-deployment', async (req, res) => {
         connectionInfo: result.connectionInfo,
         latestCheckpoint: result.latestCheckpoint ?? null,
         nextCursor: result.nextCursor ?? null,
-        pollIntervalMs: result.pollIntervalMs
+        pollIntervalMs: result.pollIntervalMs,
+        queryStrategy: result.queryStrategy ?? null
       });
     }
   } catch (error) {
