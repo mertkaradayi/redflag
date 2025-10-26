@@ -121,13 +121,20 @@ export default function Dashboard() {
       <div className="container mx-auto px-6 py-16">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">
-              Contract Analysis Dashboard
-            </h1>
-            <p className="text-zinc-600 dark:text-zinc-300">
-              Monitor and analyze smart contract security risks
-            </p>
+          <div className="flex items-center gap-4">
+            <Link href="/">
+              <Button variant="outline" size="sm" className="flex items-center gap-2">
+                🏠 Home
+              </Button>
+            </Link>
+            <div>
+              <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">
+                Contract Analysis Dashboard
+              </h1>
+              <p className="text-zinc-600 dark:text-zinc-300">
+                Monitor and analyze smart contract security risks
+              </p>
+            </div>
           </div>
           <div className="flex gap-3">
             <Button onClick={fetchAnalyzedContracts} variant="outline">

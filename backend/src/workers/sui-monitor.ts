@@ -153,8 +153,7 @@ async function analyzeNewDeployments(deployments: any[]): Promise<void> {
       console.log(`🔍 Analyzing package ${packageId}...`);
       
       // Run LLM analysis (will save to database)
-      const cacheKey = `${packageId}@${network}`;
-      const analysisResult = await runFullAnalysisChain(packageId, network, suiClient, cacheKey);
+      const analysisResult = await runFullAnalysisChain(packageId, network, suiClient);
       
       // Log risk level
       const riskLevel = analysisResult.risk_level;
