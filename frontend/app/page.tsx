@@ -1,5 +1,6 @@
 import HealthCheck from "./components/HealthCheck";
 import SupabaseCheck from "./components/SupabaseCheck";
+import SuiDeploymentsCheck from "./components/SuiDeploymentsCheck";
 import Auth from "./components/Auth";
 
 export default function Home() {
@@ -24,9 +25,10 @@ export default function Home() {
         </section>
 
         <section className="w-full">
-          <div className="mx-auto grid w-full max-w-3xl gap-6 sm:grid-cols-2">
+          <div className="mx-auto grid w-full max-w-4xl gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <HealthCheck />
             <SupabaseCheck />
+            <SuiDeploymentsCheck />
           </div>
         </section>
       </main>

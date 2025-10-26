@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { testSupabaseConnection } from './lib/supabase';
+import { getRecentPublishTransactions, testSuiConnection } from './lib/sui-client';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -33,11 +34,35 @@ app.use(cors({
 app.use(express.json());
 
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get('/health', async (req, res) => {
+  const hasSupabaseKey = !!process.env.SUPABASE_SERVICE_KEY;
+  const hasSuiRpcUrl = !!process.env.SUI_RPC_URL;
+  
+  // Test Sui RPC connection
+  let suiStatus = 'not configured';
+  if (hasSuiRpcUrl) {
+    try {
+      const suiResult = await testSuiConnection();
+      suiStatus = suiResult.success ? 'connected' : 'connection failed';
+    } catch (error) {
+      suiStatus = 'connection error';
+    }
+  }
+  
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    service: 'redflag-backend'
+    service: 'redflag-backend',
+    integrations: {
+      supabase: {
+        configured: hasSupabaseKey,
+        status: hasSupabaseKey ? 'ready' : 'missing key'
+      },
+      sui: {
+        configured: hasSuiRpcUrl,
+        status: suiStatus
+      }
+    }
   });
 });
 
@@ -64,6 +89,132 @@ app.get('/api/supabase/health', async (req, res) => {
   }
 });
 
+// Sui contract deployments endpoint
+app.get('/api/sui/recent-deployments', async (req, res) => {
+  try {
+    const limitParam = Array.isArray(req.query.limit) ? req.query.limit[0] : req.query.limit;
+    const cursorParam = Array.isArray(req.query.cursor) ? req.query.cursor[0] : req.query.cursor;
+    const checkpointParam = Array.isArray(req.query.afterCheckpoint)
+      ? req.query.afterCheckpoint[0]
+      : req.query.afterCheckpoint;
+
+    const parsedLimit = typeof limitParam === 'string' ? Number.parseInt(limitParam, 10) : Number.NaN;
+    const parsedCheckpoint = typeof checkpointParam === 'string' ? Number.parseInt(checkpointParam, 10) : Number.NaN;
+    const parsedCursor = typeof cursorParam === 'string' ? cursorParam : undefined;
+
+    const limit = Number.isNaN(parsedLimit) ? undefined : parsedLimit;
+    const afterCheckpoint = Number.isNaN(parsedCheckpoint) ? undefined : parsedCheckpoint;
+
+    const result = await getRecentPublishTransactions({
+      limit,
+      cursor: parsedCursor ?? null,
+      afterCheckpoint
+    });
+
+    if (result.success) {
+      res.json({
+        success: true,
+        message: result.message,
+        timestamp: new Date().toISOString(),
+        connectionInfo: result.connectionInfo,
+        deployments: result.deployments || [],
+        totalDeployments: result.deployments?.length || 0,
+        latestCheckpoint: result.latestCheckpoint ?? null,
+        nextCursor: result.nextCursor ?? null,
+        pollIntervalMs: result.pollIntervalMs
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        message: result.message,
+        error: result.error,
+        timestamp: new Date().toISOString(),
+        connectionInfo: result.connectionInfo,
+        latestCheckpoint: result.latestCheckpoint ?? null,
+        nextCursor: result.nextCursor ?? null,
+        pollIntervalMs: result.pollIntervalMs
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: `Sui deployments query failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Sui RPC health check endpoint
+app.get('/api/sui/health', async (req, res) => {
+  try {
+    const result = await testSuiConnection();
+    
+    if (result.success) {
+      res.json({
+        success: true,
+        message: result.message,
+        timestamp: new Date().toISOString(),
+        connectionInfo: result.connectionInfo
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        message: result.message,
+        error: result.error,
+        timestamp: new Date().toISOString(),
+        connectionInfo: result.connectionInfo
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: `Sui health check failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Debug endpoint to see what transactions we're getting
+app.get('/api/sui/debug', async (req, res) => {
+  try {
+    const { SuiClient } = await import('@mysten/sui/client');
+    const client = new SuiClient({ url: process.env.SUI_RPC_URL || 'https://fullnode.testnet.sui.io:443' });
+    
+    const txs = await client.queryTransactionBlocks({
+      options: {
+        showEffects: true,
+        showObjectChanges: true,
+        showInput: true
+      },
+      limit: 10
+    });
+    
+    const debugInfo = {
+      totalTransactions: txs.data.length,
+      transactions: txs.data.map(tx => ({
+        digest: tx.digest,
+        timestamp: tx.timestampMs,
+        objectChanges: tx.objectChanges?.map(change => ({
+          type: change.type,
+          packageId: change.type === 'published' ? change.packageId : undefined
+        })) || []
+      }))
+    };
+    
+    res.json({
+      success: true,
+      message: 'Debug info retrieved',
+      timestamp: new Date().toISOString(),
+      debug: debugInfo
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: `Debug failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
 
 // Start server
 app.listen(PORT, () => {
@@ -71,6 +222,8 @@ app.listen(PORT, () => {
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
   console.log(`🔗 API status: http://localhost:${PORT}/api/status`);
   console.log(`🗄️ Supabase health: http://localhost:${PORT}/api/supabase/health`);
+  console.log(`🔗 Sui health: http://localhost:${PORT}/api/sui/health`);
+  console.log(`📦 Sui deployments: http://localhost:${PORT}/api/sui/recent-deployments`);
 });
 
 export default app;
