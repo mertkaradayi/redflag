@@ -92,7 +92,7 @@ export async function getRecentPublishTransactions({
 
     const pageSize = Math.min(Math.max(normalizedLimit * 2, 10), 50);
     let pageCount = 0;
-    const MAX_PAGES = 60;
+    const MAX_PAGES = 200;
 
     const queryModes: Array<{ name: 'filtered' | 'unfiltered'; filter?: Parameters<typeof client.queryTransactionBlocks>[0]['filter'] }> = [
       {
