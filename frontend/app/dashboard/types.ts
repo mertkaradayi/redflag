@@ -24,4 +24,5 @@ export interface DashboardData {
   success: boolean;
   total: number;
   contracts: AnalyzedContract[];
+  message?: string;
 }

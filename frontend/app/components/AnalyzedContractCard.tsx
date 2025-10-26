@@ -139,7 +139,7 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
               </CardDescription>
             </div>
           </div>
-          <div className="flex w-full max-w-[220px] flex-col items-start gap-3 rounded-lg border border-zinc-200 bg-gradient-to-b from-zinc-50 to-white p-4 dark:border-zinc-800 dark:from-zinc-900 dark:to-zinc-950 md:items-end">
+          <div className="flex w-full max-w-[220px] flex-col items-start gap-3 rounded-lg border border-zinc-200 bg-linear-to-b from-zinc-50 to-white p-4 dark:border-zinc-800 dark:from-zinc-900 dark:to-zinc-950 md:items-end">
             <div className="flex items-baseline gap-2">
               <span className={cn('text-2xl font-semibold', getRiskScoreTextColor(contract.analysis.risk_score))}>
                 {contract.analysis.risk_score}
@@ -189,7 +189,7 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
                       variant="ghost"
                       size="sm"
                       onClick={toggleFunctions}
-                      className="inline-flex items-center gap-1 px-2 text-xs font-semibold text-purple-600 hover:bg-purple-100/60 hover:text-purple-700 dark:text-purple-300 dark:hover:bg-purple-950/30 dark:hover:text-purple-200"
+                      className="inline-flex items-center gap-1 px-2 text-xs font-semibold text-[#D12226] hover:bg-[#D12226]/10 hover:text-[#a8181b] dark:text-[#D12226] dark:hover:bg-[#D12226]/20 dark:hover:text-white"
                     >
                       {showAllFunctions
                         ? 'Show fewer'
@@ -232,7 +232,7 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
                       variant="ghost"
                       size="sm"
                       onClick={toggleIndicators}
-                      className="inline-flex items-center gap-1 px-2 text-xs font-semibold text-orange-600 hover:bg-orange-100/60 hover:text-orange-700 dark:text-orange-300 dark:hover:bg-orange-950/30 dark:hover:text-orange-200"
+                      className="inline-flex items-center gap-1 px-2 text-xs font-semibold text-[#D12226] hover:bg-[#D12226]/10 hover:text-[#a8181b] dark:text-[#D12226] dark:hover:bg-[#D12226]/20 dark:hover:text-white"
                     >
                       {showAllIndicators
                         ? 'Show fewer'

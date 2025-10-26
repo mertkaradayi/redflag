@@ -157,7 +157,7 @@ export default function Dashboard() {
         <div className="container mx-auto px-6 py-16">
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="flex flex-col items-center gap-4 text-center">
-              <div className="h-12 w-12 animate-spin rounded-full border-2 border-purple-300 border-t-transparent"></div>
+              <div className="h-12 w-12 animate-spin rounded-full border-2 border-[#D12226] border-t-transparent"></div>
               <p className="text-sm text-zinc-600 dark:text-zinc-300">Loading analyzed contracts...</p>
             </div>
           </div>
@@ -167,7 +167,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-zinc-50 to-white dark:from-black dark:to-zinc-950">
+    <div className="min-h-screen bg-linear-to-b from-zinc-50 to-white dark:from-black dark:to-zinc-950">
       <div className="container mx-auto px-6 py-16">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-col gap-4">
@@ -197,7 +197,7 @@ export default function Dashboard() {
                 variant="outline"
                 size="sm"
                 disabled={isRefreshing}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 border-[#D12226]/40 text-[#D12226] hover:bg-[#D12226]/10"
               >
                 <RefreshCcw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
                 Refresh
@@ -206,13 +206,18 @@ export default function Dashboard() {
                 onClick={toggleAutoRefresh}
                 variant={autoRefresh ? 'default' : 'outline'}
                 size="sm"
-                className="flex items-center gap-2"
+                className={cn(
+                  'flex items-center gap-2',
+                  autoRefresh
+                    ? 'bg-[#D12226] text-white hover:bg-[#a8181b]'
+                    : 'border-[#D12226]/40 text-[#D12226] hover:bg-[#D12226]/10',
+                )}
               >
                 {autoRefresh ? <PauseCircle className="h-4 w-4" /> : <PlayCircle className="h-4 w-4" />}
                 {autoRefresh ? 'Pause Auto Refresh' : 'Resume Auto Refresh'}
               </Button>
               <Link href="/analyze">
-                <Button className="bg-purple-600 hover:bg-purple-700 text-white">
+                <Button className="bg-[#D12226] text-white hover:bg-[#a8181b]">
                   ➕ Analyze New Contract
                 </Button>
               </Link>
@@ -285,13 +290,15 @@ export default function Dashboard() {
                   variant={filter === level ? 'default' : 'outline'}
                   onClick={() => setFilter(level)}
                   className={cn(
-                    filter === level && 'bg-purple-600 text-white hover:bg-purple-700',
+                    filter === level
+                      ? 'bg-[#D12226] text-white hover:bg-[#a8181b]'
+                      : 'border-[#D12226]/40 text-[#D12226] hover:bg-[#D12226]/10',
                     'px-4 py-2 capitalize',
                   )}
                 >
                   {level === 'all' ? 'All' : level}
                   {level !== 'all' && riskStats && (
-                    <span className="ml-2 rounded-full bg-white/30 px-2 py-0.5 text-xs font-medium dark:bg-zinc-900/60">
+                    <span className="ml-2 rounded-full bg-white/20 px-2 py-0.5 text-xs font-medium dark:bg-black/60">
                       {riskStats.counts[level]}
                     </span>
                   )}
@@ -305,8 +312,8 @@ export default function Dashboard() {
         </div>
 
         {pauseReason === 'details' && !autoRefresh && (
-          <Alert className="mt-6 border-purple-200 bg-purple-50 dark:border-purple-900 dark:bg-purple-950/20">
-            <AlertDescription className="text-purple-800 dark:text-purple-200">
+          <Alert className="mt-6 border-[#D12226]/40 bg-[#D12226]/10 dark:border-[#D12226]/60 dark:bg-[#D12226]/15">
+            <AlertDescription className="text-[#D12226] dark:text-white">
               Auto refresh is paused so the results stay put while you explore a contract. Resume it from the toolbar when you&apos;re ready for new data.
             </AlertDescription>
           </Alert>
@@ -324,7 +331,7 @@ export default function Dashboard() {
                   Run an analysis to populate your dashboard, or switch filters to review previous findings.
                 </p>
                 <Link href="/analyze">
-                  <Button className="bg-purple-600 text-white hover:bg-purple-700">
+                  <Button className="bg-[#D12226] text-white hover:bg-[#a8181b]">
                     Analyze a Contract
                   </Button>
                 </Link>

@@ -133,16 +133,16 @@ const differentiators: Differentiator[] = [
 
 export default function Home() {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-zinc-950 text-zinc-50">
+    <div className="relative min-h-screen overflow-hidden bg-black text-white">
       <div className="absolute inset-0 -z-10">
-        <div className="absolute inset-x-0 top-[-10%] h-[600px] bg-[radial-gradient(circle_at_center,_rgba(147,51,234,0.25),_transparent_60%)]" />
-        <div className="absolute left-1/2 top-1/2 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,_rgba(59,130,246,0.25),_transparent_60%)] blur-3xl" />
+        <div className="absolute inset-x-0 top-[-10%] h-[600px] bg-[radial-gradient(circle_at_center,rgba(209,34,38,0.28),transparent_60%)]" />
+        <div className="absolute left-1/2 top-1/2 h-[520px] w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(209,34,38,0.18),transparent_60%)] blur-3xl" />
       </div>
 
       <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-20 px-6 pb-24 pt-12 sm:px-12 lg:px-16">
         <header className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-[0.3em] text-zinc-400">
-            <span className="rounded-full border border-purple-500/30 bg-purple-500/10 px-3 py-1 text-purple-200">
+            <span className="rounded-full border border-[#D12226]/50 bg-[#D12226]/15 px-3 py-1 text-[#D12226]">
               RedFlag
             </span>
             <span className="hidden sm:inline text-zinc-500">Sui Security Intelligence</span>
@@ -165,8 +165,8 @@ export default function Home() {
 
         <section className="grid items-center gap-12 lg:grid-cols-[1.2fr_1fr]">
           <div className="space-y-8">
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-purple-200">
-              <Sparkles className="h-4 w-4 text-purple-300" />
+            <span className="inline-flex items-center gap-2 rounded-full border border-[#D12226]/50 bg-[#D12226]/15 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-[#D12226]">
+              <Sparkles className="h-4 w-4 text-[#D12226]" />
               AI Multi-Agent Risk Scanner for Sui
             </span>
             <div className="space-y-6">
@@ -180,7 +180,7 @@ export default function Home() {
             </div>
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
               <Link href="/analyze" className="w-full sm:w-auto">
-                <Button className="w-full bg-purple-600 text-white transition hover:bg-purple-500 sm:w-auto">
+                <Button className="w-full bg-[#D12226] text-white transition hover:bg-[#a8181b] sm:w-auto">
                   Start a Contract Analysis
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
@@ -188,7 +188,7 @@ export default function Home() {
               <Link href="/dashboard" className="w-full sm:w-auto">
                 <Button
                   variant="outline"
-                  className="w-full border-zinc-700 bg-transparent text-zinc-100 hover:border-purple-500 hover:text-purple-200 sm:w-auto"
+                  className="w-full border-[#D12226]/50 bg-transparent text-zinc-200 hover:border-[#D12226] hover:text-[#D12226] sm:w-auto"
                 >
                   See Live Risk Dashboard
                 </Button>
@@ -196,50 +196,50 @@ export default function Home() {
             </div>
             <div className="flex flex-wrap items-center gap-8 text-sm text-zinc-400">
               <div className="flex items-center gap-2">
-                <div className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+                <div className="h-2.5 w-2.5 rounded-full bg-[#D12226]" />
                 Production ready
               </div>
               <div className="flex items-center gap-2">
-                <div className="h-2.5 w-2.5 rounded-full bg-sky-400" />
+                <div className="h-2.5 w-2.5 rounded-full bg-white" />
                 Backed by Supabase + Gemini 2.5
               </div>
               <div className="flex items-center gap-2">
-                <div className="h-2.5 w-2.5 rounded-full bg-purple-400" />
+                <div className="h-2.5 w-2.5 rounded-full bg-[#D12226]" />
                 Built for security teams & DeFi founders
               </div>
             </div>
           </div>
           <div className="relative">
-            <div className="absolute -inset-6 rounded-3xl bg-gradient-to-br from-purple-500/40 via-transparent to-indigo-500/20 blur-3xl" />
-            <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/5 p-8 shadow-xl backdrop-blur">
+            <div className="absolute -inset-6 rounded-3xl bg-linear-to-br from-[#D12226]/40 via-transparent to-[#D12226]/10 blur-3xl" />
+            <div className="relative overflow-hidden rounded-3xl border border-white/15 bg-white/5 p-8 shadow-xl backdrop-blur">
               <div className="space-y-6">
                 <h2 className="text-lg font-semibold text-white">What our agents monitor</h2>
                 <ul className="space-y-4 text-sm text-zinc-300">
                   <li className="flex items-start gap-3">
-                    <ShieldCheck className="mt-1 h-5 w-5 text-emerald-300" />
+                    <ShieldCheck className="mt-1 h-5 w-5 text-[#D12226]" />
                     Privileged function pathways & capability revokes
                   </li>
                   <li className="flex items-start gap-3">
-                    <Radar className="mt-1 h-5 w-5 text-sky-300" />
+                    <Radar className="mt-1 h-5 w-5 text-white" />
                     Sudden owner upgrades with unreviewed code diffs
                   </li>
                   <li className="flex items-start gap-3">
-                    <BarChart3 className="mt-1 h-5 w-5 text-purple-300" />
+                    <BarChart3 className="mt-1 h-5 w-5 text-[#D12226]" />
                     Cross-contract liquidity drains and rate limit bypasses
                   </li>
                   <li className="flex items-start gap-3">
-                    <Sparkles className="mt-1 h-5 w-5 text-pink-300" />
+                    <Sparkles className="mt-1 h-5 w-5 text-white" />
                     Emerging exploit signatures from battle-tested red teams
                   </li>
                 </ul>
               </div>
               <div className="mt-8 grid grid-cols-2 gap-4 rounded-2xl border border-white/10 bg-black/40 p-4 text-center text-sm text-zinc-200">
                 <div>
-                  <p className="text-2xl font-semibold text-purple-200">98%</p>
+                  <p className="text-2xl font-semibold text-[#D12226]">98%</p>
                   <p className="text-xs text-zinc-400">Noise Reduction vs raw scanners</p>
                 </div>
                 <div>
-                  <p className="text-2xl font-semibold text-emerald-200">4</p>
+                  <p className="text-2xl font-semibold text-white">4</p>
                   <p className="text-xs text-zinc-400">Specialist agents per review</p>
                 </div>
               </div>
@@ -251,7 +251,7 @@ export default function Home() {
           {stats.map((stat) => (
             <div
               key={stat.label}
-              className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg transition hover:border-purple-400/40 hover:bg-white/10"
+              className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg transition hover:border-[#D12226]/40 hover:bg-[#D12226]/10"
             >
               <p className="text-3xl font-semibold text-white">{stat.value}</p>
               <p className="mt-2 text-sm font-medium uppercase tracking-wide text-zinc-400">
@@ -264,7 +264,7 @@ export default function Home() {
 
         <section className="space-y-10">
           <div className="space-y-3">
-            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-purple-200">
+            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#D12226]">
               Why teams pick RedFlag
             </p>
             <h2 className="text-3xl font-semibold text-white sm:text-4xl">Security that keeps up with shipping fast</h2>
@@ -277,13 +277,13 @@ export default function Home() {
             {features.map((feature) => (
               <div
                 key={feature.title}
-                className="group flex h-full flex-col justify-between rounded-2xl border border-white/10 bg-white/5 p-6 transition hover:border-purple-400/40 hover:bg-white/10"
+                className="group flex h-full flex-col justify-between rounded-2xl border border-white/10 bg-white/5 p-6 transition hover:border-[#D12226]/40 hover:bg-[#D12226]/10"
               >
                 <div className="space-y-4">
-                  <span className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-purple-200">
+                  <span className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[#D12226]">
                     {feature.category}
                   </span>
-                  <feature.icon className="h-8 w-8 text-purple-200 transition-transform group-hover:-translate-y-1" />
+                  <feature.icon className="h-8 w-8 text-[#D12226] transition-transform group-hover:-translate-y-1" />
                   <h3 className="text-lg font-semibold text-white">{feature.title}</h3>
                   <p className="text-sm leading-6 text-zinc-300">{feature.description}</p>
                 </div>
@@ -295,9 +295,9 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="grid gap-10 rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 via-transparent to-purple-500/10 p-10 lg:grid-cols-[1fr_1.4fr]">
+        <section className="grid gap-10 rounded-3xl border border-white/10 bg-linear-to-br from-white/10 via-transparent to-[#D12226]/15 p-10 lg:grid-cols-[1fr_1.4fr]">
           <div className="space-y-6">
-            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-purple-200">
+            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#D12226]">
               How it works
             </p>
             <h2 className="text-3xl font-semibold text-white sm:text-4xl">From package to roadmap in minutes</h2>
@@ -308,7 +308,7 @@ export default function Home() {
             <Link href="/analyze">
               <Button
                 variant="outline"
-                className="border-purple-300 bg-transparent text-purple-200 hover:bg-purple-500/20 hover:text-white"
+                className="border-[#D12226] bg-transparent text-[#D12226] hover:bg-[#D12226]/20 hover:text-white"
               >
                 Launch the Analyzer
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -319,9 +319,9 @@ export default function Home() {
             {process.map((step, index) => (
               <li
                 key={step.title}
-                className="relative rounded-2xl border border-white/10 bg-black/30 p-6 shadow-inner transition hover:border-purple-300/40"
+                className="relative rounded-2xl border border-white/10 bg-black/30 p-6 shadow-inner transition hover:border-[#D12226]/40"
               >
-                <span className="absolute right-6 top-6 text-sm font-semibold text-purple-200">
+                <span className="absolute right-6 top-6 text-sm font-semibold text-[#D12226]">
                   Step {index + 1}
                 </span>
                 <div className="space-y-3">
@@ -340,7 +340,7 @@ export default function Home() {
             {differentiators.map((item) => (
               <div
                 key={item.title}
-                className="rounded-2xl border border-white/10 bg-white/5 p-6 text-sm text-zinc-300 transition hover:border-purple-400/40 hover:bg-white/10"
+                className="rounded-2xl border border-white/10 bg-white/5 p-6 text-sm text-zinc-300 transition hover:border-[#D12226]/40 hover:bg-[#D12226]/10"
               >
                 <h3 className="text-lg font-semibold text-white">{item.title}</h3>
                 <p className="mt-3 leading-6 text-zinc-300">{item.description}</p>
@@ -349,7 +349,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-white/10 bg-gradient-to-br from-purple-600/60 via-purple-500/30 to-indigo-500/40 p-10 text-center shadow-2xl">
+        <section className="rounded-3xl border border-white/10 bg-linear-to-br from-[#D12226]/70 via-[#D12226]/40 to-black p-10 text-center shadow-2xl">
           <div className="mx-auto max-w-2xl space-y-6">
             <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.3em] text-white/80">
               Ready to accelerate
@@ -363,7 +363,7 @@ export default function Home() {
             </p>
             <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
               <Link href="/analyze" className="w-full sm:w-auto">
-                <Button className="w-full bg-white text-purple-700 hover:bg-zinc-100 sm:w-auto">
+                <Button className="w-full bg-[#D12226] text-white hover:bg-[#a8181b] sm:w-auto">
                   Start analyzing
                 </Button>
               </Link>
