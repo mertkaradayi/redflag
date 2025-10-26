@@ -364,8 +364,7 @@ app.post('/api/llm/analyze', async (req, res) => {
     
     // Run full analysis chain (will save to database)
     console.log(`[LLM] Running full analysis chain for ${package_id}...`);
-    const cacheKey = `${package_id}@${validatedNetwork}`;
-    const finalSafetyCard = await runFullAnalysisChain(package_id, validatedNetwork, suiClient, cacheKey);
+    const finalSafetyCard = await runFullAnalysisChain(package_id, validatedNetwork, suiClient);
     
     return res.status(200).json({
       success: true,

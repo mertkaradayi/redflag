@@ -11,6 +11,13 @@ let currentApiKey = process.env.GOOGLE_API_KEY || '';
 let fallbackApiKey = process.env.GOOGLE_API_KEY_FALLBACK || '';
 let genAI = new GoogleGenerativeAI(currentApiKey);
 
+// Function to validate API keys at startup
+export function validateApiKeys() {
+  if (!process.env.GOOGLE_API_KEY && !process.env.GOOGLE_API_KEY_FALLBACK) {
+    throw new Error('[LLM] No Google API keys configured. Set GOOGLE_API_KEY or GOOGLE_API_KEY_FALLBACK');
+  }
+}
+
 // Function to switch to fallback API key
 function switchToFallbackApiKey() {
     if (fallbackApiKey && fallbackApiKey !== currentApiKey) {
@@ -153,6 +160,9 @@ async function callGemini(prompt: string, isJson = false, retryWithFallback = tr
         });
 
         const response = result.response;
+        if (!response || !response.text) {
+          throw new Error('Gemini returned empty or blocked response');
+        }
         const rawText = response.text();
         
         if (isJson) {
@@ -219,7 +229,24 @@ async function callGemini(prompt: string, isJson = false, retryWithFallback = tr
  * Validates and finalizes the safety card by adding risk_level
  */
 function validateAndFinalize(safetyCard: any): SafetyCard {
-    const score = safetyCard.risk_score || 0;
+    // Normalize risk_score to number
+    let score = 0;
+    if (safetyCard.risk_score !== undefined && safetyCard.risk_score !== null) {
+        const parsed = typeof safetyCard.risk_score === 'string' 
+            ? parseFloat(safetyCard.risk_score) 
+            : safetyCard.risk_score;
+        
+        if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) {
+            score = Math.round(parsed);
+        } else {
+            console.warn(`[VALIDATE] Invalid risk_score: ${safetyCard.risk_score}, defaulting to 50`);
+            score = 50; // Default to moderate risk instead of 0
+        }
+    } else {
+        console.warn('[VALIDATE] Missing risk_score, defaulting to 50');
+        score = 50;
+    }
+    
     let level: 'low' | 'moderate' | 'high' | 'critical' = 'low';
     if (score >= 70) level = 'critical';
     else if (score >= 50) level = 'high';
@@ -227,6 +254,7 @@ function validateAndFinalize(safetyCard: any): SafetyCard {
     
     return {
         ...safetyCard,
+        risk_score: score,
         risk_level: level
     };
 }
@@ -395,8 +423,11 @@ Return JSON schema:
 /**
  * Full Analysis Chain - Orchestrates 3 agents with database persistence
  */
-export async function runFullAnalysisChain(packageId: string, network: string, suiClient: SuiClient, cacheKey: string) {
+export async function runFullAnalysisChain(packageId: string, network: string, suiClient: SuiClient) {
     console.log(`[ANALYSIS ${network}] Starting for ${packageId}...`);
+    
+    // 0. Validate API keys before starting
+    validateApiKeys();
     
     // 1. Check database for existing analysis
     console.log('[1/6] Checking database for cached analysis...');
@@ -488,8 +519,9 @@ export async function runFullAnalysisChain(packageId: string, network: string, s
     const analyzerPrompt = buildAnalyzerPrompt(publicFunctions, structDefinitions, disassembledCode);
     const analyzerResult = await callGemini(analyzerPrompt, true);
     
-    if (analyzerResult.fallback) {
-        console.warn('[4/6] Analyzer failed, using fallback');
+    // Validate response structure
+    if (analyzerResult.fallback || !analyzerResult.technical_findings || !Array.isArray(analyzerResult.technical_findings)) {
+        console.warn('[4/6] Analyzer returned invalid structure, using fallback');
         const fallbackCard: SafetyCard = {
             summary: "Analysis incomplete due to AI response error. Manual review recommended.",
             risky_functions: [],
@@ -503,7 +535,26 @@ export async function runFullAnalysisChain(packageId: string, network: string, s
         return fallbackCard;
     }
     
-    const technicalFindings = analyzerResult.technical_findings || [];
+    // Additional validation: check array has valid objects
+    if (analyzerResult.technical_findings.length > 0) {
+        const firstFinding = analyzerResult.technical_findings[0];
+        if (!firstFinding || typeof firstFinding !== 'object' || !firstFinding.function_name) {
+            console.warn('[4/6] Analyzer findings malformed, using fallback');
+            const fallbackCard: SafetyCard = {
+                summary: "Analysis incomplete due to AI response error. Manual review recommended.",
+                risky_functions: [],
+                rug_pull_indicators: [],
+                impact_on_user: "Unable to complete analysis due to technical issues.",
+                why_risky_one_liner: "Analysis incomplete - manual review required",
+                risk_score: 50,
+                risk_level: 'moderate'
+            };
+            await saveAnalysisResult(packageId, network, fallbackCard);
+            return fallbackCard;
+        }
+    }
+    
+    const technicalFindings = analyzerResult.technical_findings;
     console.log(`[4/6] Analyzer complete. Found ${technicalFindings.length} findings.`);
 
     // Fast lane: No risks found
@@ -528,6 +579,23 @@ export async function runFullAnalysisChain(packageId: string, network: string, s
     console.log('[5/6] Agent 2: Scorer - Calculating risk score...');
     const scorerPrompt = buildScorerPrompt(technicalFindings);
     const scorerResult = await callGemini(scorerPrompt, true);
+    
+    // Validate scorer response
+    if (scorerResult.fallback || typeof scorerResult !== 'object' || scorerResult.risk_score === undefined) {
+        console.warn('[5/6] Scorer returned invalid response, using fallback');
+        const fallbackCard: SafetyCard = {
+            summary: "Risk scoring failed due to AI response error. Manual review recommended.",
+            risky_functions: [],
+            rug_pull_indicators: [],
+            impact_on_user: "Unable to complete risk scoring.",
+            why_risky_one_liner: "Scoring incomplete - manual review required",
+            risk_score: 50,
+            risk_level: 'moderate'
+        };
+        await saveAnalysisResult(packageId, network, fallbackCard);
+        return fallbackCard;
+    }
+    
     console.log(`[5/6] Scorer complete. Score: ${scorerResult.risk_score}`);
 
     // ============================================================
@@ -536,6 +604,22 @@ export async function runFullAnalysisChain(packageId: string, network: string, s
     console.log('[6/6] Agent 3: Reporter - Generating user-friendly report...');
     const reporterPrompt = buildReporterPrompt(technicalFindings, scorerResult);
     const reporterResult = await callGemini(reporterPrompt, true);
+    
+    // Validate reporter response
+    if (reporterResult.fallback || typeof reporterResult !== 'object' || !reporterResult.summary) {
+        console.warn('[6/6] Reporter returned invalid response, using fallback');
+        const fallbackCard: SafetyCard = {
+            summary: "Report generation failed due to AI response error. Manual review recommended.",
+            risky_functions: [],
+            rug_pull_indicators: [],
+            impact_on_user: "Unable to generate user-friendly report.",
+            why_risky_one_liner: "Report generation incomplete - manual review required",
+            risk_score: scorerResult.risk_score || 50,
+            risk_level: 'moderate'
+        };
+        await saveAnalysisResult(packageId, network, fallbackCard);
+        return fallbackCard;
+    }
 
     // Assemble final safety card
     const draftSafetyCard = {
