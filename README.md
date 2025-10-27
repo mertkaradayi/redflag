@@ -107,6 +107,7 @@ The frontend uses the `@/` alias (rooted at `frontend/`) for cross-module import
 | Key | Required | Description | Default |
 | --- | --- | --- | --- |
 | `NEXT_PUBLIC_BACKEND_URL` | Yes | Base URL for API calls (`http://localhost:3001` locally). | – |
+| `NEXT_PUBLIC_SITE_URL` | No | Public URL for the frontend, used for OpenGraph/Twitter metadata. | `http://localhost:3000` |
 | `NEXT_PUBLIC_PRIVY_APP_ID` | No | Privy application ID when enabling auth flows. | – |
 
 ## API Surface
@@ -209,4 +210,3 @@ This is a private project. Follow the workspace coding standards, prefer small f
 ## License
 
 Private – all rights reserved.
-

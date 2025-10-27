@@ -162,6 +162,15 @@ export default function Home() {
               <Link href="/deployments" className="transition hover:text-white">
                 Deployments
               </Link>
+              <Link
+                href="https://github.com/mertkaradayi/redflag"
+                target="_blank"
+                rel="noopener noreferrer"
+                prefetch={false}
+                className="transition hover:text-white"
+              >
+                GitHub
+              </Link>
             </nav>
             <Auth />
           </div>
@@ -382,6 +391,19 @@ export default function Home() {
             </div>
           </div>
         </section>
+
+        <footer className="flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-8 text-sm text-zinc-500 sm:flex-row">
+          <span>© 2025 RedFlag Labs. All rights reserved.</span>
+          <Link
+            href="https://github.com/mertkaradayi/redflag"
+            target="_blank"
+            rel="noopener noreferrer"
+            prefetch={false}
+            className="transition hover:text-white"
+          >
+            Follow the build on GitHub
+          </Link>
+        </footer>
       </div>
     </div>
   );
