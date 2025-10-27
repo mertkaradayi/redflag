@@ -1,37 +1,49 @@
 import Link from "next/link";
-import { ArrowRight, BarChart3, Lock, Radar, ShieldCheck, Sparkles, Workflow, Zap, Database, Globe } from "lucide-react";
+import { ArrowRight, BarChart3, Radar, ShieldCheck, Sparkles, Zap, Database, Globe } from "lucide-react";
 
 import BrandLogo from "../components/BrandLogo";
 import { Button } from "@/components/ui/button";
 
 export default function Summary() {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-black text-white">
+    <div className="relative min-h-screen overflow-x-hidden bg-black text-white">
       <div className="absolute inset-0 -z-10">
         <div className="absolute inset-x-0 top-[-10%] h-[600px] bg-[radial-gradient(circle_at_center,rgba(209,34,38,0.28),transparent_60%)]" />
         <div className="absolute left-1/2 top-1/2 h-[520px] w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(209,34,38,0.18),transparent_60%)] blur-3xl" />
       </div>
 
-      <div className="relative z-10 mx-auto flex w-full max-w-4xl flex-col gap-16 px-6 pb-24 pt-12 sm:px-12 lg:px-16">
-        <header className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
+      <div className="relative z-10 mx-auto flex w-full max-w-4xl flex-col gap-16 px-4 pb-24 pt-10 sm:px-8 lg:px-12">
+        <header className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap items-center gap-3">
             <BrandLogo className="h-9" priority />
             <span className="hidden text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500 sm:inline">
               Sui Security Intelligence
             </span>
           </div>
-          <div className="flex items-center gap-3">
-            <nav className="hidden items-center gap-6 text-sm text-zinc-300 sm:flex">
-              <Link href="/summary" className="transition hover:text-white">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end lg:gap-6">
+            <nav className="flex w-full flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm text-zinc-300 sm:w-auto sm:justify-end">
+              <Link
+                href="/summary"
+                className="rounded-full px-3 py-1.5 transition hover:bg-white/5 hover:text-white"
+              >
                 Summary
               </Link>
-              <Link href="/analyze" className="transition hover:text-white">
+              <Link
+                href="/analyze"
+                className="rounded-full px-3 py-1.5 transition hover:bg-white/5 hover:text-white"
+              >
                 Analyze
               </Link>
-              <Link href="/dashboard" className="transition hover:text-white">
+              <Link
+                href="/dashboard"
+                className="rounded-full px-3 py-1.5 transition hover:bg-white/5 hover:text-white"
+              >
                 Dashboard
               </Link>
-              <Link href="/deployments" className="transition hover:text-white">
+              <Link
+                href="/deployments"
+                className="rounded-full px-3 py-1.5 transition hover:bg-white/5 hover:text-white"
+              >
                 Deployments
               </Link>
             </nav>
@@ -44,12 +56,12 @@ export default function Summary() {
               <Sparkles className="h-4 w-4 text-[#D12226]" />
               AI Multi-Agent Risk Scanner for Sui
             </span>
-            
-            <h1 className="text-4xl font-semibold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
+
+            <h1 className="text-3xl font-semibold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
               Ship Sui smart contracts with zero guesswork.
             </h1>
-            
-            <p className="mx-auto max-w-3xl text-lg leading-8 text-zinc-300">
+
+            <p className="mx-auto max-w-2xl text-base leading-7 text-zinc-300 sm:text-lg sm:leading-8">
               RedFlag orchestrates a swarm of AI specialists that dissect every Move module, flag risky functions, 
               and hand you a prioritized remediation plan—before your users ever see mainnet.
             </p>
@@ -73,7 +85,7 @@ export default function Summary() {
           </div>
         </section>
 
-        <section className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+        <section className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg transition hover:border-[#D12226]/40 hover:bg-[#D12226]/10">
             <p className="text-3xl font-semibold text-white">2.4k+</p>
             <p className="mt-2 text-sm font-medium uppercase tracking-wide text-zinc-400">
@@ -158,7 +170,7 @@ export default function Summary() {
             </p>
             <h2 className="text-3xl font-semibold text-white sm:text-4xl">Next-Gen Security Features</h2>
             <p className="mx-auto max-w-2xl text-base text-zinc-300">
-              We're building the future of smart contract security with advanced features designed for the Sui ecosystem.
+              We&apos;re building the future of smart contract security with advanced features designed for the Sui ecosystem.
             </p>
           </div>
 
@@ -171,7 +183,7 @@ export default function Summary() {
                 <Database className="h-8 w-8 text-[#D12226] transition-transform group-hover:-translate-y-1" />
                 <h3 className="text-lg font-semibold text-white">Walrus Integration</h3>
                 <p className="text-sm leading-6 text-zinc-300">
-                  Immutable audit trail storage on Sui's decentralized storage with on-chain verification and tamper-proof records.
+                  Immutable audit trail storage on Sui&rsquo;s decentralized storage with on-chain verification and tamper-proof records.
                 </p>
               </div>
             </div>
@@ -212,7 +224,7 @@ export default function Summary() {
             <h2 className="text-3xl font-semibold text-white sm:text-4xl">Purpose-Built For Sui</h2>
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-3">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-sm text-zinc-300 transition hover:border-[#D12226]/40 hover:bg-[#D12226]/10">
               <h3 className="text-lg font-semibold text-white">Move-Specific Patterns</h3>
               <p className="mt-3 leading-6 text-zinc-300">
@@ -234,7 +246,7 @@ export default function Summary() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-white/10 bg-linear-to-br from-[#D12226]/70 via-[#D12226]/40 to-black p-10 text-center shadow-2xl">
+        <section className="rounded-3xl border border-white/10 bg-linear-to-br from-[#D12226]/70 via-[#D12226]/40 to-black p-6 text-center shadow-2xl sm:p-8 lg:p-10">
           <div className="mx-auto max-w-2xl space-y-6">
             <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.3em] text-white/80">
               Ready to accelerate

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, BrainCircuit, Gauge, ShieldAlert } from "lucide-react";
+import { ArrowRight, BrainCircuit, Gauge, ShieldAlert } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import BrandLogo from "../components/BrandLogo";
@@ -119,33 +119,23 @@ const toneClasses: Record<PatternGroup["tone"], string> = {
 
 export default function AnalyzePage() {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-black text-white">
+    <div className="relative min-h-screen overflow-x-hidden bg-black text-white">
       <div className="absolute inset-0 -z-10">
         <div className="absolute inset-x-0 top-[-12%] h-[520px] bg-[radial-gradient(circle_at_center,_rgba(209,34,38,0.28),_transparent_60%)]" />
         <div className="absolute left-1/2 top-[45%] h-[540px] w-[540px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,_rgba(209,34,38,0.18),_transparent_60%)] blur-3xl" />
       </div>
 
-      <main className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-20 px-6 pb-24 pt-12 sm:px-12 lg:px-16">
-        <header className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
+      <main className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-16 px-4 pb-24 pt-10 sm:px-8 lg:gap-20 lg:px-16 lg:pt-12">
+        <header className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap items-center gap-3">
             <BrandLogo className="h-9" priority />
             <span className="hidden text-xs font-semibold uppercase tracking-[0.3em] text-zinc-400 sm:inline">
               Analyze Contracts
             </span>
           </div>
-          <div className="flex items-center gap-3">
-            <Link href="/" className="hidden sm:block">
-              <Button
-                variant="outline"
-                size="sm"
-                className="border-white/20 bg-transparent text-zinc-200 hover:border-white hover:text-white"
-              >
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back Home
-              </Button>
-            </Link>
-            <Link href="/dashboard">
-              <Button className="bg-[#D12226] text-white hover:bg-[#a8181b]">
+          <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
+            <Link href="/dashboard" className="w-full sm:w-auto">
+              <Button className="w-full bg-[#D12226] text-white hover:bg-[#a8181b] sm:w-auto">
                 View Dashboard
               </Button>
             </Link>
@@ -155,10 +145,10 @@ export default function AnalyzePage() {
         <section className="grid items-start gap-12 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="space-y-8">
             <div className="space-y-6">
-              <h1 className="text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
+              <h1 className="text-3xl font-semibold leading-tight tracking-tight sm:text-5xl">
                 Stress-test Sui contracts before they stress you.
               </h1>
-              <p className="max-w-xl text-lg leading-8 text-zinc-300">
+              <p className="max-w-xl text-base leading-7 text-zinc-300 sm:text-lg sm:leading-8">
                 Paste a package ID, pick your network, and our multi-agent reviewer spins up a full security audit in
                 minutes. Every risky function is ranked, justified, and ready for action.
               </p>
@@ -177,7 +167,7 @@ export default function AnalyzePage() {
                 </div>
               ))}
             </div>
-            <div className="flex flex-wrap items-center gap-4 text-xs font-semibold uppercase tracking-[0.35em] text-zinc-400">
+            <div className="flex flex-wrap items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.35em] text-zinc-400 sm:text-xs">
               <span className="rounded-full border border-white/15 px-3 py-1">
                 Gemini 2.5 Flash
               </span>
@@ -190,8 +180,8 @@ export default function AnalyzePage() {
             </div>
           </div>
           <div className="relative">
-            <div className="absolute -inset-6 rounded-3xl bg-gradient-to-br from-[#D12226]/30 via-transparent to-[#D12226]/10 blur-2xl" />
-            <div className="relative overflow-hidden rounded-3xl border border-white/15 bg-black/40 p-8 shadow-xl backdrop-blur">
+            <div className="pointer-events-none absolute -inset-3 rounded-3xl bg-gradient-to-br from-[#D12226]/30 via-transparent to-[#D12226]/10 blur-2xl sm:-inset-4 lg:-inset-6" />
+            <div className="relative overflow-hidden rounded-3xl border border-white/15 bg-black/40 p-6 shadow-xl backdrop-blur sm:p-8">
               <div className="space-y-4 text-sm text-zinc-300">
                 <h2 className="text-lg font-semibold text-white">What you’ll get</h2>
                 <ul className="space-y-3">
@@ -306,7 +296,7 @@ export default function AnalyzePage() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-white/10 bg-gradient-to-br from-[#D12226]/60 via-[#D12226]/30 to-black p-10 text-center shadow-2xl">
+        <section className="rounded-3xl border border-white/10 bg-gradient-to-br from-[#D12226]/60 via-[#D12226]/30 to-black p-6 text-center shadow-2xl sm:p-8 lg:p-10">
           <div className="mx-auto max-w-3xl space-y-6">
             <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.3em] text-white/80">
               Ready when you are

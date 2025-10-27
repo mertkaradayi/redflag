@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, GaugeCircle, Globe2, Radar, RefreshCcw, ServerCog, Sparkles } from "lucide-react";
+import { ArrowRight, GaugeCircle, Globe2, Radar, RefreshCcw, ServerCog, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import BrandLogo from "../components/BrandLogo";
@@ -53,46 +53,36 @@ const deploymentLegend = [
 
 export default function DeploymentsPage() {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-black text-white">
+    <div className="relative min-h-screen overflow-x-hidden bg-black text-white">
       <div className="absolute inset-0 -z-10">
         <div className="absolute inset-x-0 top-[-15%] h-[520px] bg-[radial-gradient(circle_at_center,_rgba(209,34,38,0.26),_transparent_60%)]" />
         <div className="absolute left-1/2 top-1/2 h-[560px] w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,_rgba(209,34,38,0.18),_transparent_60%)] blur-3xl" />
       </div>
 
-      <main className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-16 px-6 pb-24 pt-12 sm:px-12 lg:px-16">
-        <header className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-          <div className="space-y-5">
-            <div className="flex items-center gap-4">
+      <main className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-16 px-4 pb-24 pt-10 sm:px-8 lg:px-16 lg:pt-12">
+        <header className="flex flex-col gap-10 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-6">
+            <div className="flex flex-wrap items-center gap-3">
               <BrandLogo className="h-9" priority />
               <span className="hidden text-xs font-semibold uppercase tracking-[0.3em] text-zinc-400 sm:inline">
                 Deployments Monitor
               </span>
             </div>
             <div className="space-y-4">
-              <h1 className="text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
+              <h1 className="text-3xl font-semibold leading-tight tracking-tight sm:text-5xl">
                 Track every Move deployment the instant it hits Sui.
               </h1>
-              <p className="max-w-2xl text-base text-zinc-300">
+              <p className="max-w-2xl text-base leading-7 text-zinc-300 sm:text-lg sm:leading-8">
                 RedFlag watches your environments around the clock, capturing package metadata, deployer addresses, and
                 transaction digests so security and protocol teams can respond before issues roll into production.
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-3 text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500">
+            <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-zinc-500 sm:text-xs">
               <span className="rounded-full border border-white/15 px-3 py-1">Auto-refresh 30s</span>
               <span className="rounded-full border border-white/15 px-3 py-1">Explorer Deep Links</span>
               <span className="rounded-full border border-white/15 px-3 py-1">Analyze via Gemini 2.5</span>
             </div>
-            <div className="flex flex-wrap gap-3">
-              <Link href="/" className="w-full sm:w-auto">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full border-white/20 text-white hover:border-white hover:bg-white/10 sm:w-auto"
-                >
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back to homepage
-                </Button>
-              </Link>
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <Link href="/analyze" className="w-full sm:w-auto">
                 <Button className="w-full bg-[#D12226] text-white hover:bg-[#a8181b] sm:w-auto">
                   Launch analyzer
@@ -144,7 +134,7 @@ export default function DeploymentsPage() {
           <DeploymentsTable autoRefresh refreshInterval={30000} />
         </section>
 
-        <section className="rounded-3xl border border-white/10 bg-gradient-to-br from-[#D12226]/60 via-[#D12226]/30 to-black p-10 text-center shadow-2xl">
+        <section className="rounded-3xl border border-white/10 bg-gradient-to-br from-[#D12226]/60 via-[#D12226]/30 to-black p-6 text-center shadow-2xl sm:p-8 lg:p-10">
           <div className="mx-auto max-w-3xl space-y-6">
             <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.3em] text-white/80">
               Close the loop

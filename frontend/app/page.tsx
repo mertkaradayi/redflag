@@ -134,32 +134,44 @@ const differentiators: Differentiator[] = [
 
 export default function Home() {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-black text-white">
+    <div className="relative min-h-screen overflow-x-hidden bg-black text-white">
       <div className="absolute inset-0 -z-10">
         <div className="absolute inset-x-0 top-[-10%] h-[600px] bg-[radial-gradient(circle_at_center,rgba(209,34,38,0.28),transparent_60%)]" />
         <div className="absolute left-1/2 top-1/2 h-[520px] w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(209,34,38,0.18),transparent_60%)] blur-3xl" />
       </div>
 
-      <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-20 px-6 pb-24 pt-12 sm:px-12 lg:px-16">
-        <header className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
+      <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-16 px-4 pb-24 pt-10 sm:px-8 lg:gap-20 lg:px-16 lg:pt-12">
+        <header className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap items-center gap-3">
             <BrandLogo className="h-9" priority />
             <span className="hidden text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500 sm:inline">
               Sui Security Intelligence
             </span>
           </div>
-          <div className="flex items-center gap-3">
-            <nav className="hidden items-center gap-6 text-sm text-zinc-300 sm:flex">
-              <Link href="/summary" className="transition hover:text-white">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end lg:gap-6">
+            <nav className="flex w-full flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm text-zinc-300 sm:w-auto sm:justify-end">
+              <Link
+                href="/summary"
+                className="rounded-full px-3 py-1.5 transition hover:bg-white/5 hover:text-white"
+              >
                 Summary
               </Link>
-              <Link href="/analyze" className="transition hover:text-white">
+              <Link
+                href="/analyze"
+                className="rounded-full px-3 py-1.5 transition hover:bg-white/5 hover:text-white"
+              >
                 Analyze
               </Link>
-              <Link href="/dashboard" className="transition hover:text-white">
+              <Link
+                href="/dashboard"
+                className="rounded-full px-3 py-1.5 transition hover:bg-white/5 hover:text-white"
+              >
                 Dashboard
               </Link>
-              <Link href="/deployments" className="transition hover:text-white">
+              <Link
+                href="/deployments"
+                className="rounded-full px-3 py-1.5 transition hover:bg-white/5 hover:text-white"
+              >
                 Deployments
               </Link>
               <Link
@@ -167,26 +179,28 @@ export default function Home() {
                 target="_blank"
                 rel="noopener noreferrer"
                 prefetch={false}
-                className="transition hover:text-white"
+                className="rounded-full px-3 py-1.5 transition hover:bg-white/5 hover:text-white"
               >
                 GitHub
               </Link>
             </nav>
-            <Auth />
+            <div className="flex justify-center sm:justify-end">
+              <Auth />
+            </div>
           </div>
         </header>
 
-        <section className="grid items-center gap-12 lg:grid-cols-[1.2fr_1fr]">
-          <div className="space-y-8">
+        <section className="grid items-start gap-12 lg:grid-cols-[1.15fr_1fr] xl:grid-cols-[1.2fr_1fr]">
+          <div className="space-y-8 sm:space-y-10">
             <span className="inline-flex items-center gap-2 rounded-full border border-[#D12226]/50 bg-[#D12226]/15 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-[#D12226]">
               <Sparkles className="h-4 w-4 text-[#D12226]" />
               AI Multi-Agent Risk Scanner for Sui
             </span>
             <div className="space-y-6">
-              <h1 className="text-4xl font-semibold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
+              <h1 className="text-3xl font-semibold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
                 Ship Sui smart contracts with zero guesswork.
               </h1>
-              <p className="max-w-xl text-lg leading-8 text-zinc-300">
+              <p className="max-w-xl text-base leading-7 text-zinc-300 sm:text-lg sm:leading-8">
                 RedFlag orchestrates a swarm of specialists that dissect every Move module, flag risky functions,
                 and hand you a prioritized remediation plan—before your users ever see mainnet.
               </p>
@@ -207,7 +221,7 @@ export default function Home() {
                 </Button>
               </Link>
             </div>
-            <div className="flex flex-wrap items-center gap-8 text-sm text-zinc-400">
+            <div className="flex flex-wrap items-center gap-4 text-xs text-zinc-400 sm:text-sm sm:gap-8">
               <div className="flex items-center gap-2">
                 <div className="h-2.5 w-2.5 rounded-full bg-[#D12226]" />
                 Production ready
@@ -223,9 +237,9 @@ export default function Home() {
             </div>
           </div>
           <div className="relative">
-            <div className="absolute -inset-6 rounded-3xl bg-linear-to-br from-[#D12226]/40 via-transparent to-[#D12226]/10 blur-3xl" />
-            <div className="relative overflow-hidden rounded-3xl border border-white/15 bg-white/5 p-8 shadow-xl backdrop-blur">
-              <div className="space-y-6">
+            <div className="pointer-events-none absolute -inset-3 rounded-3xl bg-linear-to-br from-[#D12226]/40 via-transparent to-[#D12226]/10 blur-3xl sm:-inset-4 lg:-inset-6" />
+            <div className="relative overflow-hidden rounded-3xl border border-white/15 bg-white/5 p-6 shadow-xl backdrop-blur sm:p-8">
+              <div className="space-y-5 sm:space-y-6">
                 <h2 className="text-lg font-semibold text-white">What our agents monitor</h2>
                 <ul className="space-y-4 text-sm text-zinc-300">
                   <li className="flex items-start gap-3">
@@ -246,12 +260,12 @@ export default function Home() {
                   </li>
                 </ul>
               </div>
-              <div className="mt-8 grid grid-cols-2 gap-4 rounded-2xl border border-white/10 bg-black/40 p-4 text-center text-sm text-zinc-200">
-                <div>
+              <div className="mt-8 grid grid-cols-1 gap-4 rounded-2xl border border-white/10 bg-black/40 p-4 text-center text-sm text-zinc-200 sm:grid-cols-2">
+                <div className="space-y-1">
                   <p className="text-2xl font-semibold text-[#D12226]">98%</p>
                   <p className="text-xs text-zinc-400">Noise Reduction vs raw scanners</p>
                 </div>
-                <div>
+                <div className="space-y-1">
                   <p className="text-2xl font-semibold text-white">4</p>
                   <p className="text-xs text-zinc-400">Specialist agents per review</p>
                 </div>
@@ -308,7 +322,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="grid gap-10 rounded-3xl border border-white/10 bg-linear-to-br from-white/10 via-transparent to-[#D12226]/15 p-10 lg:grid-cols-[1fr_1.4fr]">
+        <section className="grid gap-10 rounded-3xl border border-white/10 bg-linear-to-br from-white/10 via-transparent to-[#D12226]/15 p-6 sm:p-8 lg:grid-cols-[1fr_1.4fr] lg:p-10">
           <div className="space-y-6">
             <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#D12226]">
               How it works
@@ -362,7 +376,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-white/10 bg-linear-to-br from-[#D12226]/70 via-[#D12226]/40 to-black p-10 text-center shadow-2xl">
+        <section className="rounded-3xl border border-white/10 bg-linear-to-br from-[#D12226]/70 via-[#D12226]/40 to-black p-6 text-center shadow-2xl sm:p-8 lg:p-10">
           <div className="mx-auto max-w-2xl space-y-6">
             <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.3em] text-white/80">
               Ready to accelerate

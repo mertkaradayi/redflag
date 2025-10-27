@@ -140,7 +140,7 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
               </CardDescription>
             </div>
           </div>
-          <div className="flex w-full max-w-[240px] flex-col items-start gap-3 rounded-xl border border-white/10 bg-black/40 p-4 md:items-end">
+          <div className="flex w-full flex-col items-start gap-3 rounded-xl border border-white/10 bg-black/40 p-4 sm:max-w-[260px] md:items-end">
             <div className="flex items-baseline gap-2">
               <span className={cn('text-2xl font-semibold', getRiskScoreTextColor(contract.analysis.risk_score))}>
                 {contract.analysis.risk_score}

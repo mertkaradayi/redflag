@@ -186,10 +186,10 @@ function FieldBlock({
       <label className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500">
         {label}
       </label>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <code
           className={cn(
-            'flex-1 truncate rounded-2xl border border-white/10 bg-black/40 px-3 py-2 font-mono text-sm text-white/90',
+            'min-w-0 flex-1 truncate rounded-2xl border border-white/10 bg-black/40 px-3 py-2 font-mono text-sm text-white/90',
             onToggle && 'cursor-pointer transition hover:border-white/20 hover:bg-black/30',
           )}
           onClick={onToggle}

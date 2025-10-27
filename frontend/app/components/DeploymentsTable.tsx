@@ -246,7 +246,7 @@ export default function DeploymentsTable({
                 className="w-full rounded-full border border-white/15 bg-black/60 py-2 pl-11 pr-4 text-sm text-white placeholder:text-zinc-500 focus:border-[#D12226] focus:outline-none focus:ring-2 focus:ring-[#D12226]/40"
               />
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {(['timestamp', 'checkpoint'] as const).map((option) => {
                 const isActive = sortBy === option;
                 return (
