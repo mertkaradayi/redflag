@@ -17,13 +17,13 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
-const socialPreviewUrl = siteUrl
-  ? new URL(socialPreview.src, siteUrl).toString()
-  : socialPreview.src;
+const fallbackSiteUrl = "http://localhost:3000";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? fallbackSiteUrl;
+const metadataBase = new URL(siteUrl);
+const socialPreviewUrl = new URL(socialPreview.src, metadataBase).toString();
 
 export const metadata: Metadata = {
-  metadataBase: siteUrl ? new URL(siteUrl) : undefined,
+  metadataBase,
   title: {
     default: "RedFlag | AI-Powered Sui Contract Risk Intelligence",
     template: "%s | RedFlag",
