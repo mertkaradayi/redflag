@@ -139,32 +139,18 @@ export default function AnalyzePage() {
           </div>
         </header>
 
-        <section className="grid items-start gap-12 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="space-y-8">
-            <div className="space-y-6">
+        <section className="grid items-start gap-12 lg:grid-cols-[1fr_1.2fr]">
+          <div className="space-y-6">
+            <div className="space-y-4">
               <h1 className="text-3xl font-semibold leading-tight tracking-tight sm:text-5xl">
                 Stress-test Sui contracts before they stress you.
               </h1>
-              <p className="max-w-xl text-base leading-7 text-zinc-300 sm:text-lg sm:leading-8">
+              <p className="text-base leading-7 text-zinc-300 sm:text-lg sm:leading-8">
                 Paste a package ID, pick your network, and our multi-agent reviewer spins up a full security audit in
                 minutes. Every risky function is ranked, justified, and ready for action.
               </p>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {highlights.map((highlight) => (
-                <div
-                  key={highlight.title}
-                  className="flex h-full flex-col gap-3 rounded-2xl border border-white/15 bg-white/5 p-5 text-sm text-zinc-300 transition hover:border-[#D12226]/40 hover:bg-[#D12226]/10"
-                >
-                  <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-[#D12226]">
-                    {highlight.icon}
-                    {highlight.title}
-                  </div>
-                  <p className="leading-6 text-zinc-300">{highlight.description}</p>
-                </div>
-              ))}
-            </div>
-            <div className="flex flex-wrap items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.35em] text-zinc-400 sm:text-xs">
+            <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.35em] text-zinc-400 sm:text-xs">
               <span className="rounded-full border border-white/15 px-3 py-1">
                 Gemini 2.5 Flash
               </span>
@@ -179,8 +165,32 @@ export default function AnalyzePage() {
           <div className="relative">
             <div className="pointer-events-none absolute -inset-3 rounded-3xl bg-gradient-to-br from-[#D12226]/30 via-transparent to-[#D12226]/10 blur-2xl sm:-inset-4 lg:-inset-6" />
             <div className="relative overflow-hidden rounded-3xl border border-white/15 bg-black/40 p-6 shadow-xl backdrop-blur sm:p-8">
+              <LLMAnalysis />
+            </div>
+          </div>
+        </section>
+
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {highlights.map((highlight) => (
+            <div
+              key={highlight.title}
+              className="flex h-full flex-col gap-3 rounded-2xl border border-white/15 bg-white/5 p-5 text-sm text-zinc-300 transition hover:border-[#D12226]/40 hover:bg-[#D12226]/10"
+            >
+              <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-[#D12226]">
+                {highlight.icon}
+                {highlight.title}
+              </div>
+              <p className="leading-6 text-zinc-300">{highlight.description}</p>
+            </div>
+          ))}
+        </section>
+
+        <section>
+          <div className="relative">
+            <div className="pointer-events-none absolute -inset-3 rounded-3xl bg-gradient-to-br from-[#D12226]/30 via-transparent to-[#D12226]/10 blur-2xl sm:-inset-4 lg:-inset-6" />
+            <div className="relative overflow-hidden rounded-3xl border border-white/15 bg-black/40 p-6 shadow-xl backdrop-blur sm:p-8">
               <div className="space-y-4 text-sm text-zinc-300">
-                <h2 className="text-lg font-semibold text-white">What you’ll get</h2>
+                <h2 className="text-lg font-semibold text-white">What you'll get</h2>
                 <ul className="space-y-3">
                   <li className="flex items-start gap-3">
                     <span className="mt-1 h-2 w-2 rounded-full bg-[#D12226]" />
@@ -202,31 +212,14 @@ export default function AnalyzePage() {
                   Head to the dashboard to replay past findings, export JSON payloads, and monitor score deltas across
                   deployments.
                 </p>
-                <Link href="/dashboard" className="mt-4 inline-flex items-center text-sm font-semibold text-[#D12226] hover:text-[#ff3d41]">
-                  Jump to dashboard
-                  <ArrowRight className="ml-2 h-4 w-4" />
+                <Link href="/dashboard" className="mt-4 inline-block">
+                  <Button variant="outline" className="border-[#D12226] text-[#D12226] hover:bg-[#D12226]/20 hover:text-white">
+                    Jump to dashboard
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
                 </Link>
               </div>
             </div>
-          </div>
-        </section>
-
-        <section className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-lg backdrop-blur-lg sm:p-10">
-          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-2xl font-semibold text-white">Run an analysis</h2>
-              <p className="text-sm text-zinc-300">
-                Enter a Move package ID to launch RedFlag’s end-to-end review pipeline.
-              </p>
-            </div>
-            <Link href="/dashboard">
-              <Button variant="outline" className="border-[#D12226] text-[#D12226] hover:bg-[#D12226]/20 hover:text-white">
-                View completed reports
-              </Button>
-            </Link>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-black/40 p-6 sm:p-8">
-            <LLMAnalysis />
           </div>
         </section>
 

@@ -73,8 +73,8 @@ export default function DeploymentsPage() {
           </div>
         </header>
 
-        <section className="space-y-8">
-          <div className="space-y-6">
+        <section className="space-y-4">
+          <div className="space-y-3">
             <h1 className="text-3xl font-semibold leading-tight tracking-tight sm:text-5xl">
               Track every Move deployment the instant it hits Sui.
             </h1>
@@ -98,46 +98,48 @@ export default function DeploymentsPage() {
           </div>
         </section>
 
-        <section className="w-full max-w-sm space-y-4 rounded-3xl border border-white/10 bg-black/40 p-6 shadow-inner backdrop-blur">
-          <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-[0.3em] text-zinc-500">
-            <RefreshCcw className="h-5 w-5 text-[#D12226]" />
-            <span>Legend</span>
-          </div>
-          <p className="text-sm text-zinc-400">
-            Card accents reflect deployment freshness so you can prioritize new launches first.
-          </p>
-          <ul className="space-y-3">
-            {deploymentLegend.map((item) => (
-              <li key={item.label} className="flex items-center gap-3 text-sm text-zinc-300">
-                <span className={`h-2.5 w-6 rounded-full ${item.swatch}`}></span>
-                {item.label}
-              </li>
-            ))}
-          </ul>
-          <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-xs text-zinc-400">
-            <Globe2 className="h-4 w-4 text-white/70" />
-            Monitoring Sui testnet — mainnet support coming soon.
-          </div>
-        </section>
-
-        <section className="grid gap-6 sm:grid-cols-2">
-          {highlightCards.map((card) => (
-            <div
-              key={card.title}
-              className="flex h-full flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-6 text-sm text-zinc-300 shadow-lg transition hover:border-[#D12226]/40 hover:bg-[#D12226]/10 backdrop-blur"
-            >
-              <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-[#D12226]">
-                {card.icon}
-                {card.label}
-              </span>
-              <h2 className="text-lg font-semibold text-white">{card.title}</h2>
-              <p className="leading-6 text-zinc-200">{card.description}</p>
-            </div>
-          ))}
-        </section>
-
         <section className="rounded-3xl border border-white/10 bg-black/40 p-6 shadow-lg backdrop-blur">
           <DeploymentsTable autoRefresh refreshInterval={30000} />
+        </section>
+
+        <section className="grid gap-6 lg:grid-cols-[1fr_2fr]">
+          <section className="w-full space-y-4 rounded-3xl border border-white/10 bg-black/40 p-6 shadow-inner backdrop-blur">
+            <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-[0.3em] text-zinc-500">
+              <RefreshCcw className="h-5 w-5 text-[#D12226]" />
+              <span>Legend</span>
+            </div>
+            <p className="text-sm text-zinc-400">
+              Card accents reflect deployment freshness so you can prioritize new launches first.
+            </p>
+            <ul className="space-y-3">
+              {deploymentLegend.map((item) => (
+                <li key={item.label} className="flex items-center gap-3 text-sm text-zinc-300">
+                  <span className={`h-2.5 w-6 rounded-full ${item.swatch}`}></span>
+                  {item.label}
+                </li>
+              ))}
+            </ul>
+            <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-xs text-zinc-400">
+              <Globe2 className="h-4 w-4 text-white/70" />
+              Monitoring Sui testnet — mainnet support coming soon.
+            </div>
+          </section>
+
+          <section className="grid gap-6 sm:grid-cols-2">
+            {highlightCards.map((card) => (
+              <div
+                key={card.title}
+                className="flex h-full flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-6 text-sm text-zinc-300 shadow-lg transition hover:border-[#D12226]/40 hover:bg-[#D12226]/10 backdrop-blur"
+              >
+                <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-[#D12226]">
+                  {card.icon}
+                  {card.label}
+                </span>
+                <h2 className="text-lg font-semibold text-white">{card.title}</h2>
+                <p className="leading-6 text-zinc-200">{card.description}</p>
+              </div>
+            ))}
+          </section>
         </section>
 
         <section className="rounded-3xl border border-white/10 bg-gradient-to-br from-[#D12226]/60 via-[#D12226]/30 to-black p-6 text-center shadow-2xl sm:p-8 lg:p-10">

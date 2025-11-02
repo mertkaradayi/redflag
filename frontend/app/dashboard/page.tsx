@@ -237,8 +237,8 @@ export default function Dashboard() {
           </div>
         </header>
 
-        <section className="space-y-8">
-          <div className="space-y-6">
+        <section className="space-y-4">
+          <div className="space-y-3">
             <h1 className="text-3xl font-semibold leading-tight tracking-tight sm:text-5xl">
               View live risk intelligence across your Sui contracts.
             </h1>
