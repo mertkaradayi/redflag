@@ -156,7 +156,7 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
               </div>
             </div>
             <div className="w-full text-right text-xs text-zinc-400">
-              Generated {formatRelativeTime(contract.analysis.timestamp)}
+              Generated {formatRelativeTime(contract.analyzed_at)}
             </div>
           </div>
         </div>

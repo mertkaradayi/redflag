@@ -15,7 +15,6 @@ export interface AnalyzedContract {
     why_risky_one_liner: string;
     risk_score: number;
     risk_level: "low" | "moderate" | "high" | "critical";
-    timestamp: string;
   };
   analyzed_at: string;
 }

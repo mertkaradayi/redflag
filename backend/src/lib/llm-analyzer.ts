@@ -48,7 +48,7 @@ function isQuotaError(error: unknown) {
     const message = (error instanceof Error && error.message) ? error.message : String(error ?? '');
     const lowerMessage = message.toLowerCase();
 
-    if (message.includes('429')) return lowerMessage.includes('quota') || lowerMessage.includes('exhausted') || lowerMessage.includes('rate limit');
+    if (message.includes('429')) return true;
 
     return lowerMessage.includes('quota exceeded') || lowerMessage.includes('resource has been exhausted') || lowerMessage.includes('rate limit');
 }

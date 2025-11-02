@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import Link from 'next/link';
-import { Activity, PauseCircle, PlayCircle, RefreshCcw, X, Search } from 'lucide-react';
+import { PauseCircle, PlayCircle, RefreshCcw, X, Search, Loader2 } from 'lucide-react';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,7 @@ import BrandLogo from '@/app/components/BrandLogo';
 import Navigation from '@/app/components/Navigation';
 import AnalyzedContractCard from '@/app/components/AnalyzedContractCard';
 import type { AnalyzedContract, DashboardData } from '@/app/dashboard/types';
-import { getRiskLevelIcon, getRiskLevelName } from '@/app/dashboard/risk-utils';
+import { getRiskLevelName } from '@/app/dashboard/risk-utils';
 import { usePagination } from '@/app/dashboard/usePagination';
 import { cn } from '@/lib/utils';
 
@@ -19,50 +19,57 @@ const RISK_FILTERS: Array<'all' | 'critical' | 'high' | 'moderate' | 'low'> = ['
 const RISK_LEVEL_STYLES: Record<
   'critical' | 'high' | 'moderate' | 'low',
   {
-    chip: string;
     value: string;
-    buttonActive: string;
-    buttonInactive: string;
-    badge: string;
+    dot: string;
+    border: string;
+    bg: string;
+    bgActive: string;
+    text: string;
+    glow: string;
   }
 > = {
   critical: {
-    chip: 'border-[#D12226]/60 bg-[#D12226]/15 text-[#ff8a8c]',
     value: 'text-[#ff6b6e]',
-    buttonActive: 'bg-[#D12226] text-white hover:bg-[#a8181b]',
-    buttonInactive: 'border-[#D12226]/50 text-[#ff8a8c] hover:bg-[#D12226]/15 hover:text-white',
-    badge: 'bg-[#D12226]/25 text-[#ffbdbf]',
+    dot: 'bg-[#ff6b6e]',
+    border: 'border-[#ff6b6e]/40',
+    bg: 'bg-[#ff6b6e]/10',
+    bgActive: 'bg-gradient-to-br from-[#ff6b6e]/20 to-[#ff6b6e]/10',
+    text: 'text-[#ff8a92]',
+    glow: 'shadow-[#ff6b6e]/20',
   },
   high: {
-    chip: 'border-orange-500/50 bg-orange-500/12 text-orange-200',
-    value: 'text-orange-200',
-    buttonActive: 'bg-orange-500 text-black hover:bg-orange-400',
-    buttonInactive: 'border-orange-400/60 text-orange-200 hover:bg-orange-500/20 hover:text-white',
-    badge: 'bg-orange-500/25 text-orange-100',
+    value: 'text-orange-400',
+    dot: 'bg-orange-400',
+    border: 'border-orange-400/40',
+    bg: 'bg-orange-400/10',
+    bgActive: 'bg-gradient-to-br from-orange-400/20 to-orange-400/10',
+    text: 'text-orange-300',
+    glow: 'shadow-orange-400/20',
   },
   moderate: {
-    chip: 'border-yellow-400/50 bg-yellow-400/12 text-yellow-200',
-    value: 'text-yellow-200',
-    buttonActive: 'bg-yellow-400 text-black hover:bg-yellow-300',
-    buttonInactive: 'border-yellow-300/60 text-yellow-200 hover:bg-yellow-400/20 hover:text-black',
-    badge: 'bg-yellow-400/20 text-yellow-100',
+    value: 'text-yellow-400',
+    dot: 'bg-yellow-400',
+    border: 'border-yellow-400/40',
+    bg: 'bg-yellow-400/10',
+    bgActive: 'bg-gradient-to-br from-yellow-400/20 to-yellow-400/10',
+    text: 'text-yellow-200',
+    glow: 'shadow-yellow-400/20',
   },
   low: {
-    chip: 'border-emerald-500/50 bg-emerald-500/12 text-emerald-200',
-    value: 'text-emerald-200',
-    buttonActive: 'bg-emerald-400 text-black hover:bg-emerald-300',
-    buttonInactive: 'border-emerald-400/60 text-emerald-200 hover:bg-emerald-400/20 hover:text-black',
-    badge: 'bg-emerald-400/20 text-emerald-100',
+    value: 'text-emerald-400',
+    dot: 'bg-emerald-400',
+    border: 'border-emerald-400/40',
+    bg: 'bg-emerald-400/10',
+    bgActive: 'bg-gradient-to-br from-emerald-400/20 to-emerald-400/10',
+    text: 'text-emerald-300',
+    glow: 'shadow-emerald-400/20',
   },
 };
 
 const FILTER_META = {
   all: {
-    label: 'All Findings',
-    icon: '🧾',
-    active: 'bg-white text-black hover:bg-white/90 shadow-lg shadow-white/20',
-    inactive: 'border-white/30 text-white hover:bg-white/10',
-    badge: 'bg-white/20 text-white',
+    label: 'All risk levels',
+    dot: 'bg-white',
   },
 };
 
@@ -295,36 +302,39 @@ export default function Dashboard() {
   }, []);
 
   const isEmptyState = !loading && filteredContracts.length === 0;
+  const isRiskFiltered = filter !== 'all';
+  const activeRiskLabel = isRiskFiltered ? getRiskLevelName(filter) : null;
+  const activeRiskStyle = isRiskFiltered ? RISK_LEVEL_STYLES[filter] : null;
+  const emptyTitle = debouncedSearchQuery
+    ? activeRiskLabel
+      ? `No ${activeRiskLabel} contracts match "${debouncedSearchQuery}"`
+      : `No contracts found for "${debouncedSearchQuery}"`
+    : activeRiskLabel
+      ? `No ${activeRiskLabel} contracts yet`
+      : 'No analyzed contracts yet';
+  const emptySubtitle = debouncedSearchQuery
+    ? 'Adjust your filters or verify the package ID to keep exploring.'
+    : 'Run an analysis to populate your dashboard, or switch filters to review previous findings.';
 
   if (loading) {
     return (
-      <div className="relative min-h-screen overflow-x-hidden bg-black text-white">
-        <div className="absolute inset-0 -z-10">
-          <div className="absolute inset-x-0 top-[-12%] h-[520px] bg-[radial-gradient(circle_at_center,rgba(209,34,38,0.28),transparent_60%)]" />
-          <div className="absolute left-1/2 top-1/2 h-[520px] w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(209,34,38,0.18),transparent_60%)] blur-3xl" />
-        </div>
-        <div className="relative z-10 flex min-h-screen items-center justify-center px-6">
-          <div className="flex flex-col items-center gap-4 text-center">
-            <div className="h-12 w-12 animate-spin rounded-full border-2 border-[#D12226] border-t-transparent"></div>
-            <p className="text-sm text-zinc-300">Loading analyzed contracts...</p>
-          </div>
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-black via-zinc-950 to-black text-white">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <div className="h-11 w-11 animate-spin rounded-full border-2 border-white/20 border-t-transparent" />
+          <p className="text-sm text-zinc-300">Loading analyzed contracts...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-black text-white">
-      <div className="absolute inset-0 -z-10">
-        <div className="absolute inset-x-0 top-[-12%] h-[520px] bg-[radial-gradient(circle_at_center,rgba(209,34,38,0.28),transparent_60%)]" />
-        <div className="absolute left-1/2 top-[45%] h-[560px] w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(209,34,38,0.18),transparent_60%)] blur-3xl" />
-      </div>
-      <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-12 px-4 pb-24 pt-10 sm:px-8 lg:gap-20 lg:px-16 lg:pt-12">
-        <header className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+    <div className="min-h-screen overflow-x-hidden bg-gradient-to-b from-black via-zinc-950 to-black text-white">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 pb-24 pt-8 sm:px-8 lg:gap-8 lg:px-12 lg:pt-10">
+        <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex flex-wrap items-center gap-3">
             <BrandLogo className="h-9" priority wrapperClassName="flex-shrink-0" />
             <span className="hidden text-xs font-semibold uppercase tracking-[0.3em] text-zinc-400 sm:inline">
-              Security Dashboard
+              Risk Intelligence Dashboard
             </span>
           </div>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end lg:gap-6">
@@ -332,22 +342,36 @@ export default function Dashboard() {
           </div>
         </header>
 
-        <section className="space-y-4">
-          <div className="space-y-3">
-            <h1 className="text-3xl font-semibold leading-tight tracking-tight sm:text-5xl">
-              View live risk intelligence across your Sui contracts.
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex-1 space-y-2">
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl lg:text-4xl">
+              Monitor your analyzed Sui contracts at a glance.
             </h1>
-            <p className="max-w-2xl text-base leading-7 text-zinc-300 sm:text-lg sm:leading-8">
-              Track every analyzed package, filter by severity, and pause auto-refresh when you need to dig deep into
-              a contract&apos;s red flags.
+            <p className="max-w-2xl text-sm leading-6 text-zinc-300 sm:text-base">
+              Search by package ID, focus on the risk tiers that matter, and let auto-refresh surface fresh findings
+              the moment they land.
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-zinc-500 sm:text-xs">
-            <span className="rounded-full border border-white/15 px-3 py-1">Live Gemini Insights</span>
-            <span className="rounded-full border border-white/15 px-3 py-1">Supabase Sync</span>
-            <span className="rounded-full border border-white/15 px-3 py-1">Move Pattern Library</span>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
+          {riskStats && (
+            <div className="flex-shrink-0">
+              <div className="relative">
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[#D12226]/20 via-[#D12226]/10 to-transparent blur-xl" />
+                <div className="relative flex h-28 w-28 flex-col items-center justify-center rounded-2xl border-2 border-[#D12226]/30 bg-gradient-to-br from-white/10 via-white/5 to-black/40 shadow-lg shadow-[#D12226]/10 backdrop-blur-sm">
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-white drop-shadow-lg">{riskStats.total.toLocaleString()}</div>
+                    <div className="mt-1.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-300">Total</div>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-2.5 text-center text-xs font-medium text-zinc-400">
+                {filteredContracts.length.toLocaleString()} in view
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-2">
             <Link href="/analyze">
               <Button size="sm" className="bg-[#D12226] text-white hover:bg-[#a8181b]">
                 ➕ Analyze Contract
@@ -358,9 +382,9 @@ export default function Dashboard() {
               variant="outline"
               size="sm"
               disabled={isRefreshing}
-              className="flex items-center gap-2 border-[#D12226]/40 text-[#D12226] hover:bg-[#D12226]/10"
+              className="flex items-center gap-1.5 border-white/20 text-white hover:bg-white/10"
             >
-              <RefreshCcw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
+              <RefreshCcw className={cn('h-3.5 w-3.5', isRefreshing && 'animate-spin')} />
               Refresh
             </Button>
             <Button
@@ -368,140 +392,128 @@ export default function Dashboard() {
               variant={autoRefresh ? 'default' : 'outline'}
               size="sm"
               className={cn(
-                'flex items-center gap-2',
+                'flex items-center gap-1.5 transition-colors',
                 autoRefresh
-                  ? 'bg-[#D12226] text-white hover:bg-[#a8181b]'
-                  : 'border-[#D12226]/40 text-[#D12226] hover:bg-[#D12226]/10',
+                  ? 'bg-white text-black hover:bg-white/90'
+                  : 'border-white/20 text-white hover:bg-white/10',
               )}
             >
-              {autoRefresh ? <PauseCircle className="h-4 w-4" /> : <PlayCircle className="h-4 w-4" />}
-              {autoRefresh ? 'Pause Auto Refresh' : 'Resume Auto Refresh'}
+              {autoRefresh ? <PauseCircle className="h-3.5 w-3.5" /> : <PlayCircle className="h-3.5 w-3.5" />}
+              {autoRefresh ? 'Pause' : 'Resume'}
             </Button>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-zinc-400">
             {formattedLastUpdated && (
-              <span className="text-xs text-zinc-400">
-                Last updated {formattedLastUpdated}
-                {autoRefresh ? ` • Refreshing in ${refreshCountdown}s` : ' • Auto refresh paused'}
+              <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1">
+                Updated {formattedLastUpdated}
+                {autoRefresh && ` • ${refreshCountdown}s`}
               </span>
             )}
+            <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1">Supabase Synced</span>
+            <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1">Move Pattern Library</span>
           </div>
-        </section>
+        </div>
 
         {error && (
-          <Alert className="border-[#D12226]/60 bg-[#D12226]/15 text-white">
-            <AlertDescription className="text-white">
-              {error}
-            </AlertDescription>
+          <Alert className="border-white/15 bg-white/5 text-white/90">
+            <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
 
-        {riskStats && (
-          <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg backdrop-blur">
-              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-zinc-400">
-                <Activity className="h-4 w-4 text-[#D12226]" />
-                Total analyzed
-              </div>
-              <div className="mt-3 text-4xl font-semibold text-white">
-                {riskStats.total}
-              </div>
-              <p className="mt-3 text-xs text-zinc-400">
-                {data?.contracts.length ?? 0} recent runs stored
-              </p>
-            </div>
-            {(['critical', 'high', 'moderate', 'low'] as const).map((level) => (
-              <div
-                key={level}
-                className="rounded-2xl border border-white/10 bg-black/40 p-6 shadow-lg backdrop-blur transition hover:border-white/20"
-              >
-                <span
-                  className={cn(
-                    'inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em]',
-                    RISK_LEVEL_STYLES[level].chip,
-                  )}
-                >
-                  {getRiskLevelIcon(level)} {getRiskLevelName(level)}
-                </span>
-                <div className={cn('mt-4 text-4xl font-semibold', RISK_LEVEL_STYLES[level].value)}>
-                  {riskStats.counts[level]}
-                </div>
-                <p className="mt-2 text-xs text-zinc-400">Contracts flagged as {getRiskLevelName(level)}</p>
-              </div>
-            ))}
-          </section>
-        )}
-
-        <section className="rounded-3xl border border-white/10 bg-black/40 p-6 shadow-lg backdrop-blur">
-          {/* Search Input */}
-          <div className="mb-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+        <section className="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg shadow-black/10 backdrop-blur">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="relative w-full lg:max-w-md">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={handleSearchKeyDown}
-                placeholder="Search by package ID (exact match)..."
+                placeholder="Search by package ID..."
                 className={cn(
-                  'w-full rounded-lg border border-white/20 bg-white/5 px-10 py-2 text-sm text-white placeholder:text-zinc-400',
-                  'focus:border-[#D12226]/60 focus:outline-none focus:ring-2 focus:ring-[#D12226]/20',
-                  isSearching && 'animate-pulse'
+                  'w-full rounded-xl border border-white/10 bg-black/40 px-11 py-2.5 text-sm text-white placeholder:text-zinc-500 transition focus:border-white/40 focus:outline-none focus:ring-0',
+                  isSearching && 'pr-16'
                 )}
               />
-              {searchQuery && (
-                <button
-                  onClick={clearSearch}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
-                  aria-label="Clear search"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-            {debouncedSearchQuery && (
-              <div className="mt-2 flex items-center gap-2 text-xs text-zinc-400">
-                <span>Searching: &apos;{debouncedSearchQuery}&apos;</span>
-                {filter !== 'all' && (
-                  <span className="text-zinc-500">
-                    • Filtered to {getRiskLevelName(filter)} contracts
-                  </span>
+              <div className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-2">
+                {isSearching && <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />}
+                {searchQuery && (
+                  <button
+                    onClick={clearSearch}
+                    className="rounded-full p-1 text-zinc-400 transition hover:bg-white/10 hover:text-white"
+                    aria-label="Clear search"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
                 )}
               </div>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="flex flex-wrap gap-2">
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
               {RISK_FILTERS.map((level) => {
                 const isActive = filter === level;
                 const isAll = level === 'all';
-                const style = !isAll ? RISK_LEVEL_STYLES[level] : null;
-                const buttonClass = isAll
-                  ? isActive
-                    ? FILTER_META.all.active
-                    : FILTER_META.all.inactive
-                  : isActive
-                    ? style!.buttonActive
-                    : style!.buttonInactive;
-                const icon = isAll ? FILTER_META.all.icon : getRiskLevelIcon(level);
                 const label = isAll ? FILTER_META.all.label : getRiskLevelName(level);
-                const badgeClass = isAll ? FILTER_META.all.badge : style!.badge;
-                const count = isAll
-                  ? riskStats?.total ?? 0
-                  : riskStats?.counts[level] ?? 0;
+                const count = isAll ? riskStats?.total ?? 0 : riskStats?.counts[level] ?? 0;
+                const styles = isAll ? null : RISK_LEVEL_STYLES[level];
 
                 return (
                   <Button
                     key={level}
+                    type="button"
                     variant="outline"
                     onClick={() => setFilter(level)}
-                    className={cn('flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold', buttonClass)}
+                    className={cn(
+                      'group relative flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all duration-200',
+                      isAll
+                        ? cn(
+                            'border-white/30 bg-gradient-to-br from-white/10 via-white/5 to-black/40 text-white hover:border-white/40 hover:bg-white/15 hover:shadow-lg',
+                            isActive && 'border-white/50 bg-gradient-to-br from-white/15 to-white/5 border-2 shadow-lg shadow-white/20'
+                          )
+                        : cn(
+                            styles.border,
+                            styles.bg,
+                            styles.text,
+                            'hover:border-opacity-60 hover:shadow-lg',
+                            isActive
+                              ? cn(
+                                  styles.bgActive,
+                                  level === 'critical' && 'border-[#ff6b6e]/60',
+                                  level === 'high' && 'border-orange-400/60',
+                                  level === 'moderate' && 'border-yellow-400/60',
+                                  level === 'low' && 'border-emerald-400/60',
+                                  'border-2 shadow-lg',
+                                  styles.glow
+                                )
+                              : 'hover:bg-opacity-15'
+                          )
+                    )}
                   >
-                    <span className="flex items-center gap-2">
-                      <span>{icon}</span>
-                      <span>{label}</span>
-                    </span>
+                    <span
+                      className={cn(
+                        'h-2.5 w-2.5 rounded-full transition-all duration-200',
+                        isAll ? FILTER_META.all.dot : styles.dot,
+                        isAll && isActive && 'ring-2 ring-offset-2 ring-offset-black/50 ring-white/40 shadow-[0_0_8px_rgba(255,255,255,0.3)]',
+                        isActive && !isAll && 'ring-2 ring-offset-2 ring-offset-black/50',
+                        isActive && !isAll && level === 'critical' && 'ring-[#ff6b6e]/40 shadow-[0_0_8px_rgba(255,107,110,0.4)]',
+                        isActive && !isAll && level === 'high' && 'ring-orange-400/40 shadow-[0_0_8px_rgba(251,146,60,0.4)]',
+                        isActive && !isAll && level === 'moderate' && 'ring-yellow-400/40 shadow-[0_0_8px_rgba(250,204,21,0.4)]',
+                        isActive && !isAll && level === 'low' && 'ring-emerald-400/40 shadow-[0_0_8px_rgba(52,211,153,0.4)]'
+                      )}
+                    />
+                    <span className="relative z-10">{label}</span>
                     {riskStats && (
-                      <span className={cn('ml-2 rounded-full px-2 py-0.5 text-xs font-medium', badgeClass)}>
+                      <span
+                        className={cn(
+                          'relative z-10 ml-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold transition-colors',
+                          isAll
+                            ? isActive
+                              ? 'bg-white/25 text-white shadow-sm'
+                              : 'bg-white/10 text-zinc-300 group-hover:bg-white/15'
+                            : isActive
+                              ? 'bg-white/20 text-white'
+                              : 'bg-white/5 text-zinc-400 group-hover:bg-white/10'
+                        )}
+                      >
                         {count}
                       </span>
                     )}
@@ -509,12 +521,38 @@ export default function Dashboard() {
                 );
               })}
             </div>
-            <div className="text-sm text-zinc-400">
+          </div>
+          <div className="flex flex-wrap items-center gap-3 pt-3 text-xs text-zinc-400">
+            {debouncedSearchQuery && (
+              <span className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1">
+                <Search className="h-3.5 w-3.5 text-zinc-400" />
+                <span className="text-white/90">&apos;{debouncedSearchQuery}&apos;</span>
+                <button
+                  onClick={clearSearch}
+                  className="rounded-full p-1 text-zinc-400 transition hover:bg-white/10 hover:text-white"
+                  aria-label="Clear search"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </span>
+            )}
+            {isRiskFiltered && activeRiskLabel && activeRiskStyle && (
+              <span className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1">
+                <span className={cn('h-2.5 w-2.5 rounded-full', activeRiskStyle.dot)} />
+                <span className="text-white/90">{activeRiskLabel} focus</span>
+                <button
+                  onClick={() => setFilter('all')}
+                  className="rounded-full p-1 text-zinc-400 transition hover:bg-white/10 hover:text-white"
+                  aria-label="Clear risk level filter"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </span>
+            )}
+            <span className="text-zinc-500">
               Showing {filteredContracts.length} of {data?.total ?? 0} contracts
-              {totalPages > 1 && (
-                <span> • Page {currentPage} of {totalPages}</span>
-              )}
-            </div>
+              {totalPages > 1 && ` • Page ${currentPage} of ${totalPages}`}
+            </span>
           </div>
         </section>
 
@@ -526,7 +564,7 @@ export default function Dashboard() {
               <select
                 value={pageSize}
                 onChange={(e) => setPaginationPageSize(Number.parseInt(e.target.value, 10))}
-                className="rounded-lg border border-white/20 bg-white/5 px-3 py-1 text-sm text-white focus:border-[#D12226]/60 focus:outline-none focus:ring-2 focus:ring-[#D12226]/20"
+                className="rounded-lg border border-white/15 bg-black/40 px-3 py-1.5 text-sm text-white focus:border-white/40 focus:outline-none focus:ring-0"
               >
                 {PAGE_SIZE_OPTIONS.map((size) => (
                   <option key={size} value={size}>
@@ -541,7 +579,7 @@ export default function Dashboard() {
                 disabled={!hasPreviousPage}
                 variant="outline"
                 size="sm"
-                className="border-[#D12226]/40 text-[#D12226] hover:bg-[#D12226]/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="border-white/15 text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Previous
               </Button>
@@ -567,8 +605,8 @@ export default function Dashboard() {
                       className={cn(
                         'min-w-[2.5rem]',
                         currentPage === pageNum
-                          ? 'bg-[#D12226] text-white hover:bg-[#a8181b]'
-                          : 'border-[#D12226]/40 text-[#D12226] hover:bg-[#D12226]/10'
+                          ? 'bg-white text-black hover:bg-white'
+                          : 'border-white/15 text-white hover:bg-white/10'
                       )}
                     >
                       {pageNum}
@@ -581,7 +619,7 @@ export default function Dashboard() {
                 disabled={!hasNextPage}
                 variant="outline"
                 size="sm"
-                className="border-[#D12226]/40 text-[#D12226] hover:bg-[#D12226]/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="border-white/15 text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Next
               </Button>
@@ -590,8 +628,8 @@ export default function Dashboard() {
         )}
 
         {pauseReason === 'details' && !autoRefresh && (
-          <Alert className="border-[#D12226]/60 bg-[#D12226]/15 text-white">
-            <AlertDescription className="text-white">
+          <Alert className="border-white/15 bg-white/5 text-white/85">
+            <AlertDescription>
               Auto refresh is paused so the results stay put while you explore a contract. Resume it from the toolbar when you&apos;re ready for new data.
             </AlertDescription>
           </Alert>
@@ -599,30 +637,18 @@ export default function Dashboard() {
 
         <section className="space-y-5">
           {isEmptyState ? (
-            <div className="rounded-3xl border border-dashed border-white/15 bg-black/40 p-12 text-center shadow-inner backdrop-blur">
-              <div className="text-5xl">📊</div>
-              <h3 className="mt-4 text-xl font-semibold text-white">
-                {debouncedSearchQuery
-                  ? filter !== 'all'
-                    ? `No ${getRiskLevelName(filter)} contracts match '${debouncedSearchQuery}'`
-                    : `No contracts found for '${debouncedSearchQuery}'`
-                  : filter === 'all'
-                    ? 'No analyzed contracts yet'
-                    : `No ${getRiskLevelName(filter)} contracts yet`}
-              </h3>
-              <p className="mt-3 max-w-md text-sm text-zinc-400 mx-auto">
-                {debouncedSearchQuery
-                  ? filter !== 'all'
-                    ? `Try checking your risk filter or verify the package ID.`
-                    : `Try checking your risk filter or verify the package ID.`
-                  : 'Run an analysis to populate your dashboard, or switch filters to review previous findings.'}
-              </p>
+            <div className="rounded-2xl border border-white/10 bg-black/40 p-12 text-center shadow-sm shadow-black/10">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-white/15 text-2xl">
+                📊
+              </div>
+              <h3 className="mt-4 text-xl font-semibold text-white">{emptyTitle}</h3>
+              <p className="mt-2 text-sm text-zinc-400">{emptySubtitle}</p>
               <div className="mt-6 flex justify-center gap-3">
                 {debouncedSearchQuery && (
                   <Button
                     onClick={clearSearch}
                     variant="outline"
-                    className="border-[#D12226]/40 text-[#D12226] hover:bg-[#D12226]/10"
+                    className="border-white/15 text-white hover:bg-white/10"
                   >
                     Clear Search
                   </Button>
