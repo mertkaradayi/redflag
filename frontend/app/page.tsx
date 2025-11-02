@@ -4,6 +4,7 @@ import { ArrowRight, BarChart3, Lock, Radar, ShieldCheck, Sparkles, Workflow } f
 
 import Auth from "./components/Auth";
 import BrandLogo from "./components/BrandLogo";
+import Navigation from "./components/Navigation";
 import { Button } from "@/components/ui/button";
 
 interface StatCard {
@@ -149,41 +150,7 @@ export default function Home() {
             </span>
           </div>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end lg:gap-6">
-            <nav className="flex w-full flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm text-zinc-300 sm:w-auto sm:justify-end">
-              <Link
-                href="/summary"
-                className="rounded-full px-3 py-1.5 transition hover:bg-white/5 hover:text-white"
-              >
-                Summary
-              </Link>
-              <Link
-                href="/analyze"
-                className="rounded-full px-3 py-1.5 transition hover:bg-white/5 hover:text-white"
-              >
-                Analyze
-              </Link>
-              <Link
-                href="/dashboard"
-                className="rounded-full px-3 py-1.5 transition hover:bg-white/5 hover:text-white"
-              >
-                Dashboard
-              </Link>
-              <Link
-                href="/deployments"
-                className="rounded-full px-3 py-1.5 transition hover:bg-white/5 hover:text-white"
-              >
-                Deployments
-              </Link>
-              <Link
-                href="https://github.com/mertkaradayi/redflag"
-                target="_blank"
-                rel="noopener noreferrer"
-                prefetch={false}
-                className="rounded-full px-3 py-1.5 transition hover:bg-white/5 hover:text-white"
-              >
-                GitHub
-              </Link>
-            </nav>
+            <Navigation />
             <div className="flex justify-center sm:justify-end">
               <Auth />
             </div>

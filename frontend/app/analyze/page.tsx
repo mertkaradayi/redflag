@@ -4,6 +4,7 @@ import { ArrowRight, BrainCircuit, Gauge, ShieldAlert } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import BrandLogo from "../components/BrandLogo";
+import Navigation from "../components/Navigation";
 import LLMAnalysis from "../components/LLMAnalysis";
 
 interface Highlight {
@@ -133,12 +134,8 @@ export default function AnalyzePage() {
               Analyze Contracts
             </span>
           </div>
-          <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
-            <Link href="/dashboard" className="w-full sm:w-auto">
-              <Button className="w-full bg-[#D12226] text-white hover:bg-[#a8181b] sm:w-auto">
-                View Dashboard
-              </Button>
-            </Link>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end lg:gap-6">
+            <Navigation />
           </div>
         </header>
 
