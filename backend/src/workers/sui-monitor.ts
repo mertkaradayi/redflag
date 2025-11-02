@@ -2,6 +2,7 @@ import { getRecentPublishTransactions } from '../lib/sui-client';
 import { upsertDeployments, getLastProcessedCheckpoint, getAnalysisResult } from '../lib/supabase';
 import { runFullAnalysisChain } from '../lib/llm-analyzer';
 import { SuiClient } from '@mysten/sui/client';
+import { envFlag } from '../lib/env-utils';
 
 // Singleton pattern to prevent multiple monitors
 let monitorInterval: NodeJS.Timeout | null = null;
@@ -14,6 +15,16 @@ let isMonitoring = false;
 export async function startMonitoring(): Promise<void> {
   if (isMonitoring) {
     console.warn('Sui deployment monitor is already running');
+    return;
+  }
+
+  if (!envFlag('ENABLE_AUTO_ANALYSIS', true)) {
+    console.log('⚠️ ENABLE_AUTO_ANALYSIS=false, skipping deployment monitor startup');
+    return;
+  }
+
+  if (!envFlag('ENABLE_SUI_RPC', true)) {
+    console.log('⚠️ ENABLE_SUI_RPC=false, skipping deployment monitor startup');
     return;
   }
 
@@ -67,6 +78,11 @@ export function isMonitorRunning(): boolean {
  * 3. Persist new deployments to database
  */
 async function performMonitoringCheck(): Promise<void> {
+  if (!envFlag('ENABLE_SUI_RPC', true)) {
+    console.log('⚠️ ENABLE_SUI_RPC=false, skipping monitoring check');
+    return;
+  }
+
   try {
     // Get the last checkpoint we processed
     const checkpointResult = await getLastProcessedCheckpoint();
@@ -120,6 +136,11 @@ async function performMonitoringCheck(): Promise<void> {
  * Analyze new deployments with LLM
  */
 async function analyzeNewDeployments(deployments: any[]): Promise<void> {
+  if (!envFlag('ENABLE_AUTO_ANALYSIS', true)) {
+    console.log('⚠️ ENABLE_AUTO_ANALYSIS=false, skipping LLM analysis step');
+    return;
+  }
+
   if (!process.env.GOOGLE_API_KEY) {
     console.log('⚠️  GOOGLE_API_KEY not configured, skipping LLM analysis');
     return;

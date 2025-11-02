@@ -6,6 +6,7 @@ import { getRecentPublishTransactions, testSuiConnection } from './lib/sui-clien
 import { startMonitoring, stopMonitoring, getMonitoringStatus } from './workers/sui-monitor';
 import { runFullAnalysisChain, getAnalysis } from './lib/llm-analyzer';
 import { SuiClient } from '@mysten/sui/client';
+import { envFlag } from './lib/env-utils';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -40,13 +41,20 @@ app.use(express.json());
 app.get('/health', async (req, res) => {
   const hasSupabaseKey = !!process.env.SUPABASE_SERVICE_KEY;
   const hasSuiRpcUrl = !!process.env.SUI_RPC_URL;
+  const suiEnabled = envFlag('ENABLE_SUI_RPC', true);
   
   // Test Sui RPC connection
-  let suiStatus = 'not configured';
-  if (hasSuiRpcUrl) {
+  let suiStatus = hasSuiRpcUrl ? 'configured' : 'missing url';
+  if (!suiEnabled) {
+    suiStatus = 'disabled';
+  } else if (hasSuiRpcUrl) {
     try {
       const suiResult = await testSuiConnection();
-      suiStatus = suiResult.success ? 'connected' : 'connection failed';
+      if (suiResult.disabled) {
+        suiStatus = 'disabled';
+      } else {
+        suiStatus = suiResult.success ? 'connected' : 'connection failed';
+      }
     } catch (error) {
       suiStatus = 'connection error';
     }
@@ -63,6 +71,7 @@ app.get('/health', async (req, res) => {
       },
       sui: {
         configured: hasSuiRpcUrl,
+        enabled: suiEnabled,
         status: suiStatus
       }
     }
@@ -114,6 +123,18 @@ app.get('/api/sui/recent-deployments', async (req, res) => {
       afterCheckpoint
     });
 
+    if (result.disabled) {
+      return res.status(503).json({
+        success: false,
+        message: result.message,
+        disabled: true,
+        timestamp: new Date().toISOString(),
+        connectionInfo: result.connectionInfo,
+        pollIntervalMs: result.pollIntervalMs,
+        queryStrategy: result.queryStrategy ?? null
+      });
+    }
+
     if (result.success) {
       res.json({
         success: true,
@@ -152,6 +173,20 @@ app.get('/api/sui/recent-deployments', async (req, res) => {
 app.get('/api/sui/latest-deployment', async (req, res) => {
   try {
     const result = await getRecentPublishTransactions({ limit: 1 });
+
+    if (result.disabled) {
+      return res.status(503).json({
+        success: false,
+        message: result.message,
+        disabled: true,
+        timestamp: new Date().toISOString(),
+        connectionInfo: result.connectionInfo,
+        latestCheckpoint: result.latestCheckpoint ?? null,
+        nextCursor: result.nextCursor ?? null,
+        pollIntervalMs: result.pollIntervalMs,
+        queryStrategy: result.queryStrategy ?? null
+      });
+    }
 
     if (result.success) {
       const latestDeployment = result.deployments && result.deployments.length > 0
@@ -198,6 +233,16 @@ app.get('/api/sui/health', async (req, res) => {
   try {
     const result = await testSuiConnection();
     
+    if (result.disabled) {
+      return res.status(503).json({
+        success: false,
+        message: result.message,
+        disabled: true,
+        timestamp: new Date().toISOString(),
+        connectionInfo: result.connectionInfo
+      });
+    }
+
     if (result.success) {
       res.json({
         success: true,
@@ -211,7 +256,8 @@ app.get('/api/sui/health', async (req, res) => {
         message: result.message,
         error: result.error,
         timestamp: new Date().toISOString(),
-        connectionInfo: result.connectionInfo
+        connectionInfo: result.connectionInfo,
+        disabled: result.disabled ?? false
       });
     }
   } catch (error) {
@@ -270,13 +316,25 @@ app.get('/api/sui/monitor-status', (req, res) => {
     success: true,
     message: 'Monitor status retrieved',
     timestamp: new Date().toISOString(),
-    monitor: status
+    monitor: {
+      ...status,
+      enabled: envFlag('ENABLE_AUTO_ANALYSIS', true)
+    }
   });
 });
 
 // Debug endpoint to see what transactions we're getting
 app.get('/api/sui/debug', async (req, res) => {
   try {
+    if (!envFlag('ENABLE_SUI_RPC', true)) {
+      return res.status(503).json({
+        success: false,
+        message: 'Sui RPC access disabled by configuration (ENABLE_SUI_RPC=false)',
+        disabled: true,
+        timestamp: new Date().toISOString()
+      });
+    }
+
     const { SuiClient } = await import('@mysten/sui/client');
     const client = new SuiClient({ url: process.env.SUI_RPC_URL || 'https://fullnode.testnet.sui.io:443' });
     
@@ -336,6 +394,17 @@ app.post('/api/llm/analyze', async (req, res) => {
     
     // Validate network parameter
     const validatedNetwork = (network === 'testnet') ? 'testnet' : 'mainnet';
+
+    if (!envFlag('ENABLE_SUI_RPC', true)) {
+      return res.status(503).json({
+        success: false,
+        message: 'Sui RPC access disabled by configuration (ENABLE_SUI_RPC=false)',
+        timestamp: new Date().toISOString(),
+        package_id,
+        network: validatedNetwork,
+        disabled: true
+      });
+    }
     
     console.log(`[LLM] Analyzing package_id: ${package_id} on ${validatedNetwork}`);
     
@@ -576,10 +645,24 @@ app.listen(PORT, async () => {
   console.log(`📊 Monitor status: http://localhost:${PORT}/api/sui/monitor-status`);
 
   // Start the Sui deployment monitor
-  try {
-    await startMonitoring();
-  } catch (error) {
-    console.error('❌ Failed to start Sui deployment monitor:', error);
+  const autoAnalysisEnabled = envFlag('ENABLE_AUTO_ANALYSIS', true);
+  const suiRpcEnabled = envFlag('ENABLE_SUI_RPC', true);
+
+  if (autoAnalysisEnabled && suiRpcEnabled) {
+    try {
+      await startMonitoring();
+    } catch (error) {
+      console.error('❌ Failed to start Sui deployment monitor:', error);
+    }
+  } else {
+    const reasons: string[] = [];
+    if (!autoAnalysisEnabled) {
+      reasons.push('ENABLE_AUTO_ANALYSIS=false');
+    }
+    if (!suiRpcEnabled) {
+      reasons.push('ENABLE_SUI_RPC=false');
+    }
+    console.log(`⚠️ Sui deployment monitor not started (${reasons.join(', ') || 'no reason provided'})`);
   }
 });
 
