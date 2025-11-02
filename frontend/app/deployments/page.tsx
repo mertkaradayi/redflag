@@ -4,6 +4,7 @@ import { ArrowRight, GaugeCircle, Globe2, Radar, RefreshCcw, ServerCog, Sparkles
 
 import { Button } from "@/components/ui/button";
 import BrandLogo from "../components/BrandLogo";
+import Navigation from "../components/Navigation";
 import DeploymentsTable from "../components/DeploymentsTable";
 
 interface HighlightCard {
@@ -59,60 +60,65 @@ export default function DeploymentsPage() {
         <div className="absolute left-1/2 top-1/2 h-[560px] w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,_rgba(209,34,38,0.18),_transparent_60%)] blur-3xl" />
       </div>
 
-      <main className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-16 px-4 pb-24 pt-10 sm:px-8 lg:px-16 lg:pt-12">
-        <header className="flex flex-col gap-10 lg:flex-row lg:items-start lg:justify-between">
-          <div className="space-y-6">
-            <div className="flex flex-wrap items-center gap-3">
-              <BrandLogo className="h-9" priority />
-              <span className="hidden text-xs font-semibold uppercase tracking-[0.3em] text-zinc-400 sm:inline">
-                Deployments Monitor
-              </span>
-            </div>
-            <div className="space-y-4">
-              <h1 className="text-3xl font-semibold leading-tight tracking-tight sm:text-5xl">
-                Track every Move deployment the instant it hits Sui.
-              </h1>
-              <p className="max-w-2xl text-base leading-7 text-zinc-300 sm:text-lg sm:leading-8">
-                RedFlag watches your environments around the clock, capturing package metadata, deployer addresses, and
-                transaction digests so security and protocol teams can respond before issues roll into production.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-zinc-500 sm:text-xs">
-              <span className="rounded-full border border-white/15 px-3 py-1">Auto-refresh 30s</span>
-              <span className="rounded-full border border-white/15 px-3 py-1">Explorer Deep Links</span>
-              <span className="rounded-full border border-white/15 px-3 py-1">Analyze via Gemini 2.5</span>
-            </div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-              <Link href="/analyze" className="w-full sm:w-auto">
-                <Button className="w-full bg-[#D12226] text-white hover:bg-[#a8181b] sm:w-auto">
-                  Launch analyzer
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
-            </div>
+      <main className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-16 px-4 pb-24 pt-10 sm:px-8 lg:gap-20 lg:px-16 lg:pt-12">
+        <header className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap items-center gap-3">
+            <BrandLogo className="h-9" priority />
+            <span className="hidden text-xs font-semibold uppercase tracking-[0.3em] text-zinc-400 sm:inline">
+              Deployments Monitor
+            </span>
           </div>
-          <div className="w-full max-w-sm space-y-4 rounded-3xl border border-white/10 bg-black/40 p-6 shadow-inner backdrop-blur">
-            <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-[0.3em] text-zinc-500">
-              <RefreshCcw className="h-5 w-5 text-[#D12226]" />
-              <span>Legend</span>
-            </div>
-            <p className="text-sm text-zinc-400">
-              Card accents reflect deployment freshness so you can prioritize new launches first.
-            </p>
-            <ul className="space-y-3">
-              {deploymentLegend.map((item) => (
-                <li key={item.label} className="flex items-center gap-3 text-sm text-zinc-300">
-                  <span className={`h-2.5 w-6 rounded-full ${item.swatch}`}></span>
-                  {item.label}
-                </li>
-              ))}
-            </ul>
-            <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-xs text-zinc-400">
-              <Globe2 className="h-4 w-4 text-white/70" />
-              Monitoring Sui testnet — mainnet support coming soon.
-            </div>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end lg:gap-6">
+            <Navigation />
           </div>
         </header>
+
+        <section className="space-y-8">
+          <div className="space-y-6">
+            <h1 className="text-3xl font-semibold leading-tight tracking-tight sm:text-5xl">
+              Track every Move deployment the instant it hits Sui.
+            </h1>
+            <p className="max-w-2xl text-base leading-7 text-zinc-300 sm:text-lg sm:leading-8">
+              RedFlag watches your environments around the clock, capturing package metadata, deployer addresses, and
+              transaction digests so security and protocol teams can respond before issues roll into production.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-zinc-500 sm:text-xs">
+            <span className="rounded-full border border-white/15 px-3 py-1">Auto-refresh 30s</span>
+            <span className="rounded-full border border-white/15 px-3 py-1">Explorer Deep Links</span>
+            <span className="rounded-full border border-white/15 px-3 py-1">Analyze via Gemini 2.5</span>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <Link href="/analyze" className="w-full sm:w-auto">
+              <Button className="w-full bg-[#D12226] text-white hover:bg-[#a8181b] sm:w-auto">
+                Launch analyzer
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
+        </section>
+
+        <section className="w-full max-w-sm space-y-4 rounded-3xl border border-white/10 bg-black/40 p-6 shadow-inner backdrop-blur">
+          <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-[0.3em] text-zinc-500">
+            <RefreshCcw className="h-5 w-5 text-[#D12226]" />
+            <span>Legend</span>
+          </div>
+          <p className="text-sm text-zinc-400">
+            Card accents reflect deployment freshness so you can prioritize new launches first.
+          </p>
+          <ul className="space-y-3">
+            {deploymentLegend.map((item) => (
+              <li key={item.label} className="flex items-center gap-3 text-sm text-zinc-300">
+                <span className={`h-2.5 w-6 rounded-full ${item.swatch}`}></span>
+                {item.label}
+              </li>
+            ))}
+          </ul>
+          <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-xs text-zinc-400">
+            <Globe2 className="h-4 w-4 text-white/70" />
+            Monitoring Sui testnet — mainnet support coming soon.
+          </div>
+        </section>
 
         <section className="grid gap-6 sm:grid-cols-2">
           {highlightCards.map((card) => (

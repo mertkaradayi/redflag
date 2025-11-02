@@ -7,6 +7,7 @@ import { Activity, PauseCircle, PlayCircle, RefreshCcw } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import BrandLogo from '@/app/components/BrandLogo';
+import Navigation from '@/app/components/Navigation';
 import AnalyzedContractCard from '@/app/components/AnalyzedContractCard';
 import type { AnalyzedContract, DashboardData } from '@/app/dashboard/types';
 import { getRiskLevelIcon, getRiskLevelName } from '@/app/dashboard/risk-utils';
@@ -223,72 +224,72 @@ export default function Dashboard() {
         <div className="absolute inset-x-0 top-[-12%] h-[520px] bg-[radial-gradient(circle_at_center,rgba(209,34,38,0.28),transparent_60%)]" />
         <div className="absolute left-1/2 top-[45%] h-[560px] w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(209,34,38,0.18),transparent_60%)] blur-3xl" />
       </div>
-      <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-12 px-4 pb-24 pt-10 sm:px-8 lg:px-16 lg:pt-12">
-        <header className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
-          <div className="space-y-6">
-            <div className="flex flex-wrap items-center gap-3">
-              <BrandLogo className="h-9" priority wrapperClassName="flex-shrink-0" />
-              <span className="hidden text-xs font-semibold uppercase tracking-[0.3em] text-zinc-400 sm:inline">
-                Security Dashboard
-              </span>
-            </div>
-            <div className="space-y-4">
-              <h1 className="text-3xl font-semibold leading-tight tracking-tight sm:text-5xl">
-                View live risk intelligence across your Sui contracts.
-              </h1>
-              <p className="max-w-2xl text-base leading-7 text-zinc-300 sm:text-lg sm:leading-8">
-                Track every analyzed package, filter by severity, and pause auto-refresh when you need to dig deep into
-                a contract&apos;s red flags.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-zinc-500 sm:text-xs">
-              <span className="rounded-full border border-white/15 px-3 py-1">Live Gemini Insights</span>
-              <span className="rounded-full border border-white/15 px-3 py-1">Supabase Sync</span>
-              <span className="rounded-full border border-white/15 px-3 py-1">Move Pattern Library</span>
-            </div>
+      <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-12 px-4 pb-24 pt-10 sm:px-8 lg:gap-20 lg:px-16 lg:pt-12">
+        <header className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap items-center gap-3">
+            <BrandLogo className="h-9" priority wrapperClassName="flex-shrink-0" />
+            <span className="hidden text-xs font-semibold uppercase tracking-[0.3em] text-zinc-400 sm:inline">
+              Security Dashboard
+            </span>
           </div>
-          <div className="flex w-full max-w-sm flex-col items-stretch gap-3 rounded-3xl border border-white/10 bg-black/40 p-6 shadow-inner">
-            <div className="flex flex-wrap gap-2">
-              <Link href="/analyze">
-                <Button size="sm" className="bg-[#D12226] text-white hover:bg-[#a8181b]">
-                  ➕ Analyze Contract
-                </Button>
-              </Link>
-              <Button
-                onClick={() => fetchAnalyzedContracts()}
-                variant="outline"
-                size="sm"
-                disabled={isRefreshing}
-                className="flex items-center gap-2 border-[#D12226]/40 text-[#D12226] hover:bg-[#D12226]/10"
-              >
-                <RefreshCcw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
-                Refresh
-              </Button>
-              <Button
-                onClick={toggleAutoRefresh}
-                variant={autoRefresh ? 'default' : 'outline'}
-                size="sm"
-                className={cn(
-                  'flex items-center gap-2',
-                  autoRefresh
-                    ? 'bg-[#D12226] text-white hover:bg-[#a8181b]'
-                    : 'border-[#D12226]/40 text-[#D12226] hover:bg-[#D12226]/10',
-                )}
-              >
-                {autoRefresh ? <PauseCircle className="h-4 w-4" /> : <PlayCircle className="h-4 w-4" />}
-                {autoRefresh ? 'Pause Auto Refresh' : 'Resume Auto Refresh'}
-              </Button>
-            </div>
-            <div className="text-xs text-zinc-400">
-              {formattedLastUpdated ? `Last updated ${formattedLastUpdated}` : 'Waiting for first update'}
-              {autoRefresh
-                ? ` • Refreshing in ${refreshCountdown}s`
-                : pauseReason === 'details'
-                  ? ' • Auto refresh paused while you review contract details'
-                  : ' • Auto refresh paused'}
-            </div>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end lg:gap-6">
+            <Navigation />
           </div>
         </header>
+
+        <section className="space-y-8">
+          <div className="space-y-6">
+            <h1 className="text-3xl font-semibold leading-tight tracking-tight sm:text-5xl">
+              View live risk intelligence across your Sui contracts.
+            </h1>
+            <p className="max-w-2xl text-base leading-7 text-zinc-300 sm:text-lg sm:leading-8">
+              Track every analyzed package, filter by severity, and pause auto-refresh when you need to dig deep into
+              a contract&apos;s red flags.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-zinc-500 sm:text-xs">
+            <span className="rounded-full border border-white/15 px-3 py-1">Live Gemini Insights</span>
+            <span className="rounded-full border border-white/15 px-3 py-1">Supabase Sync</span>
+            <span className="rounded-full border border-white/15 px-3 py-1">Move Pattern Library</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link href="/analyze">
+              <Button size="sm" className="bg-[#D12226] text-white hover:bg-[#a8181b]">
+                ➕ Analyze Contract
+              </Button>
+            </Link>
+            <Button
+              onClick={() => fetchAnalyzedContracts()}
+              variant="outline"
+              size="sm"
+              disabled={isRefreshing}
+              className="flex items-center gap-2 border-[#D12226]/40 text-[#D12226] hover:bg-[#D12226]/10"
+            >
+              <RefreshCcw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
+              Refresh
+            </Button>
+            <Button
+              onClick={toggleAutoRefresh}
+              variant={autoRefresh ? 'default' : 'outline'}
+              size="sm"
+              className={cn(
+                'flex items-center gap-2',
+                autoRefresh
+                  ? 'bg-[#D12226] text-white hover:bg-[#a8181b]'
+                  : 'border-[#D12226]/40 text-[#D12226] hover:bg-[#D12226]/10',
+              )}
+            >
+              {autoRefresh ? <PauseCircle className="h-4 w-4" /> : <PlayCircle className="h-4 w-4" />}
+              {autoRefresh ? 'Pause Auto Refresh' : 'Resume Auto Refresh'}
+            </Button>
+            {formattedLastUpdated && (
+              <span className="text-xs text-zinc-400">
+                Last updated {formattedLastUpdated}
+                {autoRefresh ? ` • Refreshing in ${refreshCountdown}s` : ' • Auto refresh paused'}
+              </span>
+            )}
+          </div>
+        </section>
 
         {error && (
           <Alert className="border-[#D12226]/60 bg-[#D12226]/15 text-white">
