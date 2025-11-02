@@ -7,6 +7,7 @@ import { startMonitoring, stopMonitoring, getMonitoringStatus } from './workers/
 import { runFullAnalysisChain, getAnalysis } from './lib/llm-analyzer';
 import { SuiClient } from '@mysten/sui/client';
 import { envFlag } from './lib/env-utils';
+import { validatePaginationParams } from './lib/query-utils';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -589,7 +590,24 @@ app.get('/api/llm/health', async (req, res) => {
 // Get All Analyzed Contracts (alias for recent-analyses)
 app.get('/api/llm/analyzed-contracts', async (req, res) => {
   try {
-    const result = await getRecentAnalyses({ limit: 100 });
+    // Validate and parse query parameters
+    const validation = validatePaginationParams(
+      req.query.limit,
+      req.query.offset,
+      req.query.packageId
+    );
+
+    if (!validation.success) {
+      return res.status(400).json({
+        success: false,
+        message: validation.error,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    const { limit, offset, packageId } = validation.params;
+
+    const result = await getRecentAnalyses({ limit, offset, packageId });
 
     if (result.success) {
       const contracts = result.analyses.map(analysis => ({
@@ -612,6 +630,8 @@ app.get('/api/llm/analyzed-contracts', async (req, res) => {
         message: 'Analyzed contracts retrieved successfully',
         timestamp: new Date().toISOString(),
         total: result.totalCount,
+        limit,
+        offset,
         contracts
       });
     } else {

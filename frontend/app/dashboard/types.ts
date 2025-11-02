@@ -22,7 +22,10 @@ export interface AnalyzedContract {
 
 export interface DashboardData {
   success: boolean;
-  total: number;
+  total: number;           // Total matching records
+  limit: number;           // Page size
+  offset: number;          // Current offset
   contracts: AnalyzedContract[];
   message?: string;
+  timestamp?: string;
 }

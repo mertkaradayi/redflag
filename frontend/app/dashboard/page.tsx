@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import Link from 'next/link';
-import { Activity, PauseCircle, PlayCircle, RefreshCcw } from 'lucide-react';
+import { Activity, PauseCircle, PlayCircle, RefreshCcw, X, Search } from 'lucide-react';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import Navigation from '@/app/components/Navigation';
 import AnalyzedContractCard from '@/app/components/AnalyzedContractCard';
 import type { AnalyzedContract, DashboardData } from '@/app/dashboard/types';
 import { getRiskLevelIcon, getRiskLevelName } from '@/app/dashboard/risk-utils';
+import { usePagination } from '@/app/dashboard/usePagination';
 import { cn } from '@/lib/utils';
 
 const AUTO_REFRESH_SECONDS = 30;
@@ -65,34 +66,88 @@ const FILTER_META = {
   },
 };
 
+const PAGE_SIZE_OPTIONS = [25, 50, 100, 200];
+
 export default function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'critical' | 'high' | 'moderate' | 'low'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+  const searchDebounceTimer = useRef<NodeJS.Timeout | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [refreshCountdown, setRefreshCountdown] = useState(AUTO_REFRESH_SECONDS);
   const [pauseReason, setPauseReason] = useState<'toolbar' | 'details' | null>(null);
+
+  // Initialize pagination hook
+  const pagination = usePagination({
+    initialPage: 1,
+    initialPageSize: 50,
+    total: data?.total ?? 0
+  });
+
+  const {
+    currentPage,
+    pageSize,
+    totalPages,
+    offset,
+    hasNextPage,
+    hasPreviousPage,
+    goToPage,
+    nextPage,
+    previousPage,
+    setPageSize: setPaginationPageSize
+  } = pagination;
+
+  const goToPageRef = useRef(goToPage);
+
+  useEffect(() => {
+    goToPageRef.current = goToPage;
+  }, [goToPage]);
 
   const fetchAnalyzedContracts = useCallback(async ({ silent }: { silent?: boolean } = {}) => {
     try {
       if (!silent) {
         setIsRefreshing(true);
       }
+      if (debouncedSearchQuery) {
+        setIsSearching(true);
+      }
       setError(null);
 
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
-      const response = await fetch(`${backendUrl}/api/llm/analyzed-contracts`, {
+      const params = new URLSearchParams({
+        limit: pageSize.toString(),
+        offset: offset.toString(),
+      });
+      
+      if (debouncedSearchQuery.trim()) {
+        params.append('packageId', debouncedSearchQuery.trim());
+      }
+
+      const response = await fetch(`${backendUrl}/api/llm/analyzed-contracts?${params}`, {
         cache: 'no-store',
       });
       const result: DashboardData = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || `Failed to fetch analyzed contracts (${response.status})`);
+      }
 
       if (result.success) {
         setData(result);
         setLastUpdated(new Date());
         setRefreshCountdown(AUTO_REFRESH_SECONDS);
+
+        const needsReset = offset >= result.total && result.total > 0;
+        const noResults = result.total === 0 && offset !== 0;
+        if ((needsReset || noResults) && goToPageRef.current) {
+          goToPageRef.current(1);
+        }
       } else {
         throw new Error(result.message || 'Failed to fetch analyzed contracts');
       }
@@ -100,16 +155,37 @@ export default function Dashboard() {
       setError(err instanceof Error ? err.message : 'Unknown error occurred');
     } finally {
       setLoading(false);
+      setIsSearching(false);
       if (!silent) {
         setIsRefreshing(false);
       }
     }
-  }, []);
+  }, [debouncedSearchQuery, offset, pageSize]);
 
+  // Debounce search query
+  useEffect(() => {
+    if (searchDebounceTimer.current) {
+      clearTimeout(searchDebounceTimer.current);
+    }
+
+    searchDebounceTimer.current = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+      goToPage(1); // Reset to page 1 on new search
+    }, 400);
+
+    return () => {
+      if (searchDebounceTimer.current) {
+        clearTimeout(searchDebounceTimer.current);
+      }
+    };
+  }, [searchQuery, goToPage]);
+
+  // Fetch when pagination or search changes
   useEffect(() => {
     fetchAnalyzedContracts();
   }, [fetchAnalyzedContracts]);
 
+  // Auto-refresh effect
   useEffect(() => {
     if (!autoRefresh || !data) {
       return;
@@ -170,6 +246,25 @@ export default function Dashboard() {
       counts,
     };
   }, [data]);
+
+  // Handle search input Enter key (instant submit)
+  const handleSearchKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (searchDebounceTimer.current) {
+        clearTimeout(searchDebounceTimer.current);
+      }
+      setDebouncedSearchQuery(searchQuery);
+      goToPage(1);
+    }
+  }, [searchQuery, goToPage]);
+
+  // Clear search
+  const clearSearch = useCallback(() => {
+    setSearchQuery('');
+    setDebouncedSearchQuery('');
+    goToPage(1);
+  }, [goToPage]);
 
   const formattedLastUpdated = useMemo(() => {
     if (!lastUpdated) {
@@ -336,6 +431,44 @@ export default function Dashboard() {
         )}
 
         <section className="rounded-3xl border border-white/10 bg-black/40 p-6 shadow-lg backdrop-blur">
+          {/* Search Input */}
+          <div className="mb-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                placeholder="Search by package ID (exact match)..."
+                className={cn(
+                  'w-full rounded-lg border border-white/20 bg-white/5 px-10 py-2 text-sm text-white placeholder:text-zinc-400',
+                  'focus:border-[#D12226]/60 focus:outline-none focus:ring-2 focus:ring-[#D12226]/20',
+                  isSearching && 'animate-pulse'
+                )}
+              />
+              {searchQuery && (
+                <button
+                  onClick={clearSearch}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
+                  aria-label="Clear search"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            {debouncedSearchQuery && (
+              <div className="mt-2 flex items-center gap-2 text-xs text-zinc-400">
+                <span>Searching: &apos;{debouncedSearchQuery}&apos;</span>
+                {filter !== 'all' && (
+                  <span className="text-zinc-500">
+                    • Filtered to {getRiskLevelName(filter)} contracts
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="flex flex-wrap gap-2">
               {RISK_FILTERS.map((level) => {
@@ -377,10 +510,84 @@ export default function Dashboard() {
               })}
             </div>
             <div className="text-sm text-zinc-400">
-              Showing {filteredContracts.length} of {data?.contracts.length ?? 0} stored analyses
+              Showing {filteredContracts.length} of {data?.total ?? 0} contracts
+              {totalPages > 1 && (
+                <span> • Page {currentPage} of {totalPages}</span>
+              )}
             </div>
           </div>
         </section>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <section className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-zinc-400">Page size:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => setPaginationPageSize(Number.parseInt(e.target.value, 10))}
+                className="rounded-lg border border-white/20 bg-white/5 px-3 py-1 text-sm text-white focus:border-[#D12226]/60 focus:outline-none focus:ring-2 focus:ring-[#D12226]/20"
+              >
+                {PAGE_SIZE_OPTIONS.map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={previousPage}
+                disabled={!hasPreviousPage}
+                variant="outline"
+                size="sm"
+                className="border-[#D12226]/40 text-[#D12226] hover:bg-[#D12226]/10 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </Button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(7, totalPages) }, (_, i) => {
+                  let pageNum: number;
+                  if (totalPages <= 7) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 4) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 3) {
+                    pageNum = totalPages - 6 + i;
+                  } else {
+                    pageNum = currentPage - 3 + i;
+                  }
+                  
+                  return (
+                    <Button
+                      key={pageNum}
+                      onClick={() => goToPage(pageNum)}
+                      variant={currentPage === pageNum ? 'default' : 'outline'}
+                      size="sm"
+                      className={cn(
+                        'min-w-[2.5rem]',
+                        currentPage === pageNum
+                          ? 'bg-[#D12226] text-white hover:bg-[#a8181b]'
+                          : 'border-[#D12226]/40 text-[#D12226] hover:bg-[#D12226]/10'
+                      )}
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+              </div>
+              <Button
+                onClick={nextPage}
+                disabled={!hasNextPage}
+                variant="outline"
+                size="sm"
+                className="border-[#D12226]/40 text-[#D12226] hover:bg-[#D12226]/10 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </Button>
+            </div>
+          </section>
+        )}
 
         {pauseReason === 'details' && !autoRefresh && (
           <Alert className="border-[#D12226]/60 bg-[#D12226]/15 text-white">
@@ -395,12 +602,31 @@ export default function Dashboard() {
             <div className="rounded-3xl border border-dashed border-white/15 bg-black/40 p-12 text-center shadow-inner backdrop-blur">
               <div className="text-5xl">📊</div>
               <h3 className="mt-4 text-xl font-semibold text-white">
-                {filter === 'all' ? 'No analyzed contracts yet' : `No ${getRiskLevelName(filter)} contracts yet`}
+                {debouncedSearchQuery
+                  ? filter !== 'all'
+                    ? `No ${getRiskLevelName(filter)} contracts match '${debouncedSearchQuery}'`
+                    : `No contracts found for '${debouncedSearchQuery}'`
+                  : filter === 'all'
+                    ? 'No analyzed contracts yet'
+                    : `No ${getRiskLevelName(filter)} contracts yet`}
               </h3>
               <p className="mt-3 max-w-md text-sm text-zinc-400 mx-auto">
-                Run an analysis to populate your dashboard, or switch filters to review previous findings.
+                {debouncedSearchQuery
+                  ? filter !== 'all'
+                    ? `Try checking your risk filter or verify the package ID.`
+                    : `Try checking your risk filter or verify the package ID.`
+                  : 'Run an analysis to populate your dashboard, or switch filters to review previous findings.'}
               </p>
-              <div className="mt-6 flex justify-center">
+              <div className="mt-6 flex justify-center gap-3">
+                {debouncedSearchQuery && (
+                  <Button
+                    onClick={clearSearch}
+                    variant="outline"
+                    className="border-[#D12226]/40 text-[#D12226] hover:bg-[#D12226]/10"
+                  >
+                    Clear Search
+                  </Button>
+                )}
                 <Link href="/analyze">
                   <Button className="bg-[#D12226] text-white hover:bg-[#a8181b]">
                     Analyze a Contract

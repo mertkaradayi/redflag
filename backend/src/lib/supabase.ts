@@ -424,6 +424,7 @@ export async function getAnalysisResult(
 export async function getRecentAnalyses(options: {
   limit?: number;
   offset?: number;
+  packageId?: string | null;
 } = {}): Promise<{
   success: boolean;
   analyses: any[];
@@ -440,29 +441,21 @@ export async function getRecentAnalyses(options: {
       };
     }
 
-    const { limit = 50, offset = 0 } = options;
+    const { limit = 50, offset = 0, packageId = null } = options;
 
-    // Get total count
-    const { count, error: countError } = await supabase
+    // Build base query
+    let query = supabase
       .from('contract_analyses')
-      .select('*', { count: 'exact', head: true });
+      .select('*', { count: 'exact', head: false })
+      .order('analyzed_at', { ascending: false });
 
-    if (countError) {
-      console.error('Failed to get analyses count:', countError);
-      return {
-        success: false,
-        analyses: [],
-        totalCount: 0,
-        error: countError.message
-      };
+    // Apply packageId filter if provided (exact match, case-sensitive)
+    if (packageId) {
+      query = query.eq('package_id', packageId);
     }
 
-    // Get paginated analyses
-    const { data, error } = await supabase
-      .from('contract_analyses')
-      .select('*')
-      .order('analyzed_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+    // Get paginated analyses with accurate total count in one query
+    const { data, error, count } = await query.range(offset, offset + limit - 1);
 
     if (error) {
       console.error('Failed to get analyses:', error);
