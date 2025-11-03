@@ -12,6 +12,7 @@ import {
   getRiskLevelIcon,
   getRiskLevelName,
   getRiskLevelSubtle,
+  getRiskLevelSubtleText,
   getRiskScoreBarColor,
   getRiskScoreTextColor,
 } from '@/app/dashboard/risk-utils';
@@ -171,6 +172,7 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
             className={cn(
               'rounded-lg border px-4 py-3 text-sm font-medium',
               getRiskLevelSubtle(contract.analysis.risk_level),
+              getRiskLevelSubtleText(contract.analysis.risk_level),
             )}
           >
             {contract.analysis.why_risky_one_liner}
@@ -211,14 +213,14 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
                       )}
                     >
                       <div className="flex items-center justify-between gap-3">
-                        <span className="font-mono text-sm font-semibold text-foreground dark:text-white">
+                        <span className={cn('font-mono text-sm font-semibold', getRiskLevelSubtleText(contract.analysis.risk_level))}>
                           {func.function_name}
                         </span>
                         <span className={cn('text-xs font-medium uppercase tracking-wide', getRiskLevelEmphasis(contract.analysis.risk_level))}>
                           {getRiskLevelIcon(contract.analysis.risk_level)} {getRiskLevelName(contract.analysis.risk_level)}
                         </span>
                       </div>
-                      <p className="text-sm leading-6 text-foreground/80 dark:text-white/80">{func.reason}</p>
+                      <p className={cn('text-sm leading-6', getRiskLevelSubtleText(contract.analysis.risk_level), 'opacity-90')}>{func.reason}</p>
                     </div>
                   ))}
                 </div>
@@ -228,15 +230,16 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
             {hasRugPullIndicators && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-3">
-                  <h5 className="text-sm font-semibold text-foreground dark:text-white">
-                    Rug Pull Indicators ({contract.analysis.rug_pull_indicators.length})
+                  <h5 className="text-sm font-semibold text-[#D12226] dark:text-[#ff6b6e] flex items-center gap-2">
+                    <span>⚠️</span>
+                    <span>Rug Pull Indicators ({contract.analysis.rug_pull_indicators.length})</span>
                   </h5>
                   {contract.analysis.rug_pull_indicators.length > DEFAULT_VISIBLE_INDICATORS && (
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={toggleIndicators}
-                      className="inline-flex items-center gap-1 px-2 text-xs font-semibold text-[#D12226] hover:bg-[#D12226]/15 hover:text-white"
+                      className="inline-flex items-center gap-1 px-2 text-xs font-semibold text-[#D12226] hover:bg-[#D12226]/15 hover:text-white dark:text-[#ff6b6e] dark:hover:bg-[#D12226]/20"
                     >
                       {showAllIndicators
                         ? 'Show fewer'
@@ -251,12 +254,12 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
                   {rugPullIndicators.map((indicator, index) => (
                     <div
                       key={`${indicator.pattern_name}-${index}`}
-                      className="space-y-2 rounded-lg border border-border dark:border-white/12 bg-background/35 dark:bg-black/35 px-4 py-3 text-sm text-foreground/85 dark:text-white/85 backdrop-blur"
+                      className="space-y-2 rounded-lg border-2 border-[#D12226]/50 dark:border-[#D12226]/60 bg-[#D12226]/10 dark:bg-[#D12226]/15 px-4 py-3 text-sm backdrop-blur shadow-sm shadow-[#D12226]/10"
                     >
-                      <div className="font-medium text-foreground dark:text-white">
+                      <div className="font-semibold text-[#8B1518] dark:text-[#ff8a8c]">
                         {indicator.pattern_name}
                       </div>
-                      <p className="text-sm leading-6 text-foreground/70 dark:text-white/70">{indicator.evidence}</p>
+                      <p className="text-sm leading-6 text-[#8B1518]/90 dark:text-[#ffbdbf]">{indicator.evidence}</p>
                     </div>
                   ))}
                 </div>
