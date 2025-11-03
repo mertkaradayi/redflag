@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import { ExternalLink, Github, Menu, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -36,6 +37,7 @@ interface NavigationProps {
 
 export default function Navigation({ className }: NavigationProps) {
   const pathname = usePathname();
+  const [isOpen, setIsOpen] = useState(false);
 
   const NavLinks = ({ isMobile = false }: { isMobile?: boolean }) => (
     <>
@@ -54,10 +56,13 @@ export default function Navigation({ className }: NavigationProps) {
             className={cn(
               "flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors duration-200 sm:px-4 sm:text-sm",
               "hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D12226]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+              isMobile && "w-full justify-between rounded-2xl px-4 py-3 text-base",
               isActive
                 ? "bg-[#D12226] text-white shadow-[0_0_25px_rgba(209,34,38,0.45)]"
-                : "text-muted-foreground",
-              isMobile && "w-full justify-between rounded-2xl px-4 py-3 text-base",
+                : isMobile
+                  ? "text-foreground/80 dark:text-white/70"
+                  : "text-muted-foreground",
+              !isActive && isMobile && "border border-border/60 bg-white/80 backdrop-blur-sm dark:border-white/10 dark:bg-white/10",
             )}
           >
             <span className="flex items-center gap-2 truncate">
@@ -89,16 +94,20 @@ export default function Navigation({ className }: NavigationProps) {
           "hidden flex-wrap items-center justify-end gap-x-3 gap-y-2 text-sm text-muted-foreground sm:flex sm:gap-x-4",
           className,
         )}
+        aria-label="Primary"
       >
         <NavLinks />
       </nav>
 
       {/* Mobile Navigation */}
-      <Sheet>
+      <Sheet open={isOpen} onOpenChange={setIsOpen}>
         <SheetTrigger asChild>
           <button
             className="flex items-center justify-center rounded-full p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D12226]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:hidden"
             aria-label="Toggle menu"
+            aria-haspopup="dialog"
+            aria-expanded={isOpen}
+            aria-controls="mobile-primary-navigation"
           >
             <Menu className="h-5 w-5" />
           </button>
@@ -106,25 +115,26 @@ export default function Navigation({ className }: NavigationProps) {
         <SheetContent
           side="right"
           hideClose
-          className="flex h-full w-[min(90vw,320px)] flex-col gap-0 border-l border-border/60 bg-white/95 px-0 pb-6 pt-6 text-foreground backdrop-blur-xl dark:border-zinc-800/60 dark:bg-zinc-950/95 dark:text-white sm:hidden"
+          id="mobile-primary-navigation"
+          className="flex h-full w-[min(90vw,320px)] flex-col gap-0 border-l border-border/60 bg-white/95 px-0 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-[calc(env(safe-area-inset-top)+1.5rem)] text-foreground backdrop-blur-xl dark:border-zinc-800/60 dark:bg-zinc-950/95 dark:text-white sm:hidden"
         >
           <div className="flex items-center justify-between gap-4 border-b border-border/60 px-5 pb-4">
             <BrandLogo className="h-8" wrapperClassName="flex-shrink-0" priority />
             <SheetClose asChild>
               <button
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-background/80 text-muted-foreground transition-colors hover:text-foreground"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-white/80 text-foreground/70 backdrop-blur-sm transition-colors hover:text-foreground dark:border-white/20 dark:bg-white/10 dark:text-white/70 dark:hover:text-white"
                 aria-label="Close menu"
               >
                 <X className="h-4 w-4" />
               </button>
             </SheetClose>
           </div>
-          <nav className="flex flex-1 flex-col gap-2 overflow-y-auto px-5 py-6">
+          <nav className="flex flex-1 flex-col gap-2 overflow-y-auto px-5 py-6" aria-label="Primary mobile">
             <NavLinks isMobile={true} />
           </nav>
           <div className="flex flex-col gap-3 border-t border-border/60 px-5 pt-4">
             <div className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Theme</div>
-            <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-muted/40 px-4 py-3">
+            <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-muted/40 px-4 py-3 dark:border-white/10 dark:bg-white/10">
               <span className="text-sm text-muted-foreground">Toggle appearance</span>
               <ThemeToggle />
             </div>
