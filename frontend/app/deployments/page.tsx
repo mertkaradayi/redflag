@@ -52,7 +52,7 @@ const deploymentLegend = [
 
 export default function DeploymentsPage() {
   return (
-    <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-16 px-4 pb-24 transition-colors duration-200 sm:px-8 lg:gap-20 lg:px-16">
+    <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 pb-24 transition-colors duration-200 sm:px-8 lg:gap-5 lg:px-16">
       <div className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute inset-x-0 top-[-15%] h-[520px] bg-[radial-gradient(circle_at_center,_rgba(209,34,38,0.26),_transparent_60%)] dark:opacity-100 opacity-0" />
         <div className="absolute left-1/2 top-1/2 h-[560px] w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,_rgba(209,34,38,0.18),_transparent_60%)] blur-3xl dark:opacity-100 opacity-0" />
@@ -82,12 +82,12 @@ export default function DeploymentsPage() {
           </div>
         </section>
 
-        <section className="rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 p-6 shadow-sm shadow-black/5 dark:shadow-white/5 transition-colors duration-200">
+        <section className="-mx-4 py-6 px-4 sm:-mx-8 sm:px-8 lg:-mx-16 lg:px-16">
           <DeploymentsTable autoRefresh refreshInterval={30000} />
         </section>
 
-        <section className="grid gap-6 transition-colors duration-200 lg:grid-cols-[1fr_2fr]">
-          <section className="w-full space-y-4 rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 p-6 shadow-sm shadow-black/5 dark:shadow-white/5 transition-colors duration-200">
+        <section className="-mx-4 grid gap-6 transition-colors duration-200 sm:-mx-8 lg:-mx-16 lg:grid-cols-[1fr_2fr]">
+          <section className="w-full space-y-4 rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 py-6 px-4 shadow-sm shadow-black/5 dark:shadow-white/5 transition-colors duration-200 sm:px-8 lg:px-16">
             <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-[0.3em] text-muted-foreground">
               <RefreshCcw className="h-5 w-5 text-[#D12226]" />
               <span>Legend</span>
@@ -126,7 +126,7 @@ export default function DeploymentsPage() {
           </section>
         </section>
 
-        <section className="rounded-xl border border-border dark:border-white/10 bg-gradient-to-br from-[#D12226]/60 via-[#D12226]/30 to-background dark:from-[#D12226]/60 dark:via-[#D12226]/30 dark:to-black p-6 text-center shadow-sm shadow-black/5 dark:shadow-white/5 transition-colors duration-200 sm:p-8 lg:p-10">
+        <section className="-mx-4 rounded-xl border border-border dark:border-white/10 bg-gradient-to-br from-[#D12226]/60 via-[#D12226]/30 to-background dark:from-[#D12226]/60 dark:via-[#D12226]/30 dark:to-black py-6 px-4 text-center shadow-sm shadow-black/5 dark:shadow-white/5 transition-colors duration-200 sm:-mx-8 sm:py-8 sm:px-8 lg:-mx-16 lg:py-10 lg:px-16">
           <div className="mx-auto max-w-3xl space-y-6">
             <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.3em] text-white/80">
               Close the loop

@@ -108,7 +108,7 @@ export default function RootLayout({
         <Providers>
           <div className="relative flex min-h-screen flex-col">
             <div className="pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-center">
-              <div className="pointer-events-auto mt-6 flex w-full max-w-6xl px-4 sm:mt-8 sm:px-8 lg:mt-10 lg:px-16">
+              <div className="pointer-events-auto mt-6 flex w-full max-w-6xl mx-auto px-4 sm:mt-8 sm:px-8 lg:mt-10 lg:px-16">
                 <Header />
               </div>
             </div>

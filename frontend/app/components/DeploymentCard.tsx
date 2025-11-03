@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { cloneElement, isValidElement, useMemo, useState } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 import { Check, Copy, ExternalLink, Sparkles } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -24,28 +25,28 @@ const AGE_STYLES: Record<
   { border: string; dot: string; label: string; bg: string }
 > = {
   lastHour: {
-    border: 'border-[#D12226]/60 dark:border-[#D12226]/60',
+    border: 'border-[#D12226]/40 dark:border-[#D12226]/60',
     dot: 'bg-[#D12226] dark:bg-[#D12226]',
     label: 'Last hour',
-    bg: 'bg-gradient-to-br from-[#D12226]/15 via-[hsl(var(--surface-muted))] to-[hsl(var(--surface-muted))] dark:from-[#D12226]/15 dark:via-black/40 dark:to-black/60',
+    bg: 'bg-gradient-to-br from-[#D12226]/8 via-white to-zinc-50/50 dark:from-[#D12226]/15 dark:via-black/40 dark:to-black/60',
   },
   last24h: {
-    border: 'border-zinc-400/60 dark:border-white/40',
-    dot: 'bg-zinc-400 dark:bg-white',
+    border: 'border-zinc-300/80 dark:border-white/40',
+    dot: 'bg-zinc-500 dark:bg-white',
     label: 'Last 24 hours',
-    bg: 'bg-gradient-to-br from-zinc-100/30 via-[hsl(var(--surface-muted))] to-[hsl(var(--surface-muted))] dark:from-white/10 dark:via-black/40 dark:to-black/60',
+    bg: 'bg-gradient-to-br from-zinc-50/80 via-white to-zinc-50/50 dark:from-white/10 dark:via-black/40 dark:to-black/60',
   },
   lastWeek: {
-    border: 'border-yellow-500/60 dark:border-yellow-300/60',
-    dot: 'bg-yellow-500 dark:bg-yellow-300',
+    border: 'border-amber-400/50 dark:border-yellow-300/60',
+    dot: 'bg-amber-500 dark:bg-yellow-300',
     label: 'This week',
-    bg: 'bg-gradient-to-br from-yellow-100/30 via-[hsl(var(--surface-muted))] to-[hsl(var(--surface-muted))] dark:from-yellow-200/10 dark:via-black/40 dark:to-black/60',
+    bg: 'bg-gradient-to-br from-amber-50/60 via-white to-zinc-50/50 dark:from-yellow-200/10 dark:via-black/40 dark:to-black/60',
   },
   older: {
-    border: 'border-zinc-600/60 dark:border-zinc-700/60',
-    dot: 'bg-zinc-600 dark:bg-zinc-600',
+    border: 'border-zinc-300/60 dark:border-zinc-700/60',
+    dot: 'bg-zinc-500 dark:bg-zinc-600',
     label: 'Older',
-    bg: 'bg-[hsl(var(--surface-muted))] dark:bg-black/40',
+    bg: 'bg-white dark:bg-black/40',
   },
 };
 
@@ -70,24 +71,25 @@ export default function DeploymentCard({ deployment }: DeploymentCardProps) {
   };
 
   return (
-    <Card className={cn('relative overflow-hidden rounded-xl border bg-[hsl(var(--surface-elevated))] dark:bg-black/30 p-0 shadow-sm shadow-black/5 dark:shadow-white/5 transition-colors duration-200', ageStyle.border)}>
-      <CardContent className={cn('relative space-y-4 p-6', ageStyle.bg)}>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <Card className={cn('text-card-foreground relative overflow-hidden rounded-3xl border bg-white dark:bg-black/30 p-0 shadow-sm dark:shadow-lg backdrop-blur', ageStyle.border)}>
+      <div className="absolute inset-0 opacity-80"></div>
+      <CardContent className={cn('relative space-y-3 p-4 sm:space-y-4 sm:p-6', ageStyle.bg)}>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
           <div className="space-y-1">
-            <div className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
+            <div className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-500">
               Checkpoint {deployment.checkpoint.toLocaleString()}
             </div>
-            <div className="text-sm text-muted-foreground" title={absolute}>
+            <div className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400" title={absolute}>
               {relative}
             </div>
           </div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-black/40 px-3 py-1 text-xs text-muted-foreground">
-            <span className={cn('h-2.5 w-2.5 rounded-full', ageStyle.dot)} />
-            {ageStyle.label}
+          <div className="inline-flex items-center gap-1.5 sm:gap-2 rounded-full border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-black/40 px-2.5 py-1 sm:px-3 text-[10px] sm:text-xs text-zinc-600 dark:text-zinc-300 whitespace-nowrap">
+            <span className={cn('h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full shrink-0', ageStyle.dot)} />
+            <span>{ageStyle.label}</span>
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FieldBlock
             label="Package ID"
             value={deployment.package_id}
@@ -104,17 +106,14 @@ export default function DeploymentCard({ deployment }: DeploymentCardProps) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 rounded-full border border-border dark:border-white/10 text-foreground/70 dark:text-white/70 hover:border-border/50 dark:hover:border-white hover:text-foreground dark:hover:text-white"
+                className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-zinc-100 dark:hover:bg-accent h-10 w-10 rounded-lg border border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-white/70 hover:border-zinc-300 dark:hover:border-white hover:text-zinc-900 dark:hover:text-white shrink-0"
                 onClick={() => window.open(suiExplorerUrl, '_blank', 'noopener,noreferrer')}
                 aria-label="View on Sui Explorer"
               >
-                <ExternalLink className="h-4 w-4" />
+                <ExternalLink className="h-4 w-4 shrink-0" />
               </Button>
             }
           />
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2">
           <FieldBlock
             label="Deployer"
             value={showFullAddress ? deployment.deployer_address : formatAddress(deployment.deployer_address)}
@@ -124,21 +123,21 @@ export default function DeploymentCard({ deployment }: DeploymentCardProps) {
             onToggle={toggleAddressView}
             toggleHint={showFullAddress ? 'Click to truncate address' : 'Click to view full address'}
           />
-          <div className="flex flex-col justify-between rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-black/40 px-4 py-3 text-xs text-muted-foreground sm:flex-row sm:items-center">
-            <span>First detected</span>
-            <span className="text-foreground/80 dark:text-white/80">{new Date(deployment.first_seen_at).toLocaleString()}</span>
-          </div>
+          <StaticField
+            label="First detected"
+            value={new Date(deployment.first_seen_at).toLocaleString()}
+          />
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-black/40 px-4 py-3 text-xs text-muted-foreground">
-          <div className="flex items-center gap-2 text-sm text-foreground/80 dark:text-white/80">
-            <Sparkles className="h-4 w-4 text-[#D12226]" />
-            Launch a security review in RedFlag
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-3 rounded-2xl border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-black/40 px-3 py-2.5 sm:px-4 sm:py-3 text-[11px] sm:text-xs text-zinc-600 dark:text-zinc-300">
+          <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-zinc-900 dark:text-white/80">
+            <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#D12226] shrink-0" />
+            <span className="whitespace-nowrap">Launch a security review in RedFlag</span>
           </div>
           <Button
             variant="outline"
             size="sm"
-            className="rounded-full border-[#D12226]/40 dark:border-[#D12226]/40 text-[#D12226] dark:text-[#D12226] hover:bg-[#D12226]/10 dark:hover:bg-[#D12226]/10"
+            className="w-full sm:w-auto inline-flex items-center justify-center whitespace-nowrap text-xs sm:text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border bg-background hover:text-accent-foreground h-8 sm:h-9 px-3 rounded-full border-[#D12226]/40 text-[#D12226] hover:bg-[#D12226]/10"
             onClick={() => {
               const analysisSection = document.querySelector('[data-llm-analysis]');
               if (analysisSection) {
@@ -165,7 +164,7 @@ interface FieldBlockProps {
   fullValue?: string;
   copied: boolean;
   onCopy: () => void;
-  trailingButton?: React.ReactNode;
+  trailingButton?: ReactNode;
   onToggle?: () => void;
   toggleHint?: string;
 }
@@ -180,32 +179,75 @@ function FieldBlock({
   onToggle,
   toggleHint,
 }: FieldBlockProps) {
+  const handleContainerClick = () => {
+    if (onToggle) {
+      onToggle();
+    }
+  };
+
+  const handleCopyClick = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    onCopy();
+  };
+
+  const renderedTrailingButton = isValidElement(trailingButton)
+    ? cloneElement(trailingButton, {
+        className: cn('shrink-0', trailingButton.props.className),
+        onClick: (event: MouseEvent<HTMLElement>) => {
+          event.stopPropagation();
+          trailingButton.props.onClick?.(event);
+        },
+      })
+    : trailingButton;
+
   return (
-    <div className="space-y-2">
-      <label className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
+    <div className="min-w-0 space-y-1.5 sm:space-y-2">
+      <label className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-500">
         {label}
       </label>
-      <div className="flex flex-wrap items-center gap-2">
-        <code
-          className={cn(
-            'min-w-0 flex-1 truncate rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-black/40 px-3 py-2 font-mono text-sm text-foreground/90 dark:text-white/90',
-            onToggle && 'cursor-pointer transition hover:border-border/50 dark:hover:border-white/20 hover:bg-[hsl(var(--surface-elevated))] dark:hover:bg-black/30',
-          )}
-          onClick={onToggle}
-          title={toggleHint || fullValue}
-        >
+      <div
+        className={cn(
+          'flex min-w-0 items-center gap-2 rounded-xl border border-zinc-200 dark:border-white/10 bg-white/60 dark:bg-black/40 h-11 sm:h-10 px-3 transition',
+          onToggle && 'cursor-pointer hover:border-zinc-300 dark:hover:border-white/20 hover:bg-zinc-100 dark:hover:bg-black/30'
+        )}
+        onClick={onToggle ? handleContainerClick : undefined}
+        title={toggleHint || fullValue || value}
+      >
+        <span className="min-w-0 flex-1 truncate font-mono text-sm text-zinc-900 dark:text-white/90">
           {value}
-        </code>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 rounded-full border border-border dark:border-white/10 text-foreground/70 dark:text-white/70 hover:border-border dark:hover:border-white hover:text-foreground dark:hover:text-white hover:bg-[hsl(var(--surface-elevated))] dark:hover:bg-white/10"
-          onClick={onCopy}
-          aria-label={`Copy ${label.toLowerCase()}`}
-        >
-          {copied ? <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-300" /> : <Copy className="h-4 w-4" />}
-        </Button>
-        {trailingButton}
+        </span>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-zinc-100 dark:hover:bg-accent h-10 w-10 rounded-lg border border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-white/70 hover:border-zinc-300 dark:hover:border-white hover:text-zinc-900 dark:hover:text-white shrink-0"
+            onClick={handleCopyClick}
+            aria-label={`Copy ${label.toLowerCase()}`}
+          >
+            {copied ? <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-300" /> : <Copy className="h-4 w-4" />}
+          </Button>
+          {renderedTrailingButton ? <div className="shrink-0">{renderedTrailingButton}</div> : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface StaticFieldProps {
+  label: string;
+  value: string;
+}
+
+function StaticField({ label, value }: StaticFieldProps) {
+  return (
+    <div className="min-w-0 space-y-1.5 sm:space-y-2">
+      <label className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-500">
+        {label}
+      </label>
+      <div className="flex min-w-0 items-center gap-2 rounded-xl border border-zinc-200 dark:border-white/10 bg-white/60 dark:bg-black/40 h-11 sm:h-10 px-3">
+        <span className="min-w-0 flex-1 truncate text-sm text-zinc-900 dark:text-white/80" title={value}>
+          {value}
+        </span>
       </div>
     </div>
   );

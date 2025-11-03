@@ -155,130 +155,130 @@ export default function DeploymentsTable({
   }
 
   return (
-    <Card className="border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 text-foreground dark:text-white shadow-sm shadow-black/5 dark:shadow-white/5 transition-colors duration-200">
+    <Card className="bg-[hsl(var(--surface-elevated))] dark:bg-black/40 text-foreground dark:text-white shadow-lg backdrop-blur">
       <CardHeader className="space-y-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <CardTitle className="text-foreground dark:text-white">Smart contract deployments</CardTitle>
-            <CardDescription className="mt-2 text-sm text-muted-foreground">
-              {deployments.length > 0 ? (
-                <>
-                  {stats.total} tracked deployments
-                  {stats.last24h > 0 && (
-                    <span className="text-foreground/70 dark:text-white/70"> • {stats.last24h} in the last 24 hours</span>
-                  )}
-                  {lastUpdate && (
-                    <span className="text-muted-foreground dark:text-white/60">
-                      {' '}
-                      • Last updated {lastUpdate.toLocaleTimeString()}
-                    </span>
-                  )}
-                </>
-              ) : (
-                'No deployments detected yet'
-              )}
-            </CardDescription>
-          </div>
-          <Button
-            onClick={handleRefresh}
-            variant="outline"
-            size="sm"
-            className={cn(
-              'inline-flex items-center gap-2 border-[#D12226]/40 dark:border-[#D12226]/40 text-[#D12226] dark:text-[#D12226] hover:bg-[#D12226]/10 dark:hover:bg-[#D12226]/10',
-              loading && 'pointer-events-none opacity-60',
-            )}
-          >
-            <RefreshCcw className={cn('h-4 w-4', loading && 'animate-spin')} />
-            Refresh
-          </Button>
-        </div>
-
-        {deployments.length > 0 && (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-black/40 p-4">
-              <div className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">Total</div>
-              <div className="mt-2 text-3xl font-semibold text-foreground dark:text-white">
-                {stats.total.toLocaleString()}
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground">Across current feed window</p>
-            </div>
-            <div className="rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-black/40 p-4">
-              <div className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
-                Last 24h
-              </div>
-              <div className="mt-2 text-3xl font-semibold text-[#D12226] dark:text-[#D12226]">
-                {stats.last24h.toLocaleString()}
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground">Fresh launches since yesterday</p>
-            </div>
-            <div className="rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-black/40 p-4">
-              <div className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
-                Latest checkpoint
-              </div>
-              <div className="mt-2 text-3xl font-semibold text-foreground dark:text-white">
-                {stats.latestCheckpoint?.toLocaleString() ?? '—'}
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground">Most recent index observed</p>
-            </div>
-            <div className="rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-black/40 p-4">
-              <div className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
-                Most active deployer
-              </div>
-              <div className="mt-2 text-xl font-semibold text-foreground dark:text-white">
-                {stats.mostActiveDeployer
-                  ? `${stats.mostActiveDeployer.slice(0, 6)}…${stats.mostActiveDeployer.slice(-4)}`
-                  : '—'}
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground">Top account in current window</p>
-            </div>
-          </div>
-        )}
-
-        {deployments.length > 0 && (
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="relative w-full md:max-w-sm">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Search by package, deployer, or transaction…"
-                className="w-full rounded-full border border-border dark:border-white/15 bg-[hsl(var(--surface-muted))] dark:bg-black/60 py-2 pl-11 pr-4 text-sm text-foreground dark:text-white placeholder:text-muted-foreground focus:border-[#D12226] focus:outline-none focus:ring-2 focus:ring-[#D12226]/40 transition-colors duration-200"
-              />
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {(['timestamp', 'checkpoint'] as const).map((option) => {
-                const isActive = sortBy === option;
-                return (
-                  <Button
-                    key={option}
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setSortBy(option)}
-                    className={cn(
-                      'rounded-full border-[#D12226]/40 dark:border-[#D12226]/40 px-4 text-sm font-semibold capitalize transition',
-                      isActive
-                        ? 'bg-[#D12226] text-white hover:bg-[#a8181b]'
-                        : 'text-[#D12226] dark:text-[#D12226] hover:bg-[#D12226]/10 dark:hover:bg-[#D12226]/10',
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <CardTitle className="text-2xl font-semibold leading-none tracking-tight text-foreground dark:text-white">Smart contract deployments</CardTitle>
+              <CardDescription className="mt-2 text-sm text-muted-foreground dark:text-zinc-400">
+                {deployments.length > 0 ? (
+                  <>
+                    {stats.total} tracked deployments
+                    {stats.last24h > 0 && (
+                      <span className="text-foreground/70 dark:text-white/70"> • {stats.last24h} in the last 24 hours</span>
                     )}
-                  >
-                    {SORT_LABELS[option]}
-                  </Button>
-                );
-              })}
+                    {lastUpdate && (
+                      <span className="text-muted-foreground dark:text-white/60">
+                        {' '}
+                        • Last updated {lastUpdate.toLocaleTimeString()}
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  'No deployments detected yet'
+                )}
+              </CardDescription>
             </div>
+            <Button
+              onClick={handleRefresh}
+              variant="outline"
+              size="sm"
+              className={cn(
+                'justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border bg-background hover:text-accent-foreground h-9 rounded-md px-3 inline-flex items-center gap-2 border-[#D12226]/40 text-[#D12226] hover:bg-[#D12226]/10',
+                loading && 'pointer-events-none opacity-60',
+              )}
+            >
+              <RefreshCcw className={cn('h-4 w-4', loading && 'animate-spin')} />
+              Refresh
+            </Button>
           </div>
-        )}
-      </CardHeader>
 
-      <CardContent className="space-y-6">
+          {deployments.length > 0 && (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-2xl border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-black/40 p-4">
+                <div className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground dark:text-zinc-400">Total</div>
+                <div className="mt-2 text-3xl font-semibold text-foreground dark:text-white">
+                  {stats.total.toLocaleString()}
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground dark:text-zinc-500">Across current feed window</p>
+              </div>
+              <div className="rounded-2xl border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-black/40 p-4">
+                <div className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground dark:text-zinc-400">
+                  Last 24h
+                </div>
+                <div className="mt-2 text-3xl font-semibold text-[#D12226]">
+                  {stats.last24h.toLocaleString()}
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground dark:text-zinc-500">Fresh launches since yesterday</p>
+              </div>
+              <div className="rounded-2xl border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-black/40 p-4">
+                <div className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground dark:text-zinc-400">
+                  Latest checkpoint
+                </div>
+                <div className="mt-2 text-3xl font-semibold text-foreground dark:text-white">
+                  {stats.latestCheckpoint?.toLocaleString() ?? '—'}
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground dark:text-zinc-500">Most recent index observed</p>
+              </div>
+              <div className="rounded-2xl border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-black/40 p-4">
+                <div className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground dark:text-zinc-400">
+                  Most active deployer
+                </div>
+                <div className="mt-2 text-xl font-semibold text-foreground dark:text-white">
+                  {stats.mostActiveDeployer
+                    ? `${stats.mostActiveDeployer.slice(0, 6)}…${stats.mostActiveDeployer.slice(-4)}`
+                    : '—'}
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground dark:text-zinc-500">Top account in current window</p>
+              </div>
+            </div>
+          )}
+
+          {deployments.length > 0 && (
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="relative w-full md:max-w-sm">
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground dark:text-zinc-500" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Search by package, deployer, or transaction…"
+                  className="w-full rounded-full border border-border dark:border-white/15 bg-[hsl(var(--surface-muted))] dark:bg-black/60 py-2 pl-11 pr-4 text-sm text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-zinc-500 focus:border-[#D12226] focus:outline-none focus:ring-2 focus:ring-[#D12226]/40"
+                />
+              </div>
+              <div className="flex gap-2">
+                {(['timestamp', 'checkpoint'] as const).map((option) => {
+                  const isActive = sortBy === option;
+                  return (
+                    <Button
+                      key={option}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSortBy(option)}
+                      className={cn(
+                        'inline-flex items-center justify-center whitespace-nowrap ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border hover:text-accent-foreground h-9 rounded-full border-[#D12226]/40 px-4 text-sm font-semibold capitalize transition',
+                        isActive
+                          ? 'bg-[#D12226] text-white hover:bg-[#a8181b]'
+                          : 'text-[#D12226] hover:bg-[#D12226]/10',
+                      )}
+                    >
+                      {SORT_LABELS[option]}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </CardHeader>
+
+      <CardContent className="p-6 pt-0 space-y-6">
         {sortedDeployments.length === 0 ? (
           <div className="flex flex-col items-center gap-4 py-16 text-center">
             <div className="text-6xl">📦</div>
             <h3 className="text-lg font-semibold text-foreground dark:text-white">
               {searchTerm ? 'No matching deployments' : 'No deployments yet'}
             </h3>
-            <p className="max-w-md text-sm text-muted-foreground">
+            <p className="max-w-md text-sm text-muted-foreground dark:text-zinc-400">
               {searchTerm
                 ? 'Try adjusting your search terms or clearing the search box.'
                 : 'Deployments will appear here as soon as they are detected on the Sui testnet.'}
@@ -308,7 +308,7 @@ export default function DeploymentsTable({
                   disabled={loadingMore}
                   variant="outline"
                   className={cn(
-                    'w-full sm:w-auto border-[#D12226]/40 dark:border-[#D12226]/40 text-[#D12226] dark:text-[#D12226] hover:bg-[#D12226]/10 dark:hover:bg-[#D12226]/10',
+                    'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border bg-background hover:text-accent-foreground h-10 px-4 py-2 w-full sm:w-auto border-[#D12226]/40 text-[#D12226] hover:bg-[#D12226]/10',
                     loadingMore && 'opacity-60',
                   )}
                 >
@@ -318,7 +318,7 @@ export default function DeploymentsTable({
             )}
 
             {!hasMore && deployments.length > 0 && (
-              <div className="text-center text-sm text-muted-foreground">
+              <div className="text-center text-sm text-muted-foreground dark:text-zinc-400">
                 You&apos;ve reached the end of the results
               </div>
             )}
