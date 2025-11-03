@@ -45,17 +45,17 @@ const highlightCards: HighlightCard[] = [
 
 const deploymentLegend = [
   { swatch: "bg-[#D12226]", label: "Deployed in the last hour" },
-  { swatch: "bg-white", label: "Within the last 24 hours" },
-  { swatch: "bg-yellow-300", label: "Within the last 7 days" },
-  { swatch: "bg-zinc-600", label: "Older deployments" },
+  { swatch: "bg-zinc-400 dark:bg-white", label: "Within the last 24 hours" },
+  { swatch: "bg-yellow-500 dark:bg-yellow-300", label: "Within the last 7 days" },
+  { swatch: "bg-zinc-600 dark:bg-zinc-600", label: "Older deployments" },
 ];
 
 export default function DeploymentsPage() {
   return (
     <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-16 px-4 pb-24 transition-colors duration-200 sm:px-8 lg:gap-20 lg:px-16">
       <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-x-0 top-[-15%] h-[520px] bg-[radial-gradient(circle_at_center,_rgba(209,34,38,0.26),_transparent_60%)]" />
-        <div className="absolute left-1/2 top-1/2 h-[560px] w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,_rgba(209,34,38,0.18),_transparent_60%)] blur-3xl" />
+        <div className="absolute inset-x-0 top-[-15%] h-[520px] bg-[radial-gradient(circle_at_center,_rgba(209,34,38,0.26),_transparent_60%)] dark:opacity-100 opacity-0" />
+        <div className="absolute left-1/2 top-1/2 h-[560px] w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,_rgba(209,34,38,0.18),_transparent_60%)] blur-3xl dark:opacity-100 opacity-0" />
       </div>
         <section className="space-y-4 transition-colors duration-200">
           <div className="space-y-3">
@@ -82,12 +82,12 @@ export default function DeploymentsPage() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 p-6 shadow-lg backdrop-blur transition-colors duration-200">
+        <section className="rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 p-6 shadow-sm shadow-black/5 dark:shadow-white/5 transition-colors duration-200">
           <DeploymentsTable autoRefresh refreshInterval={30000} />
         </section>
 
         <section className="grid gap-6 transition-colors duration-200 lg:grid-cols-[1fr_2fr]">
-          <section className="w-full space-y-4 rounded-3xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 p-6 shadow-inner backdrop-blur transition-colors duration-200">
+          <section className="w-full space-y-4 rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 p-6 shadow-sm shadow-black/5 dark:shadow-white/5 transition-colors duration-200">
             <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-[0.3em] text-muted-foreground">
               <RefreshCcw className="h-5 w-5 text-[#D12226]" />
               <span>Legend</span>
@@ -103,7 +103,7 @@ export default function DeploymentsPage() {
                 </li>
               ))}
             </ul>
-            <div className="flex items-center gap-3 rounded-2xl border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-black/40 px-4 py-3 text-xs text-muted-foreground">
+            <div className="flex items-center gap-3 rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-black/40 px-4 py-3 text-xs text-muted-foreground">
               <Globe2 className="h-4 w-4 text-foreground/70 dark:text-white/70" />
               Monitoring Sui testnet — mainnet support coming soon.
             </div>
@@ -113,7 +113,7 @@ export default function DeploymentsPage() {
             {highlightCards.map((card) => (
               <div
                 key={card.title}
-                className="flex h-full flex-col gap-4 rounded-3xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 p-6 text-sm text-muted-foreground shadow-lg transition-colors duration-200 hover:border-[#D12226]/40 hover:bg-[#D12226]/10 backdrop-blur"
+                className="flex h-full flex-col gap-4 rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 p-6 text-sm text-muted-foreground shadow-sm shadow-black/5 dark:shadow-white/5 transition-colors duration-200 hover:border-[#D12226]/40 hover:bg-[#D12226]/10 dark:hover:bg-[#D12226]/10"
               >
                 <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-[#D12226]">
                   {card.icon}
@@ -126,7 +126,7 @@ export default function DeploymentsPage() {
           </section>
         </section>
 
-        <section className="rounded-3xl border border-border dark:border-white/10 bg-gradient-to-br from-[#D12226]/60 via-[#D12226]/30 to-background dark:to-black p-6 text-center shadow-2xl transition-colors duration-200 sm:p-8 lg:p-10">
+        <section className="rounded-xl border border-border dark:border-white/10 bg-gradient-to-br from-[#D12226]/60 via-[#D12226]/30 to-background dark:from-[#D12226]/60 dark:via-[#D12226]/30 dark:to-black p-6 text-center shadow-sm shadow-black/5 dark:shadow-white/5 transition-colors duration-200 sm:p-8 lg:p-10">
           <div className="mx-auto max-w-3xl space-y-6">
             <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.3em] text-white/80">
               Close the loop
@@ -135,7 +135,7 @@ export default function DeploymentsPage() {
               Turn new deployments into action with a single analysis.
             </h2>
             <p className="text-base text-white/80">
-              Copy any package ID from the feed and fire up RedFlag’s multi-agent reviewer to surface security concerns
+              Copy any package ID from the feed and fire up RedFlag's multi-agent reviewer to surface security concerns
               before they reach production.
             </p>
             <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">

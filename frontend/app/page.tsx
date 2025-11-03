@@ -134,8 +134,8 @@ export default function Home() {
   return (
     <div className="relative -mt-28 overflow-x-hidden pt-28 transition-colors duration-200 sm:-mt-32 sm:pt-32 lg:-mt-36 lg:pt-36">
       <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-x-0 top-[-20%] h-[700px] bg-[radial-gradient(circle_at_center,rgba(209,34,38,0.28),transparent_60%)]" />
-        <div className="absolute left-1/2 top-1/2 h-[520px] w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(209,34,38,0.18),transparent_60%)] blur-3xl" />
+        <div className="absolute inset-x-0 top-[-20%] h-[700px] bg-[radial-gradient(circle_at_center,rgba(209,34,38,0.28),transparent_60%)] dark:opacity-100 opacity-0" />
+        <div className="absolute left-1/2 top-1/2 h-[520px] w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(209,34,38,0.18),transparent_60%)] blur-3xl dark:opacity-100 opacity-0" />
       </div>
 
       <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-16 px-4 pb-24 transition-colors duration-200 sm:px-8 lg:gap-20 lg:px-16">

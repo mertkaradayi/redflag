@@ -24,28 +24,28 @@ const AGE_STYLES: Record<
   { border: string; dot: string; label: string; bg: string }
 > = {
   lastHour: {
-    border: 'border-[#D12226]/60',
-    dot: 'bg-[#D12226]',
+    border: 'border-[#D12226]/60 dark:border-[#D12226]/60',
+    dot: 'bg-[#D12226] dark:bg-[#D12226]',
     label: 'Last hour',
-    bg: 'bg-gradient-to-br from-[#D12226]/15 via-black/40 to-black/60',
+    bg: 'bg-gradient-to-br from-[#D12226]/15 via-[hsl(var(--surface-muted))] to-[hsl(var(--surface-muted))] dark:from-[#D12226]/15 dark:via-black/40 dark:to-black/60',
   },
   last24h: {
-    border: 'border-white/40',
-    dot: 'bg-white',
+    border: 'border-zinc-400/60 dark:border-white/40',
+    dot: 'bg-zinc-400 dark:bg-white',
     label: 'Last 24 hours',
-    bg: 'bg-gradient-to-br from-white/10 via-black/40 to-black/60',
+    bg: 'bg-gradient-to-br from-zinc-100/30 via-[hsl(var(--surface-muted))] to-[hsl(var(--surface-muted))] dark:from-white/10 dark:via-black/40 dark:to-black/60',
   },
   lastWeek: {
-    border: 'border-yellow-300/60',
-    dot: 'bg-yellow-300',
+    border: 'border-yellow-500/60 dark:border-yellow-300/60',
+    dot: 'bg-yellow-500 dark:bg-yellow-300',
     label: 'This week',
-    bg: 'bg-gradient-to-br from-yellow-200/10 via-black/40 to-black/60',
+    bg: 'bg-gradient-to-br from-yellow-100/30 via-[hsl(var(--surface-muted))] to-[hsl(var(--surface-muted))] dark:from-yellow-200/10 dark:via-black/40 dark:to-black/60',
   },
   older: {
-    border: 'border-zinc-700/60',
-    dot: 'bg-zinc-600',
+    border: 'border-zinc-600/60 dark:border-zinc-700/60',
+    dot: 'bg-zinc-600 dark:bg-zinc-600',
     label: 'Older',
-    bg: 'bg-black/40',
+    bg: 'bg-[hsl(var(--surface-muted))] dark:bg-black/40',
   },
 };
 
@@ -70,8 +70,7 @@ export default function DeploymentCard({ deployment }: DeploymentCardProps) {
   };
 
   return (
-    <Card className={cn('relative overflow-hidden rounded-3xl border bg-background/30 dark:bg-black/30 p-0 shadow-lg backdrop-blur', ageStyle.border)}>
-      <div className="absolute inset-0 opacity-80" />
+    <Card className={cn('relative overflow-hidden rounded-xl border bg-[hsl(var(--surface-elevated))] dark:bg-black/30 p-0 shadow-sm shadow-black/5 dark:shadow-white/5 transition-colors duration-200', ageStyle.border)}>
       <CardContent className={cn('relative space-y-4 p-6', ageStyle.bg)}>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
@@ -82,7 +81,7 @@ export default function DeploymentCard({ deployment }: DeploymentCardProps) {
               {relative}
             </div>
           </div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-border dark:border-white/10 bg-background/40 dark:bg-black/40 px-3 py-1 text-xs text-muted-foreground">
+          <div className="inline-flex items-center gap-2 rounded-full border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-black/40 px-3 py-1 text-xs text-muted-foreground">
             <span className={cn('h-2.5 w-2.5 rounded-full', ageStyle.dot)} />
             {ageStyle.label}
           </div>
@@ -125,13 +124,13 @@ export default function DeploymentCard({ deployment }: DeploymentCardProps) {
             onToggle={toggleAddressView}
             toggleHint={showFullAddress ? 'Click to truncate address' : 'Click to view full address'}
           />
-          <div className="flex flex-col justify-between rounded-2xl border border-border dark:border-white/10 bg-background/40 dark:bg-black/40 px-4 py-3 text-xs text-muted-foreground sm:flex-row sm:items-center">
+          <div className="flex flex-col justify-between rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-black/40 px-4 py-3 text-xs text-muted-foreground sm:flex-row sm:items-center">
             <span>First detected</span>
             <span className="text-foreground/80 dark:text-white/80">{new Date(deployment.first_seen_at).toLocaleString()}</span>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border dark:border-white/10 bg-background/40 dark:bg-black/40 px-4 py-3 text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-black/40 px-4 py-3 text-xs text-muted-foreground">
           <div className="flex items-center gap-2 text-sm text-foreground/80 dark:text-white/80">
             <Sparkles className="h-4 w-4 text-[#D12226]" />
             Launch a security review in RedFlag
@@ -139,7 +138,7 @@ export default function DeploymentCard({ deployment }: DeploymentCardProps) {
           <Button
             variant="outline"
             size="sm"
-            className="rounded-full border-[#D12226]/40 text-[#D12226] hover:bg-[#D12226]/10"
+            className="rounded-full border-[#D12226]/40 dark:border-[#D12226]/40 text-[#D12226] dark:text-[#D12226] hover:bg-[#D12226]/10 dark:hover:bg-[#D12226]/10"
             onClick={() => {
               const analysisSection = document.querySelector('[data-llm-analysis]');
               if (analysisSection) {
@@ -189,8 +188,8 @@ function FieldBlock({
       <div className="flex flex-wrap items-center gap-2">
         <code
           className={cn(
-            'min-w-0 flex-1 truncate rounded-2xl border border-border dark:border-white/10 bg-background/40 dark:bg-black/40 px-3 py-2 font-mono text-sm text-foreground/90 dark:text-white/90',
-            onToggle && 'cursor-pointer transition hover:border-border/50 dark:hover:border-white/20 hover:bg-background/30 dark:hover:bg-black/30',
+            'min-w-0 flex-1 truncate rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-black/40 px-3 py-2 font-mono text-sm text-foreground/90 dark:text-white/90',
+            onToggle && 'cursor-pointer transition hover:border-border/50 dark:hover:border-white/20 hover:bg-[hsl(var(--surface-elevated))] dark:hover:bg-black/30',
           )}
           onClick={onToggle}
           title={toggleHint || fullValue}
@@ -200,11 +199,11 @@ function FieldBlock({
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 rounded-full border border-white/10 text-white/70 hover:border-white hover:text-white"
+          className="h-8 w-8 rounded-full border border-border dark:border-white/10 text-foreground/70 dark:text-white/70 hover:border-border dark:hover:border-white hover:text-foreground dark:hover:text-white hover:bg-[hsl(var(--surface-elevated))] dark:hover:bg-white/10"
           onClick={onCopy}
           aria-label={`Copy ${label.toLowerCase()}`}
         >
-          {copied ? <Check className="h-4 w-4 text-emerald-300" /> : <Copy className="h-4 w-4" />}
+          {copied ? <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-300" /> : <Copy className="h-4 w-4" />}
         </Button>
         {trailingButton}
       </div>
