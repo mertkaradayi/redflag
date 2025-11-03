@@ -86,3 +86,94 @@ export const getRiskScoreTextColor = (score: number) => {
   if (score >= 40) return "text-yellow-200";
   return "text-emerald-200";
 };
+
+export const getRiskLevelDot = (level: RiskLevel | string) => {
+  const token = riskLevelTokens[level as RiskLevel];
+  if (!token) return "bg-white/20";
+  
+  if (level === "critical") return "bg-[#ff6b6e]";
+  if (level === "high") return "bg-orange-500";
+  if (level === "moderate") return "bg-yellow-400";
+  if (level === "low") return "bg-emerald-500";
+  
+  return "bg-white/20";
+};
+
+export const getRiskFilterStyles = (level: RiskLevel | string) => {
+  const token = riskLevelTokens[level as RiskLevel];
+  if (!token) {
+    return {
+      border: "border-white/20",
+      bg: "bg-white/5",
+      text: "text-white",
+      bgActive: "bg-white/15",
+      borderActive: "border-white/40",
+      glow: "",
+      ring: "ring-white/40",
+      dot: "bg-white/20",
+    };
+  }
+  
+  if (level === "critical") {
+    return {
+      border: "border-[#D12226]/50",
+      bg: "bg-[#D12226]/10",
+      text: "text-[#ff8a8c]",
+      bgActive: "bg-[#D12226]/25",
+      borderActive: "border-[#D12226]/70",
+      glow: "shadow-[0_0_20px_rgba(209,34,38,0.4)]",
+      ring: "ring-[#D12226]/50",
+      dot: "bg-[#ff6b6e]",
+    };
+  }
+  
+  if (level === "high") {
+    return {
+      border: "border-orange-500/50",
+      bg: "bg-orange-500/10",
+      text: "text-orange-200",
+      bgActive: "bg-orange-500/25",
+      borderActive: "border-orange-500/70",
+      glow: "shadow-[0_0_20px_rgba(249,115,22,0.4)]",
+      ring: "ring-orange-500/50",
+      dot: "bg-orange-500",
+    };
+  }
+  
+  if (level === "moderate") {
+    return {
+      border: "border-yellow-400/50",
+      bg: "bg-yellow-400/10",
+      text: "text-yellow-200",
+      bgActive: "bg-yellow-400/25",
+      borderActive: "border-yellow-400/70",
+      glow: "shadow-[0_0_20px_rgba(250,204,21,0.4)]",
+      ring: "ring-yellow-400/50",
+      dot: "bg-yellow-400",
+    };
+  }
+  
+  if (level === "low") {
+    return {
+      border: "border-emerald-500/50",
+      bg: "bg-emerald-500/10",
+      text: "text-emerald-200",
+      bgActive: "bg-emerald-500/25",
+      borderActive: "border-emerald-500/70",
+      glow: "shadow-[0_0_20px_rgba(16,185,129,0.4)]",
+      ring: "ring-emerald-500/50",
+      dot: "bg-emerald-500",
+    };
+  }
+  
+  return {
+    border: "border-white/20",
+    bg: "bg-white/5",
+    text: "text-white",
+    bgActive: "bg-white/15",
+    borderActive: "border-white/40",
+    glow: "",
+    ring: "ring-white/40",
+    dot: "bg-white/20",
+  };
+};
