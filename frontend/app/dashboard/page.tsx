@@ -6,63 +6,19 @@ import { PauseCircle, PlayCircle, RefreshCcw, X, Search, Loader2 } from 'lucide-
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import AnalyzedContractCard from '@/app/components/AnalyzedContractCard';
 import type { AnalyzedContract, DashboardData } from '@/app/dashboard/types';
-import { getRiskLevelName } from '@/app/dashboard/risk-utils';
+import {
+  getRiskFilterStyles,
+  getRiskLevelDot,
+  getRiskLevelName,
+} from '@/app/dashboard/risk-utils';
 import { usePagination } from '@/app/dashboard/usePagination';
 import { cn } from '@/lib/utils';
 
 const AUTO_REFRESH_SECONDS = 30;
 const RISK_FILTERS: Array<'all' | 'critical' | 'high' | 'moderate' | 'low'> = ['all', 'critical', 'high', 'moderate', 'low'];
-const RISK_LEVEL_STYLES: Record<
-  'critical' | 'high' | 'moderate' | 'low',
-  {
-    value: string;
-    dot: string;
-    border: string;
-    bg: string;
-    bgActive: string;
-    text: string;
-    glow: string;
-  }
-> = {
-  critical: {
-    value: 'text-[#ff6b6e]',
-    dot: 'bg-[#ff6b6e]',
-    border: 'border-[#ff6b6e]/40',
-    bg: 'bg-[#ff6b6e]/10',
-    bgActive: 'bg-gradient-to-br from-[#ff6b6e]/20 to-[#ff6b6e]/10',
-    text: 'text-[#ff8a92]',
-    glow: 'shadow-[#ff6b6e]/20',
-  },
-  high: {
-    value: 'text-orange-400',
-    dot: 'bg-orange-400',
-    border: 'border-orange-400/40',
-    bg: 'bg-orange-400/10',
-    bgActive: 'bg-gradient-to-br from-orange-400/20 to-orange-400/10',
-    text: 'text-orange-300',
-    glow: 'shadow-orange-400/20',
-  },
-  moderate: {
-    value: 'text-yellow-400',
-    dot: 'bg-yellow-400',
-    border: 'border-yellow-400/40',
-    bg: 'bg-yellow-400/10',
-    bgActive: 'bg-gradient-to-br from-yellow-400/20 to-yellow-400/10',
-    text: 'text-yellow-200',
-    glow: 'shadow-yellow-400/20',
-  },
-  low: {
-    value: 'text-emerald-400',
-    dot: 'bg-emerald-400',
-    border: 'border-emerald-400/40',
-    bg: 'bg-emerald-400/10',
-    bgActive: 'bg-gradient-to-br from-emerald-400/20 to-emerald-400/10',
-    text: 'text-emerald-300',
-    glow: 'shadow-emerald-400/20',
-  },
-};
 
 const FILTER_META = {
   all: {
@@ -302,7 +258,7 @@ export default function Dashboard() {
   const isEmptyState = !loading && filteredContracts.length === 0;
   const isRiskFiltered = filter !== 'all';
   const activeRiskLabel = isRiskFiltered ? getRiskLevelName(filter) : null;
-  const activeRiskStyle = isRiskFiltered ? RISK_LEVEL_STYLES[filter] : null;
+  const activeRiskStyle = isRiskFiltered ? getRiskFilterStyles(filter) : null;
   const emptyTitle = debouncedSearchQuery
     ? activeRiskLabel
       ? `No ${activeRiskLabel} contracts match "${debouncedSearchQuery}"`
@@ -316,24 +272,24 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-black via-zinc-950 to-black text-white">
+      <div className="flex min-h-screen items-center justify-center bg-[hsl(var(--background))] text-[hsl(var(--surface-contrast))] dark:bg-gradient-to-b dark:from-black dark:via-zinc-950 dark:to-black dark:text-white">
         <div className="flex flex-col items-center gap-4 text-center">
-          <div className="h-11 w-11 animate-spin rounded-full border-2 border-white/20 border-t-transparent" />
-          <p className="text-sm text-zinc-300">Loading analyzed contracts...</p>
+          <div className="h-11 w-11 animate-spin rounded-full border-2 border-border dark:border-white/20 border-t-transparent" />
+          <p className="text-sm text-muted-foreground dark:text-zinc-300">Loading analyzed contracts...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-gradient-to-b from-black via-zinc-950 to-black text-white">
+    <div className="min-h-screen overflow-x-hidden bg-[hsl(var(--background))] text-[hsl(var(--surface-contrast))] dark:bg-gradient-to-b dark:from-black dark:via-zinc-950 dark:to-black dark:text-white">
       <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-16 px-4 pb-24 sm:px-8 lg:gap-20 lg:px-16">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex-1 space-y-2">
             <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl lg:text-4xl">
               Monitor your analyzed Sui contracts at a glance.
             </h1>
-            <p className="max-w-2xl text-sm leading-6 text-zinc-300 sm:text-base">
+            <p className="max-w-2xl text-sm leading-6 text-muted-foreground dark:text-zinc-300 sm:text-base">
               Search by package ID, focus on the risk tiers that matter, and let auto-refresh surface fresh findings
               the moment they land.
             </p>
@@ -341,15 +297,15 @@ export default function Dashboard() {
           {riskStats && (
             <div className="flex-shrink-0">
               <div className="relative">
-                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[#D12226]/20 via-[#D12226]/10 to-transparent blur-xl" />
-                <div className="relative flex h-28 w-28 flex-col items-center justify-center rounded-2xl border-2 border-[#D12226]/30 bg-gradient-to-br from-white/10 via-white/5 to-black/40 shadow-lg shadow-[#D12226]/10 backdrop-blur-sm">
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-transparent blur-xl" />
+                <div className="relative flex h-28 w-28 flex-col items-center justify-center rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-[hsl(var(--surface-elevated))] dark:from-white/10 via-white/5 to-black/40 shadow-lg shadow-[0_0_30px_hsl(var(--primary)/0.1)] backdrop-blur-sm">
                   <div className="text-center">
-                    <div className="text-3xl font-bold text-white drop-shadow-lg">{riskStats.total.toLocaleString()}</div>
-                    <div className="mt-1.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-300">Total</div>
+                    <div className="text-3xl font-bold text-[hsl(var(--surface-contrast))] dark:text-white drop-shadow-lg">{riskStats.total.toLocaleString()}</div>
+                    <div className="mt-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground dark:text-zinc-300">Total</div>
                   </div>
                 </div>
               </div>
-              <div className="mt-2.5 text-center text-xs font-medium text-zinc-400">
+              <div className="mt-2.5 text-center text-xs font-medium text-muted-foreground">
                 {filteredContracts.length.toLocaleString()} in view
               </div>
             </div>
@@ -359,7 +315,7 @@ export default function Dashboard() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-2">
             <Link href="/analyze">
-              <Button size="sm" className="bg-[#D12226] text-white hover:bg-[#a8181b]">
+              <Button size="sm" className="gap-1.5">
                 ➕ Analyze Contract
               </Button>
             </Link>
@@ -368,7 +324,7 @@ export default function Dashboard() {
               variant="outline"
               size="sm"
               disabled={isRefreshing}
-              className="flex items-center gap-1.5 border-white/20 text-white hover:bg-white/10"
+              className="flex items-center gap-1.5 border-border dark:border-white/20 text-[hsl(var(--surface-contrast))] dark:text-white hover:bg-[hsl(var(--surface-elevated))] dark:bg-white/10"
             >
               <RefreshCcw className={cn('h-3.5 w-3.5', isRefreshing && 'animate-spin')} />
               Refresh
@@ -381,52 +337,51 @@ export default function Dashboard() {
                 'flex items-center gap-1.5 transition-colors',
                 autoRefresh
                   ? 'bg-white text-black hover:bg-white/90'
-                  : 'border-white/20 text-white hover:bg-white/10',
+                  : 'border-border dark:border-white/20 text-[hsl(var(--surface-contrast))] dark:text-white hover:bg-[hsl(var(--surface-elevated))] dark:bg-white/10',
               )}
             >
               {autoRefresh ? <PauseCircle className="h-3.5 w-3.5" /> : <PlayCircle className="h-3.5 w-3.5" />}
               {autoRefresh ? 'Pause' : 'Resume'}
             </Button>
           </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-zinc-400">
+          <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-muted-foreground">
             {formattedLastUpdated && (
-              <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1">
+              <span className="rounded-full border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 px-2.5 py-1">
                 Updated {formattedLastUpdated}
                 {autoRefresh && ` • ${refreshCountdown}s`}
               </span>
             )}
-            <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1">Supabase Synced</span>
-            <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1">Move Pattern Library</span>
+            <span className="rounded-full border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 px-2.5 py-1">Supabase Synced</span>
+            <span className="rounded-full border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 px-2.5 py-1">Move Pattern Library</span>
           </div>
         </div>
 
         {error && (
-          <Alert className="border-white/15 bg-white/5 text-white/90">
+          <Alert className="border-border dark:border-white/15 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 text-[color:color-mix(in_srgb,hsl(var(--foreground))_90%,transparent)] dark:text-[hsl(var(--surface-contrast))] dark:text-white/90">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
 
-        <section className="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg shadow-black/10 backdrop-blur">
+        <section className="rounded-2xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 p-5 shadow-lg shadow-black/10 backdrop-blur">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="relative w-full lg:max-w-md">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-              <input
-                type="text"
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={handleSearchKeyDown}
                 placeholder="Search by package ID..."
                 className={cn(
-                  'w-full rounded-xl border border-white/10 bg-black/40 px-11 py-2.5 text-sm text-white placeholder:text-zinc-500 transition focus:border-white/40 focus:outline-none focus:ring-0',
+                  'h-11 rounded-xl border-border/60 bg-background/60 px-11 text-sm text-foreground placeholder:text-muted-foreground/80 backdrop-blur',
                   isSearching && 'pr-16'
                 )}
               />
               <div className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-2">
-                {isSearching && <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />}
+                {isSearching && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
                 {searchQuery && (
                   <button
                     onClick={clearSearch}
-                    className="rounded-full p-1 text-zinc-400 transition hover:bg-white/10 hover:text-white"
+                    className="rounded-full p-1 text-muted-foreground transition hover:bg-[hsl(var(--surface-elevated))] dark:bg-white/10 hover:text-[hsl(var(--surface-contrast))] dark:text-white"
                     aria-label="Clear search"
                   >
                     <X className="h-4 w-4" />
@@ -440,7 +395,7 @@ export default function Dashboard() {
                 const isAll = level === 'all';
                 const label = isAll ? FILTER_META.all.label : getRiskLevelName(level);
                 const count = isAll ? riskStats?.total ?? 0 : riskStats?.counts[level] ?? 0;
-                const styles = isAll ? null : RISK_LEVEL_STYLES[level];
+                const styles = isAll ? null : getRiskFilterStyles(level);
 
                 return (
                   <Button
@@ -452,7 +407,7 @@ export default function Dashboard() {
                       'group relative flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all duration-200',
                       isAll
                         ? cn(
-                            'border-white/30 bg-gradient-to-br from-white/10 via-white/5 to-black/40 text-white hover:border-white/40 hover:bg-white/15 hover:shadow-lg',
+                            'border-border dark:border-white/30 bg-gradient-to-br from-[hsl(var(--surface-elevated))] dark:from-white/10 via-white/5 to-black/40 text-[hsl(var(--surface-contrast))] dark:text-white hover:border-border dark:border-white/40 hover:bg-[hsl(var(--surface-elevated))] dark:bg-white/15 hover:shadow-lg',
                             isActive && 'border-white/50 bg-gradient-to-br from-white/15 to-white/5 border-2 shadow-lg shadow-white/20'
                           )
                         : styles && cn(
@@ -463,10 +418,7 @@ export default function Dashboard() {
                             isActive
                               ? cn(
                                   styles.bgActive,
-                                  level === 'critical' && 'border-[#ff6b6e]/60',
-                                  level === 'high' && 'border-orange-400/60',
-                                  level === 'moderate' && 'border-yellow-400/60',
-                                  level === 'low' && 'border-emerald-400/60',
+                                  styles.borderActive,
                                   'border-2 shadow-lg',
                                   styles.glow
                                 )
@@ -477,13 +429,9 @@ export default function Dashboard() {
                     <span
                       className={cn(
                         'h-2.5 w-2.5 rounded-full transition-all duration-200',
-                        isAll ? FILTER_META.all.dot : styles?.dot,
+                        isAll ? FILTER_META.all.dot : getRiskLevelDot(level),
                         isAll && isActive && 'ring-2 ring-offset-2 ring-offset-black/50 ring-white/40 shadow-[0_0_8px_rgba(255,255,255,0.3)]',
-                        isActive && !isAll && 'ring-2 ring-offset-2 ring-offset-black/50',
-                        isActive && !isAll && level === 'critical' && 'ring-[#ff6b6e]/40 shadow-[0_0_8px_rgba(255,107,110,0.4)]',
-                        isActive && !isAll && level === 'high' && 'ring-orange-400/40 shadow-[0_0_8px_rgba(251,146,60,0.4)]',
-                        isActive && !isAll && level === 'moderate' && 'ring-yellow-400/40 shadow-[0_0_8px_rgba(250,204,21,0.4)]',
-                        isActive && !isAll && level === 'low' && 'ring-emerald-400/40 shadow-[0_0_8px_rgba(52,211,153,0.4)]'
+                        isActive && !isAll && styles && cn('ring-2 ring-offset-2 ring-offset-black/50', styles.ring)
                       )}
                     />
                     <span className="relative z-10">{label}</span>
@@ -493,11 +441,11 @@ export default function Dashboard() {
                           'relative z-10 ml-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold transition-colors',
                           isAll
                             ? isActive
-                              ? 'bg-white/25 text-white shadow-sm'
-                              : 'bg-white/10 text-zinc-300 group-hover:bg-white/15'
+                              ? 'bg-white/25 text-[hsl(var(--surface-contrast))] dark:text-white shadow-sm'
+                              : 'bg-[hsl(var(--surface-elevated))] dark:bg-white/10 text-muted-foreground dark:text-zinc-300 group-hover:bg-[hsl(var(--surface-elevated))] dark:bg-white/15'
                             : isActive
-                              ? 'bg-white/20 text-white'
-                              : 'bg-white/5 text-zinc-400 group-hover:bg-white/10'
+                              ? 'bg-[hsl(var(--surface-elevated))] dark:bg-white/20 text-[hsl(var(--surface-contrast))] dark:text-white'
+                              : 'bg-[hsl(var(--surface-elevated))] dark:bg-white/5 text-muted-foreground group-hover:bg-[hsl(var(--surface-elevated))] dark:bg-white/10'
                         )}
                       >
                         {count}
@@ -508,14 +456,14 @@ export default function Dashboard() {
               })}
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-3 pt-3 text-xs text-zinc-400">
+          <div className="flex flex-wrap items-center gap-3 pt-3 text-xs text-muted-foreground">
             {debouncedSearchQuery && (
-              <span className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1">
-                <Search className="h-3.5 w-3.5 text-zinc-400" />
-                <span className="text-white/90">&apos;{debouncedSearchQuery}&apos;</span>
+              <span className="flex items-center gap-2 rounded-full border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 px-3 py-1">
+                <Search className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-[color:color-mix(in_srgb,hsl(var(--foreground))_90%,transparent)] dark:text-[hsl(var(--surface-contrast))] dark:text-white/90">&apos;{debouncedSearchQuery}&apos;</span>
                 <button
                   onClick={clearSearch}
-                  className="rounded-full p-1 text-zinc-400 transition hover:bg-white/10 hover:text-white"
+                  className="rounded-full p-1 text-muted-foreground transition hover:bg-[hsl(var(--surface-elevated))] dark:bg-white/10 hover:text-[hsl(var(--surface-contrast))] dark:text-white"
                   aria-label="Clear search"
                 >
                   <X className="h-3.5 w-3.5" />
@@ -523,19 +471,19 @@ export default function Dashboard() {
               </span>
             )}
             {isRiskFiltered && activeRiskLabel && activeRiskStyle && (
-              <span className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1">
+              <span className="flex items-center gap-2 rounded-full border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 px-3 py-1">
                 <span className={cn('h-2.5 w-2.5 rounded-full', activeRiskStyle.dot)} />
-                <span className="text-white/90">{activeRiskLabel} focus</span>
+                <span className="text-[color:color-mix(in_srgb,hsl(var(--foreground))_90%,transparent)] dark:text-[hsl(var(--surface-contrast))] dark:text-white/90">{activeRiskLabel} focus</span>
                 <button
                   onClick={() => setFilter('all')}
-                  className="rounded-full p-1 text-zinc-400 transition hover:bg-white/10 hover:text-white"
+                  className="rounded-full p-1 text-muted-foreground transition hover:bg-[hsl(var(--surface-elevated))] dark:bg-white/10 hover:text-[hsl(var(--surface-contrast))] dark:text-white"
                   aria-label="Clear risk level filter"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
               </span>
             )}
-            <span className="text-zinc-500">
+            <span className="text-muted-foreground">
               Showing {filteredContracts.length} of {data?.total ?? 0} contracts
               {totalPages > 1 && ` • Page ${currentPage} of ${totalPages}`}
             </span>
@@ -546,11 +494,11 @@ export default function Dashboard() {
         {totalPages > 1 && (
           <section className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-zinc-400">Page size:</span>
+              <span className="text-sm text-muted-foreground">Page size:</span>
               <select
                 value={pageSize}
                 onChange={(e) => setPaginationPageSize(Number.parseInt(e.target.value, 10))}
-                className="rounded-lg border border-white/15 bg-black/40 px-3 py-1.5 text-sm text-white focus:border-white/40 focus:outline-none focus:ring-0"
+                className="rounded-lg border border-border dark:border-white/15 bg-[hsl(var(--surface-muted))] dark:bg-[hsl(var(--background))] dark:bg-black/40 px-3 py-1.5 text-sm text-[hsl(var(--surface-contrast))] dark:text-white focus:border-border dark:border-white/40 focus:outline-none focus:ring-0"
               >
                 {PAGE_SIZE_OPTIONS.map((size) => (
                   <option key={size} value={size}>
@@ -565,7 +513,7 @@ export default function Dashboard() {
                 disabled={!hasPreviousPage}
                 variant="outline"
                 size="sm"
-                className="border-white/15 text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+                className="border-border dark:border-white/15 text-[hsl(var(--surface-contrast))] dark:text-white hover:bg-[hsl(var(--surface-elevated))] dark:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Previous
               </Button>
@@ -592,7 +540,7 @@ export default function Dashboard() {
                         'min-w-[2.5rem]',
                         currentPage === pageNum
                           ? 'bg-white text-black hover:bg-white'
-                          : 'border-white/15 text-white hover:bg-white/10'
+                          : 'border-border dark:border-white/15 text-[hsl(var(--surface-contrast))] dark:text-white hover:bg-[hsl(var(--surface-elevated))] dark:bg-white/10'
                       )}
                     >
                       {pageNum}
@@ -605,7 +553,7 @@ export default function Dashboard() {
                 disabled={!hasNextPage}
                 variant="outline"
                 size="sm"
-                className="border-white/15 text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+                className="border-border dark:border-white/15 text-[hsl(var(--surface-contrast))] dark:text-white hover:bg-[hsl(var(--surface-elevated))] dark:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Next
               </Button>
@@ -614,7 +562,7 @@ export default function Dashboard() {
         )}
 
         {pauseReason === 'details' && !autoRefresh && (
-          <Alert className="border-white/15 bg-white/5 text-white/85">
+          <Alert className="border-border dark:border-white/15 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 text-[color:color-mix(in_srgb,hsl(var(--foreground))_85%,transparent)] dark:text-[hsl(var(--surface-contrast))] dark:text-white/85">
             <AlertDescription>
               Auto refresh is paused so the results stay put while you explore a contract. Resume it from the toolbar when you&apos;re ready for new data.
             </AlertDescription>
@@ -623,24 +571,24 @@ export default function Dashboard() {
 
         <section className="space-y-5">
           {isEmptyState ? (
-            <div className="rounded-2xl border border-white/10 bg-black/40 p-12 text-center shadow-sm shadow-black/10">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-white/15 text-2xl">
+            <div className="rounded-2xl border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-[hsl(var(--background))] dark:bg-black/40 p-12 text-center shadow-sm shadow-black/10">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-border dark:border-white/15 text-2xl">
                 📊
               </div>
-              <h3 className="mt-4 text-xl font-semibold text-white">{emptyTitle}</h3>
-              <p className="mt-2 text-sm text-zinc-400">{emptySubtitle}</p>
+              <h3 className="mt-4 text-xl font-semibold text-[hsl(var(--surface-contrast))] dark:text-white">{emptyTitle}</h3>
+              <p className="mt-2 text-sm text-muted-foreground">{emptySubtitle}</p>
               <div className="mt-6 flex justify-center gap-3">
                 {debouncedSearchQuery && (
                   <Button
                     onClick={clearSearch}
                     variant="outline"
-                    className="border-white/15 text-white hover:bg-white/10"
+                    className="border-border dark:border-white/15 text-[hsl(var(--surface-contrast))] dark:text-white hover:bg-[hsl(var(--surface-elevated))] dark:bg-white/10"
                   >
                     Clear Search
                   </Button>
                 )}
                 <Link href="/analyze">
-                  <Button className="bg-[#D12226] text-white hover:bg-[#a8181b]">
+                  <Button>
                     Analyze a Contract
                   </Button>
                 </Link>
