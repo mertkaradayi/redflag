@@ -106,10 +106,16 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <Providers>
-          <div className="relative z-10 mx-auto flex w-full max-w-6xl px-4 pt-10 pb-6 sm:px-8 lg:px-16 lg:pt-12 lg:pb-8">
-            <Header />
+          <div className="relative flex min-h-screen flex-col">
+            <div className="pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-center">
+              <div className="pointer-events-auto mt-6 flex w-full max-w-6xl px-4 sm:mt-8 sm:px-8 lg:mt-10 lg:px-16">
+                <Header />
+              </div>
+            </div>
+            <main className="flex-1 pt-28 sm:pt-32 lg:pt-36">
+              {children}
+            </main>
           </div>
-          {children}
         </Providers>
       </body>
     </html>

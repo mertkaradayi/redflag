@@ -12,11 +12,11 @@ export default function Header({ className }: HeaderProps) {
   return (
     <header
       className={cn(
-        "flex w-full flex-row items-center justify-between gap-4 lg:gap-6",
+        "flex w-full items-center justify-between gap-4 rounded-full border border-white/10 bg-black/30 px-5 py-3 text-sm shadow-[0_18px_45px_rgba(0,0,0,0.45)] backdrop-blur-xl transition-colors supports-[backdrop-filter]:bg-black/20 sm:px-6 lg:gap-6",
         className,
       )}
     >
-      <div className="flex items-center flex-shrink-0">
+      <div className="flex items-center shrink-0">
         <BrandLogo className="h-9" priority wrapperClassName="flex-shrink-0" />
       </div>
       <div className="flex items-center">
@@ -25,4 +25,3 @@ export default function Header({ className }: HeaderProps) {
     </header>
   );
 }
-

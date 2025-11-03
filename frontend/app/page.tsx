@@ -132,9 +132,9 @@ const differentiators: Differentiator[] = [
 
 export default function Home() {
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-black text-white">
+    <div className="relative -mt-28 min-h-screen overflow-x-hidden bg-black text-white pt-28 sm:-mt-32 sm:pt-32 lg:-mt-36 lg:pt-36">
       <div className="absolute inset-0 -z-10">
-        <div className="absolute inset-x-0 top-[-10%] h-[600px] bg-[radial-gradient(circle_at_center,rgba(209,34,38,0.28),transparent_60%)]" />
+        <div className="absolute inset-x-0 top-[-20%] h-[700px] bg-[radial-gradient(circle_at_center,rgba(209,34,38,0.28),transparent_60%)]" />
         <div className="absolute left-1/2 top-1/2 h-[520px] w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(209,34,38,0.18),transparent_60%)] blur-3xl" />
       </div>
 
@@ -185,8 +185,8 @@ export default function Home() {
               </div>
             </div>
           </div>
-          <div className="relative">
-            <div className="pointer-events-none absolute -inset-3 rounded-3xl bg-linear-to-br from-[#D12226]/40 via-transparent to-[#D12226]/10 blur-3xl sm:-inset-4 lg:-inset-6" />
+          <div className="relative mt-8 sm:mt-12">
+            <div className="pointer-events-none absolute -inset-3 rounded-3xl bg-gradient-to-br from-[#D12226]/40 via-transparent to-[#D12226]/10 blur-3xl sm:-inset-4 lg:-inset-6" />
             <div className="relative overflow-hidden rounded-3xl border border-white/15 bg-white/5 p-6 shadow-xl backdrop-blur sm:p-8">
               <div className="space-y-5 sm:space-y-6">
                 <h2 className="text-lg font-semibold text-white">What our agents monitor</h2>
