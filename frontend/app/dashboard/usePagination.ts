@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 
 export interface UsePaginationOptions {
   initialPage?: number;
@@ -25,9 +25,12 @@ export function usePagination(options: UsePaginationOptions = {}): PaginationMet
   
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [pageSize, setPageSize] = useState(initialPageSize);
+  const [total, setTotal] = useState(totalFromOptions);
   
-  // Use total from options reactively (updates when data changes)
-  const total = totalFromOptions;
+  // Sync total from options when it changes
+  useEffect(() => {
+    setTotal(totalFromOptions);
+  }, [totalFromOptions]);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total, pageSize]);
 
