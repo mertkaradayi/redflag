@@ -6,8 +6,6 @@ import { PauseCircle, PlayCircle, RefreshCcw, X, Search, Loader2 } from 'lucide-
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import BrandLogo from '@/app/components/BrandLogo';
-import Navigation from '@/app/components/Navigation';
 import AnalyzedContractCard from '@/app/components/AnalyzedContractCard';
 import type { AnalyzedContract, DashboardData } from '@/app/dashboard/types';
 import { getRiskLevelName } from '@/app/dashboard/risk-utils';
@@ -329,19 +327,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-gradient-to-b from-black via-zinc-950 to-black text-white">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 pb-24 pt-8 sm:px-8 lg:gap-8 lg:px-12 lg:pt-10">
-        <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="flex flex-wrap items-center gap-3">
-            <BrandLogo className="h-9" priority wrapperClassName="flex-shrink-0" />
-            <span className="hidden text-xs font-semibold uppercase tracking-[0.3em] text-zinc-400 sm:inline">
-              Risk Intelligence Dashboard
-            </span>
-          </div>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end lg:gap-6">
-            <Navigation />
-          </div>
-        </header>
-
+      <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-16 px-4 pb-24 sm:px-8 lg:gap-20 lg:px-16">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex-1 space-y-2">
             <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl lg:text-4xl">
@@ -469,7 +455,7 @@ export default function Dashboard() {
                             'border-white/30 bg-gradient-to-br from-white/10 via-white/5 to-black/40 text-white hover:border-white/40 hover:bg-white/15 hover:shadow-lg',
                             isActive && 'border-white/50 bg-gradient-to-br from-white/15 to-white/5 border-2 shadow-lg shadow-white/20'
                           )
-                        : cn(
+                        : styles && cn(
                             styles.border,
                             styles.bg,
                             styles.text,
@@ -491,7 +477,7 @@ export default function Dashboard() {
                     <span
                       className={cn(
                         'h-2.5 w-2.5 rounded-full transition-all duration-200',
-                        isAll ? FILTER_META.all.dot : styles.dot,
+                        isAll ? FILTER_META.all.dot : styles?.dot,
                         isAll && isActive && 'ring-2 ring-offset-2 ring-offset-black/50 ring-white/40 shadow-[0_0_8px_rgba(255,255,255,0.3)]',
                         isActive && !isAll && 'ring-2 ring-offset-2 ring-offset-black/50',
                         isActive && !isAll && level === 'critical' && 'ring-[#ff6b6e]/40 shadow-[0_0_8px_rgba(255,107,110,0.4)]',

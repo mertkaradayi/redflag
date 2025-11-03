@@ -3,8 +3,6 @@ import Link from "next/link";
 import { ArrowRight, BrainCircuit, Gauge, ShieldAlert } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import BrandLogo from "../components/BrandLogo";
-import Navigation from "../components/Navigation";
 import LLMAnalysis from "../components/LLMAnalysis";
 
 interface Highlight {
@@ -126,19 +124,7 @@ export default function AnalyzePage() {
         <div className="absolute left-1/2 top-[45%] h-[540px] w-[540px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,_rgba(209,34,38,0.18),_transparent_60%)] blur-3xl" />
       </div>
 
-      <main className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-16 px-4 pb-24 pt-10 sm:px-8 lg:gap-20 lg:px-16 lg:pt-12">
-        <header className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-wrap items-center gap-3">
-            <BrandLogo className="h-9" priority />
-            <span className="hidden text-xs font-semibold uppercase tracking-[0.3em] text-zinc-400 sm:inline">
-              Analyze Contracts
-            </span>
-          </div>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end lg:gap-6">
-            <Navigation />
-          </div>
-        </header>
-
+      <main className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-16 px-4 pb-24 sm:px-8 lg:gap-20 lg:px-16">
         <section className="grid items-start gap-12 lg:grid-cols-[1fr_1.2fr]">
           <div className="space-y-6">
             <div className="space-y-4">

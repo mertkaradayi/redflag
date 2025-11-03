@@ -6,6 +6,7 @@ import socialPreview from "@/images/Light mode horizontal.png";
 
 import "./globals.css";
 import Providers from "./providers";
+import Header from "./components/Header";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -104,7 +105,12 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Providers>{children}</Providers>
+        <Providers>
+          <div className="relative z-10 mx-auto flex w-full max-w-6xl px-4 pt-10 pb-6 sm:px-8 lg:px-16 lg:pt-12 lg:pb-8">
+            <Header />
+          </div>
+          {children}
+        </Providers>
       </body>
     </html>
   );

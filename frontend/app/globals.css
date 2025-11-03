@@ -62,7 +62,10 @@
     @apply border-zinc-200 dark:border-zinc-800;
   }
   body {
-    @apply bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-50;
+    @apply bg-black text-white;
     font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  }
+  html {
+    @apply bg-black;
   }
 }

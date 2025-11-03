@@ -5,26 +5,12 @@ import { cn } from "@/lib/utils";
 
 import darkHorizontal from "@/images/dark mode horizontal.png";
 import darkWhole from "@/images/dark mode whole.png";
-import lightHorizontal from "@/images/Light mode horizontal.png";
-import lightWhole from "@/images/light mode whole.png";
 
 type BrandVariant = "horizontal" | "whole";
 
-const logoMap: Record<
-  BrandVariant,
-  {
-    light: string | StaticImageData;
-    dark: string | StaticImageData;
-  }
-> = {
-  horizontal: {
-    light: lightHorizontal,
-    dark: darkHorizontal,
-  },
-  whole: {
-    light: lightWhole,
-    dark: darkWhole,
-  },
+const logoMap: Record<BrandVariant, string | StaticImageData> = {
+  horizontal: darkHorizontal,
+  whole: darkWhole,
 };
 
 interface BrandLogoProps {
@@ -44,22 +30,14 @@ export default function BrandLogo({
   href = "/",
   ariaLabel = "Go to homepage",
 }: BrandLogoProps) {
-  const assets = logoMap[variant];
+  const logo = logoMap[variant];
   const content = (
-    <>
-      <Image
-        src={assets.light}
-        alt="RedFlag logo"
-        className={cn("h-9 w-auto dark:hidden", className)}
-        priority={priority}
-      />
-      <Image
-        src={assets.dark}
-        alt="RedFlag logo"
-        className={cn("hidden h-9 w-auto dark:block", className)}
-        priority={priority}
-      />
-    </>
+    <Image
+      src={logo}
+      alt="RedFlag logo"
+      className={cn("h-9 w-auto", className)}
+      priority={priority}
+    />
   );
 
   if (!href) {

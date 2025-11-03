@@ -2,9 +2,6 @@ import Link from "next/link";
 import type { ComponentType } from "react";
 import { ArrowRight, BarChart3, Lock, Radar, ShieldCheck, Sparkles, Workflow } from "lucide-react";
 
-import Auth from "./components/Auth";
-import BrandLogo from "./components/BrandLogo";
-import Navigation from "./components/Navigation";
 import { Button } from "@/components/ui/button";
 
 interface StatCard {
@@ -141,22 +138,7 @@ export default function Home() {
         <div className="absolute left-1/2 top-1/2 h-[520px] w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(209,34,38,0.18),transparent_60%)] blur-3xl" />
       </div>
 
-      <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-16 px-4 pb-24 pt-10 sm:px-8 lg:gap-20 lg:px-16 lg:pt-12">
-        <header className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-wrap items-center gap-3">
-            <BrandLogo className="h-9" priority />
-            <span className="hidden text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500 sm:inline">
-              Sui Security Intelligence
-            </span>
-          </div>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end lg:gap-6">
-            <Navigation />
-            <div className="flex justify-center sm:justify-end">
-              <Auth />
-            </div>
-          </div>
-        </header>
-
+      <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-16 px-4 pb-24 sm:px-8 lg:gap-20 lg:px-16">
         <section className="grid items-start gap-12 lg:grid-cols-[1.15fr_1fr] xl:grid-cols-[1.2fr_1fr]">
           <div className="space-y-8 sm:space-y-10">
             <span className="inline-flex items-center gap-2 rounded-full border border-[#D12226]/50 bg-[#D12226]/15 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-[#D12226]">
