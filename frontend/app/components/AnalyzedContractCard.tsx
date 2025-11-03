@@ -104,7 +104,7 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
   }, [contract.package_id]);
 
   return (
-    <Card className="border border-border dark:border-white/10 bg-background/40 dark:bg-black/40 text-foreground dark:text-white shadow-lg backdrop-blur transition hover:border-border/50 dark:hover:border-white/20">
+    <Card className="border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 text-foreground dark:text-white shadow-sm shadow-black/5 dark:shadow-white/5 transition-colors duration-200 hover:border-border/50 dark:hover:border-white/20">
       <CardHeader className="space-y-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div className="space-y-3">
@@ -141,7 +141,7 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
               </CardDescription>
             </div>
           </div>
-          <div className="flex w-full flex-col items-start gap-3 rounded-xl border border-border dark:border-white/10 bg-background/40 dark:bg-black/40 p-4 sm:max-w-[260px] md:items-end">
+          <div className="flex w-full flex-col items-start gap-3 rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 p-4 shadow-sm shadow-black/5 dark:shadow-white/5 sm:max-w-[260px] md:items-end">
             <div className="flex items-baseline gap-2">
               <span className={cn('text-2xl font-semibold', getRiskScoreTextColor(contract.analysis.risk_score))}>
                 {contract.analysis.risk_score}
@@ -267,15 +267,15 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
             )}
           </div>
           <div className="space-y-5">
-            <div className="space-y-2 rounded-xl border border-border dark:border-white/10 bg-background/40 dark:bg-black/40 p-4">
-              <h6 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Impact On Users
-              </h6>
-              <p className="text-sm leading-6 text-foreground/75 dark:text-white/75">
-                {contract.analysis.impact_on_user}
-              </p>
-            </div>
-            <div className="space-y-2 rounded-xl border border-border dark:border-white/10 bg-background/40 dark:bg-black/40 p-4">
+                <div className="space-y-2 rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 p-4 shadow-sm shadow-black/5 dark:shadow-white/5">
+                  <h6 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Impact On Users
+                  </h6>
+                  <p className="text-sm leading-6 text-foreground/75 dark:text-white/75">
+                    {contract.analysis.impact_on_user}
+                  </p>
+                </div>
+                <div className="space-y-2 rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 p-4 shadow-sm shadow-black/5 dark:shadow-white/5">
               <h6 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Data Source
               </h6>

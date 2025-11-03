@@ -118,14 +118,12 @@ const toneClasses: Record<PatternGroup["tone"], string> = {
 
 export default function AnalyzePage() {
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-background text-foreground">
-      <div className="absolute inset-0 -z-10">
+    <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-16 px-4 pb-24 transition-colors duration-200 sm:px-8 lg:gap-20 lg:px-16">
+      <div className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute inset-x-0 top-[-12%] h-[520px] bg-[radial-gradient(circle_at_center,_rgba(209,34,38,0.28),_transparent_60%)]" />
         <div className="absolute left-1/2 top-[45%] h-[540px] w-[540px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,_rgba(209,34,38,0.18),_transparent_60%)] blur-3xl" />
       </div>
-
-      <main className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-16 px-4 pb-24 sm:px-8 lg:gap-20 lg:px-16">
-        <section className="grid items-start gap-12 lg:grid-cols-[1fr_1.2fr]">
+        <section className="grid items-start gap-12 transition-colors duration-200 lg:grid-cols-[1fr_1.2fr]">
           <div className="space-y-6">
             <div className="space-y-4">
               <h1 className="text-3xl font-semibold leading-tight tracking-tight sm:text-5xl">
@@ -156,11 +154,11 @@ export default function AnalyzePage() {
           </div>
         </section>
 
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <section className="grid gap-4 transition-colors duration-200 sm:grid-cols-2 lg:grid-cols-3">
           {highlights.map((highlight) => (
             <div
               key={highlight.title}
-              className="flex h-full flex-col gap-3 rounded-2xl border border-border dark:border-white/15 bg-card/50 dark:bg-white/5 p-5 text-sm text-muted-foreground transition hover:border-[#D12226]/40 hover:bg-[#D12226]/10"
+              className="flex h-full flex-col gap-3 rounded-2xl border border-border dark:border-white/15 bg-card/50 dark:bg-white/5 p-5 text-sm text-muted-foreground transition-colors duration-200 hover:border-[#D12226]/40 hover:bg-[#D12226]/10"
             >
               <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-[#D12226]">
                 {highlight.icon}
@@ -171,10 +169,10 @@ export default function AnalyzePage() {
           ))}
         </section>
 
-        <section>
+        <section className="transition-colors duration-200">
           <div className="relative">
             <div className="pointer-events-none absolute -inset-3 rounded-3xl bg-gradient-to-br from-[#D12226]/30 via-transparent to-[#D12226]/10 blur-2xl sm:-inset-4 lg:-inset-6" />
-            <div className="relative overflow-hidden rounded-3xl border border-border dark:border-white/15 bg-background/40 dark:bg-black/40 p-6 shadow-xl backdrop-blur sm:p-8">
+            <div className="relative overflow-hidden rounded-3xl border border-border dark:border-white/15 bg-background/40 dark:bg-black/40 p-6 shadow-xl backdrop-blur transition-colors duration-200 sm:p-8">
               <div className="space-y-4 text-sm text-muted-foreground">
                 <h2 className="text-lg font-semibold text-foreground dark:text-white">What you'll get</h2>
                 <ul className="space-y-3">
@@ -209,7 +207,7 @@ export default function AnalyzePage() {
           </div>
         </section>
 
-        <section className="space-y-10">
+        <section className="space-y-10 transition-colors duration-200">
           <div className="space-y-3">
             <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#D12226]">
               How it works
@@ -226,7 +224,7 @@ export default function AnalyzePage() {
             {processSteps.map((step, index) => (
               <div
                 key={step.title}
-                className="relative flex h-full flex-col gap-3 rounded-2xl border border-border dark:border-white/10 bg-background/40 dark:bg-black/40 p-6 shadow-inner transition hover:border-[#D12226]/40"
+                className="relative flex h-full flex-col gap-3 rounded-2xl border border-border dark:border-white/10 bg-background/40 dark:bg-black/40 p-6 shadow-inner transition-colors duration-200 hover:border-[#D12226]/40"
               >
                 <span className="absolute right-6 top-6 text-xs font-semibold uppercase tracking-[0.3em] text-[#D12226]">
                   Step {index + 1}
@@ -239,7 +237,7 @@ export default function AnalyzePage() {
           </div>
         </section>
 
-        <section className="space-y-8">
+        <section className="space-y-8 transition-colors duration-200">
           <div className="space-y-3">
             <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#D12226]">
               Signals we classify
@@ -256,7 +254,7 @@ export default function AnalyzePage() {
             {patternGroups.map((group) => (
               <div
                 key={group.title}
-                className={`rounded-2xl border p-6 ${toneClasses[group.tone]}`}
+                className={`rounded-2xl border p-6 transition-colors duration-200 ${toneClasses[group.tone]}`}
               >
                 <h3 className="text-lg font-semibold text-foreground dark:text-white">{group.title}</h3>
                 <ul className="mt-4 space-y-2 text-sm">
@@ -272,7 +270,7 @@ export default function AnalyzePage() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-border dark:border-white/10 bg-gradient-to-br from-[#D12226]/60 via-[#D12226]/30 to-background dark:to-black p-6 text-center shadow-2xl sm:p-8 lg:p-10">
+        <section className="rounded-3xl border border-border dark:border-white/10 bg-gradient-to-br from-[#D12226]/60 via-[#D12226]/30 to-background dark:to-black p-6 text-center shadow-2xl transition-colors duration-200 sm:p-8 lg:p-10">
           <div className="mx-auto max-w-3xl space-y-6">
             <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.3em] text-white/80">
               Ready when you are
@@ -301,7 +299,6 @@ export default function AnalyzePage() {
             </div>
           </div>
         </section>
-      </main>
     </div>
   );
 }

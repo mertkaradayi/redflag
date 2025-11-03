@@ -112,7 +112,7 @@ export default function RootLayout({
                 <Header />
               </div>
             </div>
-            <main className="flex-1 pt-28 sm:pt-32 lg:pt-36">
+            <main className="flex-1 overflow-x-hidden bg-[hsl(var(--background))] text-[hsl(var(--foreground))] pt-28 transition-colors duration-200 dark:bg-gradient-to-b dark:from-black dark:via-zinc-950 dark:to-black sm:pt-32 lg:pt-36">
               {children}
             </main>
           </div>

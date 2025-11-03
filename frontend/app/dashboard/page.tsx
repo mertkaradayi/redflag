@@ -265,9 +265,9 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[hsl(var(--background))] text-[hsl(var(--surface-contrast))] dark:bg-gradient-to-b dark:from-black dark:via-zinc-950 dark:to-black dark:text-white">
+      <div className="flex min-h-[60vh] items-center justify-center">
         <div className="flex flex-col items-center gap-4 text-center">
-          <div className="h-11 w-11 animate-spin rounded-full border-2 border-border dark:border-white/20 border-t-transparent" />
+          <div className="h-11 w-11 animate-spin rounded-full border-2 border-border dark:border-white/20 border-t-transparent transition-colors duration-200" />
           <p className="text-sm text-muted-foreground">Loading analyzed contracts...</p>
         </div>
       </div>
@@ -275,44 +275,48 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[hsl(var(--background))] text-[hsl(var(--surface-contrast))] dark:bg-gradient-to-b dark:from-black dark:via-zinc-950 dark:to-black dark:text-white">
-      <main className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-16 px-4 pb-24 sm:px-8 lg:gap-20 lg:px-16">
-        <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="flex-1 space-y-2">
-            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl lg:text-4xl">
-              Monitor your analyzed Sui contracts at a glance.
-            </h1>
-            <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
-              Search by package ID, focus on the risk tiers that matter, and let auto-refresh surface fresh findings
-              the moment they land.
-            </p>
-          </div>
-          {riskStats && (
-            <div className="flex-shrink-0">
-              <div className="relative">
-                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-transparent blur-xl" />
-                <div className="relative flex h-28 w-28 flex-col items-center justify-center rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-[hsl(var(--surface-elevated))] dark:from-white/10 via-white/5 to-black/40 shadow-lg shadow-[0_0_30px_hsl(var(--primary)/0.1)] backdrop-blur-sm">
+    <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 pb-24 transition-colors duration-200 sm:px-8 lg:px-16">
+        <header className="rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 p-6 shadow-sm shadow-black/5 dark:shadow-white/5 transition-colors duration-200">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex-1 space-y-2">
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground dark:text-white sm:text-3xl lg:text-4xl">
+                Monitor your analyzed Sui contracts at a glance.
+              </h1>
+              <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
+                Search by package ID, focus on the risk tiers that matter, and let auto-refresh surface fresh findings
+                the moment they land.
+              </p>
+            </div>
+            {riskStats && (
+              <div className="flex items-center gap-4 shrink-0">
+                <div className="relative rounded-xl border border-border dark:border-white/10 bg-gradient-to-br from-[hsl(var(--surface-elevated))] to-[hsl(var(--surface-muted))] dark:from-white/5 dark:to-white/5 px-5 py-4 shadow-sm shadow-black/5 dark:shadow-white/5">
                   <div className="text-center">
-                    <div className="text-3xl font-bold text-[hsl(var(--surface-contrast))] dark:text-white drop-shadow-lg">{riskStats.total.toLocaleString()}</div>
-                    <div className="mt-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Total</div>
+                    <div className="text-3xl font-bold text-foreground dark:text-white leading-tight tabular-nums">{riskStats.total.toLocaleString()}</div>
+                    <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mt-1">Total</div>
                   </div>
+                  <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-[#D12226] opacity-80 dark:opacity-100" />
+                </div>
+                <div className="h-10 w-px bg-gradient-to-b from-transparent via-border dark:via-white/10 to-transparent" />
+                <div className="relative rounded-xl border border-border dark:border-white/10 bg-gradient-to-br from-[hsl(var(--surface-elevated))] to-[hsl(var(--surface-muted))] dark:from-white/5 dark:to-white/5 px-5 py-4 shadow-sm shadow-black/5 dark:shadow-white/5">
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-foreground dark:text-white leading-tight tabular-nums">{filteredContracts.length.toLocaleString()}</div>
+                    <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mt-1">In view</div>
+                  </div>
+                  <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-blue-500 opacity-80 dark:opacity-100" />
                 </div>
               </div>
-              <div className="mt-2.5 text-center text-xs font-medium text-muted-foreground">
-                {filteredContracts.length.toLocaleString()} in view
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </header>
 
 
         {error && (
-          <Alert className="border-border dark:border-white/15 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 text-foreground dark:text-white/90">
+          <Alert className="rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 text-foreground dark:text-white/90 shadow-sm shadow-black/5 dark:shadow-white/5 transition-colors duration-200">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
 
-        <section className="rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 p-4 shadow-md shadow-black/5">
+        <section className="rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 p-4 shadow-sm shadow-black/5 dark:shadow-white/5 transition-colors duration-200">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="relative w-full lg:max-w-md">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-foreground/60 dark:text-muted-foreground" />
@@ -400,7 +404,7 @@ export default function Dashboard() {
                                 : 'bg-[hsl(var(--surface-elevated))] dark:bg-white/20 text-[hsl(var(--surface-contrast))] dark:text-white'
                               : styles
                                 ? 'bg-[hsl(var(--surface-elevated))] dark:bg-white/5 ' + styles.text + ' opacity-80 group-hover:opacity-100'
-                                : 'bg-[hsl(var(--surface-elevated))] dark:bg-white/5 text-muted-foreground group-hover:bg-[hsl(var(--surface-elevated))] dark:bg-white/10'
+                              : 'bg-[hsl(var(--surface-elevated))] dark:bg-white/5 text-muted-foreground group-hover:bg-[hsl(var(--surface-elevated))] dark:bg-white/10'
                         )}
                       >
                         {count}
@@ -490,97 +494,99 @@ export default function Dashboard() {
 
         {/* Pagination Controls */}
         {totalPages > 1 && (
-          <section className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Page size:</span>
-              <select
-                value={pageSize}
-                onChange={(e) => setPaginationPageSize(Number.parseInt(e.target.value, 10))}
-                className="rounded-lg border border-border dark:border-white/15 bg-[hsl(var(--surface-muted))] dark:bg-[hsl(var(--background))] dark:bg-black/40 px-3 py-1.5 text-sm text-[hsl(var(--surface-contrast))] dark:text-white focus:border-border dark:border-white/40 focus:outline-none focus:ring-0"
-              >
+          <section className="rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 p-4 shadow-sm shadow-black/5 dark:shadow-white/5 transition-colors duration-200">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Page size:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => setPaginationPageSize(Number.parseInt(e.target.value, 10))}
+                  className="rounded-lg border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 px-3 py-1.5 text-sm text-foreground dark:text-white focus:border-border dark:border-white/20 focus:outline-none focus:ring-0 transition-colors duration-200"
+                >
                 {PAGE_SIZE_OPTIONS.map((size) => (
                   <option key={size} value={size}>
                     {size}
                   </option>
                 ))}
               </select>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={previousPage}
-                disabled={!hasPreviousPage}
-                variant="outline"
-                size="sm"
-                className="border-border dark:border-white/15 text-[hsl(var(--surface-contrast))] dark:text-white hover:bg-[hsl(var(--surface-elevated))] dark:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Previous
-              </Button>
-              <div className="flex items-center gap-1">
-                {Array.from({ length: Math.min(7, totalPages) }, (_, i) => {
-                  let pageNum: number;
-                  if (totalPages <= 7) {
-                    pageNum = i + 1;
-                  } else if (currentPage <= 4) {
-                    pageNum = i + 1;
-                  } else if (currentPage >= totalPages - 3) {
-                    pageNum = totalPages - 6 + i;
-                  } else {
-                    pageNum = currentPage - 3 + i;
-                  }
-                  
-                  return (
-                    <Button
-                      key={pageNum}
-                      onClick={() => goToPage(pageNum)}
-                      variant={currentPage === pageNum ? 'default' : 'outline'}
-                      size="sm"
-                      className={cn(
-                        'min-w-[2.5rem]',
-                        currentPage === pageNum
-                          ? 'bg-white text-black hover:bg-white'
-                          : 'border-border dark:border-white/15 text-[hsl(var(--surface-contrast))] dark:text-white hover:bg-[hsl(var(--surface-elevated))] dark:bg-white/10'
-                      )}
-                    >
-                      {pageNum}
-                    </Button>
-                  );
-                })}
               </div>
-              <Button
-                onClick={nextPage}
-                disabled={!hasNextPage}
-                variant="outline"
-                size="sm"
-                className="border-border dark:border-white/15 text-[hsl(var(--surface-contrast))] dark:text-white hover:bg-[hsl(var(--surface-elevated))] dark:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Next
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={previousPage}
+                  disabled={!hasPreviousPage}
+                  variant="outline"
+                  size="sm"
+                  className="border-border dark:border-white/10 text-foreground dark:text-white hover:bg-[hsl(var(--surface-elevated))] dark:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40 transition-colors duration-200"
+                >
+                  Previous
+                </Button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(7, totalPages) }, (_, i) => {
+                    let pageNum: number;
+                    if (totalPages <= 7) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 4) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 3) {
+                      pageNum = totalPages - 6 + i;
+                    } else {
+                      pageNum = currentPage - 3 + i;
+                    }
+                    
+                    return (
+                      <Button
+                        key={pageNum}
+                        onClick={() => goToPage(pageNum)}
+                        variant={currentPage === pageNum ? 'default' : 'outline'}
+                        size="sm"
+                        className={cn(
+                          'min-w-10 transition-colors duration-200',
+                          currentPage === pageNum
+                            ? 'bg-white text-black hover:bg-white'
+                            : 'border-border dark:border-white/10 text-foreground dark:text-white hover:bg-[hsl(var(--surface-elevated))] dark:bg-white/10'
+                        )}
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
+                <Button
+                  onClick={nextPage}
+                  disabled={!hasNextPage}
+                  variant="outline"
+                  size="sm"
+                  className="border-border dark:border-white/10 text-foreground dark:text-white hover:bg-[hsl(var(--surface-elevated))] dark:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40 transition-colors duration-200"
+                >
+                  Next
+                </Button>
+              </div>
             </div>
           </section>
         )}
 
         {pauseReason === 'details' && !autoRefresh && (
-          <Alert className="border-border dark:border-white/15 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 text-foreground dark:text-white/85">
+          <Alert className="border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 text-foreground dark:text-white/85 shadow-sm shadow-black/5 dark:shadow-white/5 transition-colors duration-200">
             <AlertDescription>
               Auto refresh is paused so the results stay put while you explore a contract. Resume it from the toolbar when you&apos;re ready for new data.
             </AlertDescription>
           </Alert>
         )}
 
-        <section className="space-y-5">
+        <section className="space-y-5 transition-colors duration-200 mt-8">
           {isEmptyState ? (
-            <div className="rounded-2xl border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-[hsl(var(--background))] dark:bg-black/40 p-12 text-center shadow-sm shadow-black/10">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-border dark:border-white/15 text-2xl">
+            <div className="rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 p-12 text-center shadow-sm shadow-black/5 dark:shadow-white/5 transition-colors duration-200">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 text-2xl">
                 📊
               </div>
-              <h3 className="mt-4 text-xl font-semibold text-[hsl(var(--surface-contrast))] dark:text-white">{emptyTitle}</h3>
+              <h3 className="mt-4 text-xl font-semibold text-foreground dark:text-white">{emptyTitle}</h3>
               <p className="mt-2 text-sm text-muted-foreground">{emptySubtitle}</p>
               <div className="mt-6 flex justify-center gap-3">
                 {debouncedSearchQuery && (
                   <Button
                     onClick={clearSearch}
                     variant="outline"
-                    className="border-border dark:border-white/15 text-[hsl(var(--surface-contrast))] dark:text-white hover:bg-[hsl(var(--surface-elevated))] dark:bg-white/10"
+                    className="border-border dark:border-white/10 text-foreground dark:text-white hover:bg-[hsl(var(--surface-elevated))] dark:bg-white/10 transition-colors duration-200"
                   >
                     Clear Search
                   </Button>
@@ -602,7 +608,7 @@ export default function Dashboard() {
             ))
           )}
         </section>
-      </main>
     </div>
   );
 }
+
