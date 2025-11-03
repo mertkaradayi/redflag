@@ -50,10 +50,10 @@ export default function Navigation({ className }: NavigationProps) {
             aria-current={isActive ? "page" : undefined}
             className={cn(
               "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors duration-200 sm:px-4 sm:text-sm",
-              "hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D12226]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black",
+              "hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D12226]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
               isActive
                 ? "bg-[#D12226] text-white shadow-[0_0_25px_rgba(209,34,38,0.45)]"
-                : "text-zinc-300",
+                : "text-muted-foreground",
               isMobile && "w-full",
             )}
           >
@@ -70,7 +70,7 @@ export default function Navigation({ className }: NavigationProps) {
       {/* Desktop Navigation */}
       <nav
         className={cn(
-          "hidden flex-wrap items-center justify-end gap-x-3 gap-y-2 text-sm text-zinc-300 sm:flex sm:gap-x-4",
+          "hidden flex-wrap items-center justify-end gap-x-3 gap-y-2 text-sm text-muted-foreground sm:flex sm:gap-x-4",
           className,
         )}
       >
@@ -81,13 +81,13 @@ export default function Navigation({ className }: NavigationProps) {
       <Sheet>
         <SheetTrigger asChild>
           <button
-            className="flex items-center justify-center rounded-full p-2 text-zinc-300 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D12226]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black sm:hidden"
+            className="flex items-center justify-center rounded-full p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D12226]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:hidden"
             aria-label="Toggle menu"
           >
             <Menu className="h-5 w-5" />
           </button>
         </SheetTrigger>
-        <SheetContent side="right" className="w-[300px] bg-black border-l border-white/10">
+        <SheetContent side="right" className="w-[300px] bg-background border-l border-border">
           <nav className="flex flex-col gap-4 mt-8">
             <NavLinks isMobile={true} />
           </nav>

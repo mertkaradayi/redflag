@@ -132,7 +132,7 @@ const differentiators: Differentiator[] = [
 
 export default function Home() {
   return (
-    <div className="relative -mt-28 min-h-screen overflow-x-hidden bg-black text-white pt-28 sm:-mt-32 sm:pt-32 lg:-mt-36 lg:pt-36">
+    <div className="relative -mt-28 min-h-screen overflow-x-hidden bg-background text-foreground pt-28 sm:-mt-32 sm:pt-32 lg:-mt-36 lg:pt-36">
       <div className="absolute inset-0 -z-10">
         <div className="absolute inset-x-0 top-[-20%] h-[700px] bg-[radial-gradient(circle_at_center,rgba(209,34,38,0.28),transparent_60%)]" />
         <div className="absolute left-1/2 top-1/2 h-[520px] w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(209,34,38,0.18),transparent_60%)] blur-3xl" />
@@ -149,7 +149,7 @@ export default function Home() {
               <h1 className="text-3xl font-semibold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
                 Ship Sui smart contracts with zero guesswork.
               </h1>
-              <p className="max-w-xl text-base leading-7 text-zinc-300 sm:text-lg sm:leading-8">
+              <p className="max-w-xl text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
                 RedFlag orchestrates a swarm of specialists that dissect every Move module, flag risky functions,
                 and hand you a prioritized remediation plan—before your users ever see mainnet.
               </p>
@@ -164,19 +164,19 @@ export default function Home() {
               <Link href="/dashboard" className="w-full sm:w-auto">
                 <Button
                   variant="outline"
-                  className="w-full border-[#D12226]/50 bg-transparent text-zinc-200 hover:border-[#D12226] hover:text-[#D12226] sm:w-auto"
+                  className="w-full border-[#D12226]/50 bg-transparent text-muted-foreground hover:border-[#D12226] hover:text-[#D12226] sm:w-auto"
                 >
                   See Live Risk Dashboard
                 </Button>
               </Link>
             </div>
-            <div className="flex flex-wrap items-center gap-4 text-xs text-zinc-400 sm:text-sm sm:gap-8">
+            <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground sm:text-sm sm:gap-8">
               <div className="flex items-center gap-2">
                 <div className="h-2.5 w-2.5 rounded-full bg-[#D12226]" />
                 Production ready
               </div>
               <div className="flex items-center gap-2">
-                <div className="h-2.5 w-2.5 rounded-full bg-white" />
+                <div className="h-2.5 w-2.5 rounded-full bg-foreground dark:bg-white" />
                 Backed by Supabase + Gemini 2.5
               </div>
               <div className="flex items-center gap-2">
@@ -187,16 +187,16 @@ export default function Home() {
           </div>
           <div className="relative mt-8 sm:mt-12">
             <div className="pointer-events-none absolute -inset-3 rounded-3xl bg-gradient-to-br from-[#D12226]/40 via-transparent to-[#D12226]/10 blur-3xl sm:-inset-4 lg:-inset-6" />
-            <div className="relative overflow-hidden rounded-3xl border border-white/15 bg-white/5 p-6 shadow-xl backdrop-blur sm:p-8">
+            <div className="relative overflow-hidden rounded-3xl border border-border/50 dark:border-white/15 bg-card/50 dark:bg-white/5 p-6 shadow-xl backdrop-blur sm:p-8">
               <div className="space-y-5 sm:space-y-6">
-                <h2 className="text-lg font-semibold text-white">What our agents monitor</h2>
-                <ul className="space-y-4 text-sm text-zinc-300">
+                <h2 className="text-lg font-semibold text-foreground">What our agents monitor</h2>
+                <ul className="space-y-4 text-sm text-muted-foreground">
                   <li className="flex items-start gap-3">
                     <ShieldCheck className="mt-1 h-5 w-5 text-[#D12226]" />
                     Privileged function pathways & capability revokes
                   </li>
                   <li className="flex items-start gap-3">
-                    <Radar className="mt-1 h-5 w-5 text-white" />
+                    <Radar className="mt-1 h-5 w-5 text-foreground dark:text-white" />
                     Sudden owner upgrades with unreviewed code diffs
                   </li>
                   <li className="flex items-start gap-3">
@@ -204,19 +204,19 @@ export default function Home() {
                     Cross-contract liquidity drains and rate limit bypasses
                   </li>
                   <li className="flex items-start gap-3">
-                    <Sparkles className="mt-1 h-5 w-5 text-white" />
+                    <Sparkles className="mt-1 h-5 w-5 text-foreground dark:text-white" />
                     Emerging exploit signatures from battle-tested red teams
                   </li>
                 </ul>
               </div>
-              <div className="mt-8 grid grid-cols-1 gap-4 rounded-2xl border border-white/10 bg-black/40 p-4 text-center text-sm text-zinc-200 sm:grid-cols-2">
+              <div className="mt-8 grid grid-cols-1 gap-4 rounded-2xl border border-border dark:border-white/10 bg-background/40 dark:bg-black/40 p-4 text-center text-sm text-muted-foreground sm:grid-cols-2">
                 <div className="space-y-1">
                   <p className="text-2xl font-semibold text-[#D12226]">98%</p>
-                  <p className="text-xs text-zinc-400">Noise Reduction vs raw scanners</p>
+                  <p className="text-xs text-muted-foreground">Noise Reduction vs raw scanners</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-2xl font-semibold text-white">4</p>
-                  <p className="text-xs text-zinc-400">Specialist agents per review</p>
+                  <p className="text-2xl font-semibold text-foreground dark:text-white">4</p>
+                  <p className="text-xs text-muted-foreground">Specialist agents per review</p>
                 </div>
               </div>
             </div>
@@ -227,13 +227,13 @@ export default function Home() {
           {stats.map((stat) => (
             <div
               key={stat.label}
-              className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg transition hover:border-[#D12226]/40 hover:bg-[#D12226]/10"
+              className="rounded-2xl border border-border dark:border-white/10 bg-card/50 dark:bg-white/5 p-6 shadow-lg transition hover:border-[#D12226]/40 hover:bg-[#D12226]/10"
             >
-              <p className="text-3xl font-semibold text-white">{stat.value}</p>
-              <p className="mt-2 text-sm font-medium uppercase tracking-wide text-zinc-400">
+              <p className="text-3xl font-semibold text-foreground dark:text-white">{stat.value}</p>
+              <p className="mt-2 text-sm font-medium uppercase tracking-wide text-muted-foreground">
                 {stat.label}
               </p>
-              <p className="mt-3 text-sm text-zinc-400">{stat.subtext}</p>
+              <p className="mt-3 text-sm text-muted-foreground">{stat.subtext}</p>
             </div>
           ))}
         </section>
@@ -243,8 +243,8 @@ export default function Home() {
             <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#D12226]">
               Why teams pick RedFlag
             </p>
-            <h2 className="text-3xl font-semibold text-white sm:text-4xl">Security that keeps up with shipping fast</h2>
-            <p className="max-w-2xl text-base text-zinc-300">
+            <h2 className="text-3xl font-semibold text-foreground dark:text-white sm:text-4xl">Security that keeps up with shipping fast</h2>
+            <p className="max-w-2xl text-base text-muted-foreground">
               Replace fragmented scripts with a single control plane that understands Move, scales with your roadmap,
               and gives auditors and engineers a shared source of truth.
             </p>
@@ -253,17 +253,17 @@ export default function Home() {
             {features.map((feature) => (
               <div
                 key={feature.title}
-                className="group flex h-full flex-col justify-between rounded-2xl border border-white/10 bg-white/5 p-6 transition hover:border-[#D12226]/40 hover:bg-[#D12226]/10"
+                className="group flex h-full flex-col justify-between rounded-2xl border border-border dark:border-white/10 bg-card/50 dark:bg-white/5 p-6 transition hover:border-[#D12226]/40 hover:bg-[#D12226]/10"
               >
                 <div className="space-y-4">
-                  <span className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[#D12226]">
+                  <span className="inline-flex items-center rounded-full border border-border/50 dark:border-white/20 bg-card/50 dark:bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[#D12226]">
                     {feature.category}
                   </span>
                   <feature.icon className="h-8 w-8 text-[#D12226] transition-transform group-hover:-translate-y-1" />
-                  <h3 className="text-lg font-semibold text-white">{feature.title}</h3>
-                  <p className="text-sm leading-6 text-zinc-300">{feature.description}</p>
+                  <h3 className="text-lg font-semibold text-foreground dark:text-white">{feature.title}</h3>
+                  <p className="text-sm leading-6 text-muted-foreground">{feature.description}</p>
                 </div>
-                <div className="pt-5 text-xs font-medium uppercase tracking-[0.3em] text-zinc-500">
+                <div className="pt-5 text-xs font-medium uppercase tracking-[0.3em] text-muted-foreground">
                   Built for production
                 </div>
               </div>
@@ -271,13 +271,13 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="grid gap-10 rounded-3xl border border-white/10 bg-linear-to-br from-white/10 via-transparent to-[#D12226]/15 p-6 sm:p-8 lg:grid-cols-[1fr_1.4fr] lg:p-10">
+        <section className="grid gap-10 rounded-3xl border border-border dark:border-white/10 bg-gradient-to-br from-card/50 via-transparent to-[#D12226]/15 dark:from-white/10 p-6 sm:p-8 lg:grid-cols-[1fr_1.4fr] lg:p-10">
           <div className="space-y-6">
             <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#D12226]">
               How it works
             </p>
-            <h2 className="text-3xl font-semibold text-white sm:text-4xl">From package to roadmap in minutes</h2>
-            <p className="text-base text-zinc-300">
+            <h2 className="text-3xl font-semibold text-foreground dark:text-white sm:text-4xl">From package to roadmap in minutes</h2>
+            <p className="text-base text-muted-foreground">
               RedFlag packages deep technical signal into the exact context your engineers, protocol designers, and
               product managers need to prioritize fixes—without waiting on manual reports.
             </p>
@@ -295,15 +295,15 @@ export default function Home() {
             {process.map((step, index) => (
               <li
                 key={step.title}
-                className="relative rounded-2xl border border-white/10 bg-black/30 p-6 shadow-inner transition hover:border-[#D12226]/40"
+                className="relative rounded-2xl border border-border dark:border-white/10 bg-background/30 dark:bg-black/30 p-6 shadow-inner transition hover:border-[#D12226]/40"
               >
                 <span className="absolute right-6 top-6 text-sm font-semibold text-[#D12226]">
                   Step {index + 1}
                 </span>
                 <div className="space-y-3">
-                  <h3 className="text-lg font-semibold text-white">{step.title}</h3>
-                  <p className="text-sm font-medium text-zinc-300">{step.summary}</p>
-                  <p className="text-sm text-zinc-400">{step.detail}</p>
+                  <h3 className="text-lg font-semibold text-foreground dark:text-white">{step.title}</h3>
+                  <p className="text-sm font-medium text-muted-foreground">{step.summary}</p>
+                  <p className="text-sm text-muted-foreground">{step.detail}</p>
                 </div>
               </li>
             ))}
@@ -311,21 +311,21 @@ export default function Home() {
         </section>
 
         <section className="space-y-10">
-          <h2 className="text-3xl font-semibold text-white sm:text-4xl">Why RedFlag stays resilient</h2>
+          <h2 className="text-3xl font-semibold text-foreground dark:text-white sm:text-4xl">Why RedFlag stays resilient</h2>
           <div className="grid gap-6 lg:grid-cols-3">
             {differentiators.map((item) => (
               <div
                 key={item.title}
-                className="rounded-2xl border border-white/10 bg-white/5 p-6 text-sm text-zinc-300 transition hover:border-[#D12226]/40 hover:bg-[#D12226]/10"
+                className="rounded-2xl border border-border dark:border-white/10 bg-card/50 dark:bg-white/5 p-6 text-sm text-muted-foreground transition hover:border-[#D12226]/40 hover:bg-[#D12226]/10"
               >
-                <h3 className="text-lg font-semibold text-white">{item.title}</h3>
-                <p className="mt-3 leading-6 text-zinc-300">{item.description}</p>
+                <h3 className="text-lg font-semibold text-foreground dark:text-white">{item.title}</h3>
+                <p className="mt-3 leading-6 text-muted-foreground">{item.description}</p>
               </div>
             ))}
           </div>
         </section>
 
-        <section className="rounded-3xl border border-white/10 bg-linear-to-br from-[#D12226]/70 via-[#D12226]/40 to-black p-6 text-center shadow-2xl sm:p-8 lg:p-10">
+        <section className="rounded-3xl border border-border dark:border-white/10 bg-gradient-to-br from-[#D12226]/70 via-[#D12226]/40 to-background dark:to-black p-6 text-center shadow-2xl sm:p-8 lg:p-10">
           <div className="mx-auto max-w-2xl space-y-6">
             <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.3em] text-white/80">
               Ready to accelerate
@@ -355,14 +355,14 @@ export default function Home() {
           </div>
         </section>
 
-        <footer className="flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-8 text-sm text-zinc-500 sm:flex-row">
+        <footer className="flex flex-col items-center justify-between gap-4 border-t border-border dark:border-white/10 pt-8 text-sm text-muted-foreground sm:flex-row">
           <span>© 2025 RedFlag Labs. All rights reserved.</span>
           <Link
             href="https://github.com/mertkaradayi/redflag"
             target="_blank"
             rel="noopener noreferrer"
             prefetch={false}
-            className="transition hover:text-white"
+            className="transition hover:text-foreground dark:hover:text-white"
           >
             Follow the build on GitHub
           </Link>

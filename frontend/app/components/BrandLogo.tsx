@@ -1,16 +1,27 @@
+"use client";
+
 import Link from "next/link";
 import Image, { type StaticImageData } from "next/image";
+import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
 import darkHorizontal from "@/images/dark mode horizontal.png";
 import darkWhole from "@/images/dark mode whole.png";
+import lightHorizontal from "@/images/Light mode horizontal.png";
+import lightWhole from "@/images/light mode whole.png";
 
 type BrandVariant = "horizontal" | "whole";
 
-const logoMap: Record<BrandVariant, string | StaticImageData> = {
+const darkLogoMap: Record<BrandVariant, string | StaticImageData> = {
   horizontal: darkHorizontal,
   whole: darkWhole,
+};
+
+const lightLogoMap: Record<BrandVariant, string | StaticImageData> = {
+  horizontal: lightHorizontal,
+  whole: lightWhole,
 };
 
 interface BrandLogoProps {
@@ -30,7 +41,16 @@ export default function BrandLogo({
   href = "/",
   ariaLabel = "Go to homepage",
 }: BrandLogoProps) {
-  const logo = logoMap[variant];
+  const [mounted, setMounted] = useState(false);
+  const { resolvedTheme } = useTheme();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Use light logos for light mode, dark logos for dark mode
+  const logo = mounted && resolvedTheme === "dark" ? darkLogoMap[variant] : lightLogoMap[variant];
+
   const content = (
     <Image
       src={logo}

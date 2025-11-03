@@ -70,19 +70,19 @@ export default function DeploymentCard({ deployment }: DeploymentCardProps) {
   };
 
   return (
-    <Card className={cn('relative overflow-hidden rounded-3xl border bg-black/30 p-0 shadow-lg backdrop-blur', ageStyle.border)}>
+    <Card className={cn('relative overflow-hidden rounded-3xl border bg-background/30 dark:bg-black/30 p-0 shadow-lg backdrop-blur', ageStyle.border)}>
       <div className="absolute inset-0 opacity-80" />
       <CardContent className={cn('relative space-y-4 p-6', ageStyle.bg)}>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
-            <div className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500">
+            <div className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
               Checkpoint {deployment.checkpoint.toLocaleString()}
             </div>
-            <div className="text-sm text-zinc-400" title={absolute}>
+            <div className="text-sm text-muted-foreground" title={absolute}>
               {relative}
             </div>
           </div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/40 px-3 py-1 text-xs text-zinc-300">
+          <div className="inline-flex items-center gap-2 rounded-full border border-border dark:border-white/10 bg-background/40 dark:bg-black/40 px-3 py-1 text-xs text-muted-foreground">
             <span className={cn('h-2.5 w-2.5 rounded-full', ageStyle.dot)} />
             {ageStyle.label}
           </div>
@@ -105,7 +105,7 @@ export default function DeploymentCard({ deployment }: DeploymentCardProps) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 rounded-full border border-white/10 text-white/70 hover:border-white hover:text-white"
+                className="h-8 w-8 rounded-full border border-border dark:border-white/10 text-foreground/70 dark:text-white/70 hover:border-border/50 dark:hover:border-white hover:text-foreground dark:hover:text-white"
                 onClick={() => window.open(suiExplorerUrl, '_blank', 'noopener,noreferrer')}
                 aria-label="View on Sui Explorer"
               >
@@ -125,14 +125,14 @@ export default function DeploymentCard({ deployment }: DeploymentCardProps) {
             onToggle={toggleAddressView}
             toggleHint={showFullAddress ? 'Click to truncate address' : 'Click to view full address'}
           />
-          <div className="flex flex-col justify-between rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-xs text-zinc-400 sm:flex-row sm:items-center">
+          <div className="flex flex-col justify-between rounded-2xl border border-border dark:border-white/10 bg-background/40 dark:bg-black/40 px-4 py-3 text-xs text-muted-foreground sm:flex-row sm:items-center">
             <span>First detected</span>
-            <span className="text-white/80">{new Date(deployment.first_seen_at).toLocaleString()}</span>
+            <span className="text-foreground/80 dark:text-white/80">{new Date(deployment.first_seen_at).toLocaleString()}</span>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-xs text-zinc-300">
-          <div className="flex items-center gap-2 text-sm text-white/80">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border dark:border-white/10 bg-background/40 dark:bg-black/40 px-4 py-3 text-xs text-muted-foreground">
+          <div className="flex items-center gap-2 text-sm text-foreground/80 dark:text-white/80">
             <Sparkles className="h-4 w-4 text-[#D12226]" />
             Launch a security review in RedFlag
           </div>
@@ -183,14 +183,14 @@ function FieldBlock({
 }: FieldBlockProps) {
   return (
     <div className="space-y-2">
-      <label className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500">
+      <label className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
         {label}
       </label>
       <div className="flex flex-wrap items-center gap-2">
         <code
           className={cn(
-            'min-w-0 flex-1 truncate rounded-2xl border border-white/10 bg-black/40 px-3 py-2 font-mono text-sm text-white/90',
-            onToggle && 'cursor-pointer transition hover:border-white/20 hover:bg-black/30',
+            'min-w-0 flex-1 truncate rounded-2xl border border-border dark:border-white/10 bg-background/40 dark:bg-black/40 px-3 py-2 font-mono text-sm text-foreground/90 dark:text-white/90',
+            onToggle && 'cursor-pointer transition hover:border-border/50 dark:hover:border-white/20 hover:bg-background/30 dark:hover:bg-black/30',
           )}
           onClick={onToggle}
           title={toggleHint || fullValue}

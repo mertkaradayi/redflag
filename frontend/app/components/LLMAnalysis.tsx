@@ -83,15 +83,15 @@ export default function LLMAnalysis({ packageId: initialPackageId, network: init
       {/* Analysis Input */}
       <div className="space-y-6">
         <div className="space-y-2">
-          <h2 className="text-2xl font-semibold text-white">Contract Security Analysis</h2>
-          <p className="text-sm text-zinc-400">
+          <h2 className="text-2xl font-semibold text-foreground dark:text-white">Contract Security Analysis</h2>
+          <p className="text-sm text-muted-foreground">
             Analyze Sui smart contracts for security risks using AI-powered analysis
           </p>
         </div>
         <div className="space-y-5">
           <div className="grid grid-cols-1 gap-5">
             <div className="space-y-2">
-              <label htmlFor="packageId" className="block text-sm font-medium text-zinc-300">
+              <label htmlFor="packageId" className="block text-sm font-medium text-muted-foreground">
                 Package ID
               </label>
               <input
@@ -100,21 +100,21 @@ export default function LLMAnalysis({ packageId: initialPackageId, network: init
                 value={packageId}
                 onChange={(e) => setPackageId(e.target.value)}
                 placeholder="0x..."
-                className="w-full px-4 py-3 bg-black/40 border border-white/20 rounded-xl text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#D12226]/60 focus:border-[#D12226]/40 transition-all duration-200"
+                className="w-full px-4 py-3 bg-background/40 dark:bg-black/40 border border-border dark:border-white/20 rounded-xl text-foreground dark:text-white placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[#D12226]/60 focus:border-[#D12226]/40 transition-all duration-200"
               />
             </div>
             <div className="space-y-2">
-              <label htmlFor="network" className="block text-sm font-medium text-zinc-300">
+              <label htmlFor="network" className="block text-sm font-medium text-muted-foreground">
                 Network
               </label>
               <select
                 id="network"
                 value={network}
                 onChange={(e) => setNetwork(e.target.value as 'mainnet' | 'testnet')}
-                className="w-full px-4 py-3 bg-black/40 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-[#D12226]/60 focus:border-[#D12226]/40 transition-all duration-200 cursor-pointer"
+                className="w-full px-4 py-3 bg-background/40 dark:bg-black/40 border border-border dark:border-white/20 rounded-xl text-foreground dark:text-white focus:outline-none focus:ring-2 focus:ring-[#D12226]/60 focus:border-[#D12226]/40 transition-all duration-200 cursor-pointer"
               >
-                <option value="mainnet" className="bg-black text-white">Mainnet</option>
-                <option value="testnet" className="bg-black text-white">Testnet</option>
+                <option value="mainnet" className="bg-background dark:bg-black text-foreground dark:text-white">Mainnet</option>
+                <option value="testnet" className="bg-background dark:bg-black text-foreground dark:text-white">Testnet</option>
               </select>
             </div>
           </div>
@@ -150,11 +150,11 @@ export default function LLMAnalysis({ packageId: initialPackageId, network: init
 
       {/* Analysis Results */}
       {analysisResult && (
-        <div className="space-y-6 pt-6 border-t border-white/10">
+        <div className="space-y-6 pt-6 border-t border-border dark:border-white/10">
           {/* Risk Summary */}
-          <div className="rounded-2xl border border-white/10 bg-black/40 p-6 backdrop-blur shadow-lg">
+          <div className="rounded-2xl border border-border dark:border-white/10 bg-background/40 dark:bg-black/40 p-6 backdrop-blur shadow-lg">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-              <h3 className="text-xl font-semibold text-white">Risk Assessment</h3>
+              <h3 className="text-xl font-semibold text-foreground dark:text-white">Risk Assessment</h3>
               <div className="flex items-center gap-3">
                 <span
                   className={cn(
@@ -171,28 +171,28 @@ export default function LLMAnalysis({ packageId: initialPackageId, network: init
             </div>
             <div className="space-y-5">
               <div>
-                <h4 className="font-semibold mb-2 text-white text-sm uppercase tracking-wide">Summary</h4>
-                <p className="text-zinc-300 leading-relaxed">{analysisResult.summary}</p>
+                <h4 className="font-semibold mb-2 text-foreground dark:text-white text-sm uppercase tracking-wide">Summary</h4>
+                <p className="text-muted-foreground leading-relaxed">{analysisResult.summary}</p>
               </div>
               
               <div>
-                <h4 className="font-semibold mb-2 text-white text-sm uppercase tracking-wide">Main Risk</h4>
-                <p className="text-zinc-300 leading-relaxed">{analysisResult.why_risky_one_liner}</p>
+                <h4 className="font-semibold mb-2 text-foreground dark:text-white text-sm uppercase tracking-wide">Main Risk</h4>
+                <p className="text-muted-foreground leading-relaxed">{analysisResult.why_risky_one_liner}</p>
               </div>
               
               <div>
-                <h4 className="font-semibold mb-2 text-white text-sm uppercase tracking-wide">Impact on Users</h4>
-                <p className="text-zinc-300 leading-relaxed">{analysisResult.impact_on_user}</p>
+                <h4 className="font-semibold mb-2 text-foreground dark:text-white text-sm uppercase tracking-wide">Impact on Users</h4>
+                <p className="text-muted-foreground leading-relaxed">{analysisResult.impact_on_user}</p>
               </div>
             </div>
           </div>
 
           {/* Risky Functions */}
           {analysisResult.risky_functions.length > 0 && (
-            <div className="rounded-2xl border border-white/10 bg-black/40 p-6 backdrop-blur shadow-lg">
+            <div className="rounded-2xl border border-border dark:border-white/10 bg-background/40 dark:bg-black/40 p-6 backdrop-blur shadow-lg">
               <div className="mb-4">
-                <h3 className="text-lg font-semibold text-white mb-1">Risky Functions</h3>
-                <p className="text-sm text-zinc-400">
+                <h3 className="text-lg font-semibold text-foreground dark:text-white mb-1">Risky Functions</h3>
+                <p className="text-sm text-muted-foreground">
                   Functions identified as potentially dangerous
                 </p>
               </div>
@@ -202,8 +202,8 @@ export default function LLMAnalysis({ packageId: initialPackageId, network: init
                     key={index}
                     className="space-y-2 rounded-xl border border-[#D12226]/30 bg-[#D12226]/5 p-4 text-sm backdrop-blur transition hover:border-[#D12226]/50 hover:bg-[#D12226]/10"
                   >
-                    <h5 className="font-semibold text-white">{func.function_name}</h5>
-                    <p className="text-zinc-300 leading-relaxed">{func.reason}</p>
+                    <h5 className="font-semibold text-foreground dark:text-white">{func.function_name}</h5>
+                    <p className="text-muted-foreground leading-relaxed">{func.reason}</p>
                   </div>
                 ))}
               </div>
@@ -212,10 +212,10 @@ export default function LLMAnalysis({ packageId: initialPackageId, network: init
 
           {/* Rug Pull Indicators */}
           {analysisResult.rug_pull_indicators.length > 0 && (
-            <div className="rounded-2xl border border-white/10 bg-black/40 p-6 backdrop-blur shadow-lg">
+            <div className="rounded-2xl border border-border dark:border-white/10 bg-background/40 dark:bg-black/40 p-6 backdrop-blur shadow-lg">
               <div className="mb-4">
-                <h3 className="text-lg font-semibold text-white mb-1">Rug Pull Indicators</h3>
-                <p className="text-sm text-zinc-400">
+                <h3 className="text-lg font-semibold text-foreground dark:text-white mb-1">Rug Pull Indicators</h3>
+                <p className="text-sm text-muted-foreground">
                   Patterns that suggest potential rug pull risks
                 </p>
               </div>
@@ -225,8 +225,8 @@ export default function LLMAnalysis({ packageId: initialPackageId, network: init
                     key={index}
                     className="space-y-2 rounded-xl border border-orange-500/30 bg-orange-500/5 p-4 text-sm backdrop-blur transition hover:border-orange-500/50 hover:bg-orange-500/10"
                   >
-                    <h5 className="font-semibold text-white">{indicator.pattern_name}</h5>
-                    <p className="text-zinc-300 leading-relaxed">{indicator.evidence}</p>
+                    <h5 className="font-semibold text-foreground dark:text-white">{indicator.pattern_name}</h5>
+                    <p className="text-muted-foreground leading-relaxed">{indicator.evidence}</p>
                   </div>
                 ))}
               </div>
