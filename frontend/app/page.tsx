@@ -157,7 +157,7 @@ export default function Home() {
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
               <Link href="/analyze" className="w-full sm:w-auto">
                 <Button className="w-full bg-[#D12226] text-white transition hover:bg-[#a8181b] sm:w-auto">
-                  Start a Contract Analysis
+                  Start analysis
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
@@ -166,7 +166,7 @@ export default function Home() {
                   variant="outline"
                   className="w-full border-[#D12226]/50 bg-transparent text-muted-foreground hover:border-[#D12226] hover:text-[#D12226] sm:w-auto"
                 >
-                  See Live Risk Dashboard
+                  Dashboard
                 </Button>
               </Link>
             </div>
@@ -286,7 +286,7 @@ export default function Home() {
                 variant="outline"
                 className="border-[#D12226] bg-transparent text-[#D12226] hover:bg-[#D12226]/20 hover:text-white"
               >
-                Launch the Analyzer
+                Start analysis
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
@@ -340,7 +340,7 @@ export default function Home() {
             <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
               <Link href="/analyze" className="w-full sm:w-auto">
                 <Button className="w-full bg-[#D12226] text-white hover:bg-[#a8181b] sm:w-auto">
-                  Start analyzing
+                  Start analysis
                 </Button>
               </Link>
               <Link href="/dashboard" className="w-full sm:w-auto">
@@ -348,7 +348,7 @@ export default function Home() {
                   variant="outline"
                   className="w-full border-white/40 text-white hover:border-white hover:bg-white/10 sm:w-auto"
                 >
-                  View dashboard
+                  Dashboard
                 </Button>
               </Link>
             </div>

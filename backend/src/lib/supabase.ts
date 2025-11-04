@@ -252,6 +252,130 @@ export async function getDeployments(options: {
   }
 }
 
+/**
+ * Get deployment statistics from the database
+ * Calculates total, last 24h, and latest checkpoint directly from DB
+ */
+export async function getDeploymentStats(): Promise<{
+  success: boolean;
+  total: number;
+  last24h: number;
+  previous24h: number;
+  latestCheckpoint: number | null;
+  error?: string;
+}> {
+  try {
+    if (!supabase) {
+      return {
+        success: false,
+        total: 0,
+        last24h: 0,
+        previous24h: 0,
+        latestCheckpoint: null,
+        error: 'Supabase client not initialized'
+      };
+    }
+
+    const now = new Date();
+    const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const previous24h = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+
+    // Get total count
+    const { count: totalCount, error: totalError } = await supabase
+      .from('sui_package_deployments')
+      .select('*', { count: 'exact', head: true });
+
+    if (totalError) {
+      console.error('Failed to get total count:', totalError);
+      return {
+        success: false,
+        total: 0,
+        last24h: 0,
+        previous24h: 0,
+        latestCheckpoint: null,
+        error: totalError.message
+      };
+    }
+
+    // Get last 24h count
+    const { count: last24hCount, error: last24hError } = await supabase
+      .from('sui_package_deployments')
+      .select('*', { count: 'exact', head: true })
+      .gte('timestamp', last24h.toISOString());
+
+    if (last24hError) {
+      console.error('Failed to get last 24h count:', last24hError);
+      return {
+        success: false,
+        total: totalCount || 0,
+        last24h: 0,
+        previous24h: 0,
+        latestCheckpoint: null,
+        error: last24hError.message
+      };
+    }
+
+    // Get previous 24h count (24-48 hours ago)
+    const { count: previous24hCount, error: previous24hError } = await supabase
+      .from('sui_package_deployments')
+      .select('*', { count: 'exact', head: true })
+      .gte('timestamp', previous24h.toISOString())
+      .lt('timestamp', last24h.toISOString());
+
+    if (previous24hError) {
+      console.error('Failed to get previous 24h count:', previous24hError);
+      return {
+        success: false,
+        total: totalCount || 0,
+        last24h: last24hCount || 0,
+        previous24h: 0,
+        latestCheckpoint: null,
+        error: previous24hError.message
+      };
+    }
+
+    // Get latest checkpoint
+    const { data: checkpointData, error: checkpointError } = await supabase
+      .from('sui_package_deployments')
+      .select('checkpoint')
+      .order('checkpoint', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (checkpointError && checkpointError.code !== 'PGRST116') {
+      console.error('Failed to get latest checkpoint:', checkpointError);
+      return {
+        success: false,
+        total: totalCount || 0,
+        last24h: last24hCount || 0,
+        previous24h: previous24hCount || 0,
+        latestCheckpoint: null,
+        error: checkpointError.message
+      };
+    }
+
+    return {
+      success: true,
+      total: totalCount || 0,
+      last24h: last24hCount || 0,
+      previous24h: previous24hCount || 0,
+      latestCheckpoint: checkpointData?.checkpoint ?? null
+    };
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Unexpected error in getDeploymentStats:', error);
+    return {
+      success: false,
+      total: 0,
+      last24h: 0,
+      previous24h: 0,
+      latestCheckpoint: null,
+      error: errorMessage
+    };
+  }
+}
+
 // ================================================================
 // CONTRACT ANALYSIS OPERATIONS
 // ================================================================

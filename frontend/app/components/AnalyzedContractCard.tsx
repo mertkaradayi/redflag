@@ -5,6 +5,7 @@ import { ChevronDown, ChevronRight, Copy, ExternalLink, Check, Package, Network,
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/toast';
 import type { AnalyzedContract } from '@/app/dashboard/types';
 import { getSuiPackageExplorerUrl } from '@/lib/deployments';
 import {
@@ -71,6 +72,7 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
   const [showAllIndicators, setShowAllIndicators] = useState(false);
   const [copied, setCopied] = useState(false);
   const [expandedFunctions, setExpandedFunctions] = useState<Record<string, boolean>>({});
+  const { showToast } = useToast();
 
   const toggleFunctions = useCallback(() => {
     if (!showAllFunctions && onAutoRefreshPause) {
@@ -121,11 +123,12 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
     try {
       await navigator.clipboard.writeText(contract.package_id);
       setCopied(true);
+      showToast('Package ID copied to clipboard', 'success');
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy package id', err);
     }
-  }, [contract.package_id]);
+  }, [contract.package_id, showToast]);
 
   const handleToggleFunctionContent = useCallback(
     (key: string) => {

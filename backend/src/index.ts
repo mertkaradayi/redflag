@@ -1,13 +1,27 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import { testSupabaseConnection, getDeployments, getAnalysisResult, getRecentAnalyses, getHighRiskAnalyses, getRiskLevelCounts } from './lib/supabase';
+import { testSupabaseConnection, getDeployments, getDeploymentStats, getAnalysisResult, getRecentAnalyses, getHighRiskAnalyses, getRiskLevelCounts } from './lib/supabase';
 import { getRecentPublishTransactions, testSuiConnection } from './lib/sui-client';
 import { startMonitoring, stopMonitoring, getMonitoringStatus } from './workers/sui-monitor';
 import { runFullAnalysisChain, getAnalysis } from './lib/llm-analyzer';
 import { SuiClient } from '@mysten/sui/client';
 import { envFlag } from './lib/env-utils';
 import { validatePaginationParams } from './lib/query-utils';
+
+/**
+ * Determine network from environment variables
+ */
+function getNetwork(): 'mainnet' | 'testnet' {
+  const networkEnv = process.env.SUI_NETWORK?.toLowerCase();
+  if (networkEnv === 'mainnet' || networkEnv === 'testnet') {
+    return networkEnv;
+  }
+  
+  // Fallback to checking RPC URL
+  const rpcUrl = process.env.SUI_RPC_URL?.toLowerCase() || '';
+  return rpcUrl.includes('testnet') ? 'testnet' : 'mainnet';
+}
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -270,6 +284,37 @@ app.get('/api/sui/health', async (req, res) => {
   }
 });
 
+// Deployment statistics endpoint - calculates stats from all database records
+app.get('/api/sui/deployment-stats', async (req, res) => {
+  try {
+    const result = await getDeploymentStats();
+
+    if (result.success) {
+      res.json({
+        success: true,
+        timestamp: new Date().toISOString(),
+        total: result.total,
+        last24h: result.last24h,
+        previous24h: result.previous24h,
+        last24hDelta: result.last24h - result.previous24h,
+        latestCheckpoint: result.latestCheckpoint
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: result.error || 'Failed to retrieve deployment stats',
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: `Stats query failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Historical deployments endpoint - reads from database
 app.get('/api/sui/deployments', async (req, res) => {
   try {
@@ -285,6 +330,7 @@ app.get('/api/sui/deployments', async (req, res) => {
     const result = await getDeployments({ limit, offset });
 
     if (result.success) {
+      const network = getNetwork();
       res.json({
         success: true,
         message: `Retrieved ${result.deployments.length} deployments`,
@@ -292,7 +338,8 @@ app.get('/api/sui/deployments', async (req, res) => {
         deployments: result.deployments,
         totalCount: result.totalCount,
         limit: limit || 50,
-        offset: offset || 0
+        offset: offset || 0,
+        network
       });
     } else {
       res.status(500).json({
@@ -627,7 +674,12 @@ app.get('/api/llm/analyzed-contracts', async (req, res) => {
 
       const riskCountsResult = await getRiskLevelCounts({ packageId });
       const riskCounts = riskCountsResult.success ? riskCountsResult.counts : undefined;
-      const lastAnalyzed = offset === 0 && contracts.length > 0 ? contracts[0].analyzed_at : null;
+      
+      // Always fetch the most recent analysis timestamp regardless of pagination offset
+      const mostRecentResult = await getRecentAnalyses({ limit: 1, offset: 0, packageId });
+      const lastAnalyzed = mostRecentResult.success && mostRecentResult.analyses.length > 0 
+        ? mostRecentResult.analyses[0].analyzed_at 
+        : null;
 
       res.json({
         success: true,

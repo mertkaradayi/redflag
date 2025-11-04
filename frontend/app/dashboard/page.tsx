@@ -555,7 +555,7 @@ export default function Dashboard() {
           <div className="flex flex-col gap-3 border-t border-border/60 dark:border-white/10 pt-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-2">
               <Link href="/analyze">
-                <Button size="sm" className="h-8 gap-1.5 text-xs">➕ Analyze Contract</Button>
+                <Button size="sm" className="h-8 gap-1.5 text-xs">Analyze this package</Button>
               </Link>
               <Button onClick={() => fetchAnalyzedContracts()} variant="outline" size="sm" disabled={isRefreshing} className="h-8 gap-1.5 text-xs">
                 <RefreshCcw className={cn('h-3 w-3', isRefreshing && 'animate-spin')} />
@@ -721,7 +721,7 @@ export default function Dashboard() {
                 </Button>
               )}
               <Link href="/analyze">
-                <Button size="sm">Analyze Contract</Button>
+                <Button size="sm">Analyze this package</Button>
               </Link>
             </div>
           </div>

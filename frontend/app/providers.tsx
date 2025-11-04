@@ -4,6 +4,7 @@ import { PrivyProvider } from '@privy-io/react-auth';
 import { ThemeProvider } from 'next-themes';
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
+import { ToastProvider } from '@/components/ui/toast';
 
 function PrivyProviderWithTheme({ children }: { children: React.ReactNode }) {
   const { resolvedTheme } = useTheme();
@@ -43,7 +44,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       enableSystem={true}
       enableColorScheme={true}
     >
-      <PrivyProviderWithTheme>{children}</PrivyProviderWithTheme>
+      <ToastProvider>
+        <PrivyProviderWithTheme>{children}</PrivyProviderWithTheme>
+      </ToastProvider>
     </ThemeProvider>
   );
 }

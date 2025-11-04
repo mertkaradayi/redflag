@@ -6,63 +6,75 @@ import { Check, Copy, ExternalLink, Sparkles } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { useToast } from '@/components/ui/toast';
 import { cn } from '@/lib/utils';
 import {
   copyToClipboard,
   formatAddress,
   formatTimestamp,
   getDeploymentAgeColor,
+  getSuiAddressExplorerUrl,
   getSuiExplorerUrl,
+  getSuiPackageExplorerUrl,
   type Deployment,
 } from '@/lib/deployments';
 
 interface DeploymentCardProps {
   deployment: Deployment;
+  network?: 'mainnet' | 'testnet';
 }
 
 const AGE_STYLES: Record<
   ReturnType<typeof getDeploymentAgeColor>,
-  { border: string; dot: string; label: string; bg: string }
+  { border: string; dot: string; bg: string }
 > = {
   lastHour: {
     border: 'border-[#D12226]/40 dark:border-[#D12226]/60',
     dot: 'bg-[#D12226] dark:bg-[#D12226]',
-    label: 'Last hour',
-    bg: 'bg-gradient-to-br from-[#D12226]/8 via-white to-zinc-50/50 dark:from-[#D12226]/15 dark:via-black/40 dark:to-black/60',
+    bg: 'bg-background/20 backdrop-blur-xl supports-backdrop-filter:bg-background/20 dark:bg-gradient-to-br dark:from-[#D12226]/15 dark:via-black/40 dark:to-black/60',
   },
   last24h: {
     border: 'border-zinc-300/80 dark:border-white/40',
     dot: 'bg-zinc-500 dark:bg-white',
-    label: 'Last 24 hours',
     bg: 'bg-gradient-to-br from-zinc-50/80 via-white to-zinc-50/50 dark:from-white/10 dark:via-black/40 dark:to-black/60',
   },
   lastWeek: {
     border: 'border-amber-400/50 dark:border-yellow-300/60',
     dot: 'bg-amber-500 dark:bg-yellow-300',
-    label: 'This week',
     bg: 'bg-gradient-to-br from-amber-50/60 via-white to-zinc-50/50 dark:from-yellow-200/10 dark:via-black/40 dark:to-black/60',
   },
   older: {
     border: 'border-zinc-300/60 dark:border-zinc-700/60',
     dot: 'bg-zinc-500 dark:bg-zinc-600',
-    label: 'Older',
     bg: 'bg-white dark:bg-black/40',
   },
 };
 
-export default function DeploymentCard({ deployment }: DeploymentCardProps) {
+export default function DeploymentCard({ deployment, network }: DeploymentCardProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [showFullAddress, setShowFullAddress] = useState(false);
+  const [showFullPackageId, setShowFullPackageId] = useState(false);
+  const [showFullTxDigest, setShowFullTxDigest] = useState(false);
+  const { showToast } = useToast();
 
   const suiExplorerUrl = useMemo(() => getSuiExplorerUrl(deployment.tx_digest), [deployment.tx_digest]);
+  const packageExplorerUrl = useMemo(() => getSuiPackageExplorerUrl(deployment.package_id), [deployment.package_id]);
+  const deployerExplorerUrl = useMemo(() => getSuiAddressExplorerUrl(deployment.deployer_address), [deployment.deployer_address]);
   const ageBucket = useMemo(() => getDeploymentAgeColor(deployment.timestamp), [deployment.timestamp]);
   const ageStyle = AGE_STYLES[ageBucket];
   const { relative, absolute } = useMemo(() => formatTimestamp(deployment.timestamp), [deployment.timestamp]);
+  const firstSeenAt = useMemo(() => {
+    const timestamp = new Date(deployment.timestamp).getTime();
+    const firstSeen = new Date(deployment.first_seen_at).getTime();
+    // Only show if different by more than 1 minute (to account for minor timing differences)
+    return Math.abs(timestamp - firstSeen) > 60000 ? deployment.first_seen_at : null;
+  }, [deployment.timestamp, deployment.first_seen_at]);
 
-  const handleCopy = async (value: string, field: string) => {
+  const handleCopy = async (value: string, field: string, label: string) => {
     const success = await copyToClipboard(value);
     if (!success) return;
     setCopiedField(field);
+    showToast(`${label} copied to clipboard`, 'success');
     setTimeout(() => setCopiedField(null), 2000);
   };
 
@@ -70,8 +82,16 @@ export default function DeploymentCard({ deployment }: DeploymentCardProps) {
     setShowFullAddress((prev) => !prev);
   };
 
+  const togglePackageIdView = () => {
+    setShowFullPackageId((prev) => !prev);
+  };
+
+  const toggleTxDigestView = () => {
+    setShowFullTxDigest((prev) => !prev);
+  };
+
   return (
-    <Card className={cn('text-card-foreground relative overflow-hidden rounded-3xl border bg-white dark:bg-black/30 p-0 shadow-sm dark:shadow-lg backdrop-blur', ageStyle.border)}>
+    <Card className={cn('text-card-foreground relative overflow-hidden rounded-3xl border bg-background/20 dark:bg-black/30 p-0 shadow-sm dark:shadow-lg backdrop-blur-xl supports-backdrop-filter:bg-background/20 dark:supports-backdrop-filter:bg-black/30', ageStyle.border)}>
       <div className="absolute inset-0 opacity-80"></div>
       <CardContent className={cn('relative space-y-3 p-4 sm:space-y-4 sm:p-6', ageStyle.bg)}>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
@@ -79,38 +99,56 @@ export default function DeploymentCard({ deployment }: DeploymentCardProps) {
             <div className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-500">
               Checkpoint {deployment.checkpoint.toLocaleString()}
             </div>
-            <div className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400" title={absolute}>
-              {relative}
-            </div>
+            {network && (
+              <div className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-500">
+                {network}
+              </div>
+            )}
           </div>
-          <div className="inline-flex items-center gap-1.5 sm:gap-2 rounded-full border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-black/40 px-2.5 py-1 sm:px-3 text-[10px] sm:text-xs text-zinc-600 dark:text-zinc-300 whitespace-nowrap">
+          <div className="inline-flex items-center gap-1.5 sm:gap-2 rounded-full bg-zinc-50 dark:bg-black/40 px-2.5 py-1 sm:px-3 text-[10px] sm:text-xs text-zinc-600 dark:text-zinc-300 whitespace-nowrap" title={absolute}>
             <span className={cn('h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full shrink-0', ageStyle.dot)} />
-            <span>{ageStyle.label}</span>
+            <span>{relative}</span>
           </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FieldBlock
             label="Package ID"
-            value={deployment.package_id}
-            onCopy={() => handleCopy(deployment.package_id, 'package')}
+            value={showFullPackageId ? deployment.package_id : formatAddress(deployment.package_id)}
+            fullValue={deployment.package_id}
+            onCopy={() => handleCopy(deployment.package_id, 'package', 'Package ID')}
             copied={copiedField === 'package'}
-          />
-          <FieldBlock
-            label="Transaction"
-            value={formatAddress(deployment.tx_digest)}
-            fullValue={deployment.tx_digest}
-            onCopy={() => handleCopy(deployment.tx_digest, 'tx')}
-            copied={copiedField === 'tx'}
+            onToggle={togglePackageIdView}
+            toggleHint={showFullPackageId ? 'Click to truncate address' : 'Click to view full address'}
             trailingButton={
               <Button
                 variant="ghost"
                 size="icon"
-                className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-zinc-100 dark:hover:bg-accent h-10 w-10 rounded-lg border border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-white/70 hover:border-zinc-300 dark:hover:border-white hover:text-zinc-900 dark:hover:text-white shrink-0"
-                onClick={() => window.open(suiExplorerUrl, '_blank', 'noopener,noreferrer')}
-                aria-label="View on Sui Explorer"
+                className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-zinc-100 dark:hover:bg-accent h-7 w-7 rounded-md text-zinc-600 dark:text-white/70 hover:text-zinc-900 dark:hover:text-white shrink-0"
+                onClick={() => window.open(packageExplorerUrl, '_blank', 'noopener,noreferrer')}
+                aria-label="View package on Sui Explorer"
               >
-                <ExternalLink className="h-4 w-4 shrink-0" />
+                <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+              </Button>
+            }
+          />
+          <FieldBlock
+            label="Transaction"
+            value={showFullTxDigest ? deployment.tx_digest : formatAddress(deployment.tx_digest)}
+            fullValue={deployment.tx_digest}
+            onCopy={() => handleCopy(deployment.tx_digest, 'tx', 'Transaction')}
+            copied={copiedField === 'tx'}
+            onToggle={toggleTxDigestView}
+            toggleHint={showFullTxDigest ? 'Click to truncate address' : 'Click to view full address'}
+            trailingButton={
+              <Button
+                variant="ghost"
+                size="icon"
+                className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-zinc-100 dark:hover:bg-accent h-7 w-7 rounded-md text-zinc-600 dark:text-white/70 hover:text-zinc-900 dark:hover:text-white shrink-0"
+                onClick={() => window.open(suiExplorerUrl, '_blank', 'noopener,noreferrer')}
+                aria-label="View transaction on Sui Explorer"
+              >
+                <ExternalLink className="h-3.5 w-3.5 shrink-0" />
               </Button>
             }
           />
@@ -118,18 +156,36 @@ export default function DeploymentCard({ deployment }: DeploymentCardProps) {
             label="Deployer"
             value={showFullAddress ? deployment.deployer_address : formatAddress(deployment.deployer_address)}
             fullValue={deployment.deployer_address}
-            onCopy={() => handleCopy(deployment.deployer_address, 'deployer')}
+            onCopy={() => handleCopy(deployment.deployer_address, 'deployer', 'Deployer address')}
             copied={copiedField === 'deployer'}
             onToggle={toggleAddressView}
             toggleHint={showFullAddress ? 'Click to truncate address' : 'Click to view full address'}
+            trailingButton={
+              <Button
+                variant="ghost"
+                size="icon"
+                className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-zinc-100 dark:hover:bg-accent h-7 w-7 rounded-md text-zinc-600 dark:text-white/70 hover:text-zinc-900 dark:hover:text-white shrink-0"
+                onClick={() => window.open(deployerExplorerUrl, '_blank', 'noopener,noreferrer')}
+                aria-label="View deployer address on Sui Explorer"
+              >
+                <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+              </Button>
+            }
           />
-          <StaticField
-            label="First detected"
-            value={new Date(deployment.first_seen_at).toLocaleString()}
-          />
+          {firstSeenAt ? (
+            <StaticField
+              label="Detected by RedFlag"
+              value={new Date(firstSeenAt).toLocaleString()}
+            />
+          ) : (
+            <StaticField
+              label="Deployment time"
+              value={absolute}
+            />
+          )}
         </div>
 
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-3 rounded-2xl border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-black/40 px-3 py-2.5 sm:px-4 sm:py-3 text-[11px] sm:text-xs text-zinc-600 dark:text-zinc-300">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-3 rounded-2xl bg-zinc-50 dark:bg-black/40 px-3 py-2.5 sm:px-4 sm:py-3 text-[11px] sm:text-xs text-zinc-600 dark:text-zinc-300">
           <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-zinc-900 dark:text-white/80">
             <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#D12226] shrink-0" />
             <span className="whitespace-nowrap">Launch a security review in RedFlag</span>
@@ -150,7 +206,7 @@ export default function DeploymentCard({ deployment }: DeploymentCardProps) {
               }
             }}
           >
-            Analyze contract
+            Analyze this package
           </Button>
         </div>
       </CardContent>
@@ -191,11 +247,11 @@ function FieldBlock({
   };
 
   const renderedTrailingButton = isValidElement(trailingButton)
-    ? cloneElement(trailingButton, {
-        className: cn('shrink-0', trailingButton.props.className),
+    ? cloneElement(trailingButton as React.ReactElement<{ className?: string; onClick?: (event: MouseEvent<HTMLElement>) => void }>, {
+        className: cn('shrink-0', (trailingButton as React.ReactElement<{ className?: string }>).props.className),
         onClick: (event: MouseEvent<HTMLElement>) => {
           event.stopPropagation();
-          trailingButton.props.onClick?.(event);
+          (trailingButton as React.ReactElement<{ onClick?: (event: MouseEvent<HTMLElement>) => void }>).props.onClick?.(event);
         },
       })
     : trailingButton;
@@ -220,11 +276,11 @@ function FieldBlock({
           <Button
             variant="ghost"
             size="icon"
-            className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-zinc-100 dark:hover:bg-accent h-10 w-10 rounded-lg border border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-white/70 hover:border-zinc-300 dark:hover:border-white hover:text-zinc-900 dark:hover:text-white shrink-0"
+            className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-zinc-100 dark:hover:bg-accent h-7 w-7 rounded-md text-zinc-600 dark:text-white/70 hover:text-zinc-900 dark:hover:text-white shrink-0"
             onClick={handleCopyClick}
             aria-label={`Copy ${label.toLowerCase()}`}
           >
-            {copied ? <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-300" /> : <Copy className="h-4 w-4" />}
+            {copied ? <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-300" /> : <Copy className="h-3.5 w-3.5" />}
           </Button>
           {renderedTrailingButton ? <div className="shrink-0">{renderedTrailingButton}</div> : null}
         </div>

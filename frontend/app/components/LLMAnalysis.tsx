@@ -135,7 +135,7 @@ export default function LLMAnalysis({ packageId: initialPackageId, network: init
                 Analyzing...
               </span>
             ) : (
-              'Analyze Contract'
+              'Start analysis'
             )}
           </Button>
         </div>
