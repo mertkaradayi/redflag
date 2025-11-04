@@ -11,6 +11,7 @@ import {
   SheetContent,
   SheetClose,
   SheetTrigger,
+  SheetTitle,
 } from "@/components/ui/sheet";
 import BrandLogo from "./BrandLogo";
 import ThemeToggle from "./ThemeToggle";
@@ -118,6 +119,7 @@ export default function Navigation({ className }: NavigationProps) {
           id="mobile-primary-navigation"
           className="flex h-full w-[min(90vw,320px)] flex-col gap-0 border-l border-border/60 bg-white/95 px-0 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-[calc(env(safe-area-inset-top)+1.5rem)] text-foreground backdrop-blur-xl dark:border-zinc-800/60 dark:bg-zinc-950/95 dark:text-white sm:hidden"
         >
+          <SheetTitle className="sr-only">Navigation menu</SheetTitle>
           <div className="flex items-center justify-between gap-4 border-b border-border/60 px-5 pb-4">
             <BrandLogo className="h-8" wrapperClassName="flex-shrink-0" priority />
             <SheetClose asChild>

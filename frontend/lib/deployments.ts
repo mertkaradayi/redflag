@@ -100,6 +100,13 @@ export function getSuiExplorerUrl(txDigest: string): string {
 }
 
 /**
+ * Generate Sui explorer URL for package ID
+ */
+export function getSuiPackageExplorerUrl(packageId: string, network: 'mainnet' | 'testnet' = 'testnet'): string {
+  return `https://suiexplorer.com/object/${packageId}?network=${network}`;
+}
+
+/**
  * Copy text to clipboard with user feedback
  */
 export async function copyToClipboard(text: string): Promise<boolean> {
