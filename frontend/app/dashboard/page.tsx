@@ -360,123 +360,111 @@ export default function Dashboard() {
   return (
     <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 pb-24 transition-colors duration-200 sm:px-8 lg:gap-8 lg:px-16">
       {/* Header: Title + Key Stats */}
-      <section className="rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-black/40 p-6 shadow-lg backdrop-blur">
-        <div className="flex flex-col gap-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h1 className="text-2xl font-semibold leading-none tracking-tight text-foreground dark:text-white">
-                Analyzed contracts
-              </h1>
-              <p className="mt-2 text-sm text-muted-foreground dark:text-zinc-400">
-                {data && data.total > 0 ? (
-                  <>
-                    {totalAnalyzed.toLocaleString()} analyzed packages
-                    {criticalAndHigh > 0 && (
-                      <span className="text-foreground/70 dark:text-white/70"> • {criticalAndHigh.toLocaleString()} high risk detected</span>
-                    )}
-                    {formattedLastUpdated && (
-                      <span className="text-muted-foreground dark:text-white/60">
-                        {' '}
-                        • Last updated {formattedLastUpdated}
+      <header className="space-y-4 sm:space-y-6">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground dark:text-white sm:text-3xl">
+            Dashboard
+          </h1>
+          <p className="mt-1.5 text-sm text-muted-foreground sm:text-base">
+            Monitor and analyze your Sui smart contracts
+          </p>
+        </div>
+
+        {/* Key Stats */}
+        {heroStats.length > 0 && (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {heroStats.map(({ key, label, value, meta, icon: Icon, accent = 'muted', span }) => {
+              const displayValue = typeof value === 'number' ? value.toLocaleString() : value;
+              
+              return (
+                <div
+                  key={key}
+                  className={cn(
+                    'flex flex-col justify-between rounded-lg border border-border/60 dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-white/5 px-4 py-3.5 transition-colors',
+                    span === 'double' && 'sm:col-span-2 lg:col-span-1',
+                  )}
+                >
+                  <div className="flex items-center gap-2 mb-2.5">
+                    <span className="rounded-md p-1.5 shrink-0 bg-foreground/5 text-foreground/70 dark:bg-white/10 dark:text-white/80">
+                      <Icon className="h-3.5 w-3.5" />
+                    </span>
+                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground truncate">
+                      {label}
+                    </span>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-2xl sm:text-3xl font-bold tabular-nums leading-none text-foreground dark:text-white">
+                      {displayValue}
+                    </span>
+                    {meta && (
+                      <span className="text-xs text-muted-foreground text-right leading-tight whitespace-nowrap">
+                        {meta}
                       </span>
                     )}
-                  </>
-                ) : (
-                  'No analyzed contracts yet'
-                )}
-              </p>
-            </div>
-            <Button
-              onClick={() => fetchAnalyzedContracts()}
-              variant="outline"
-              size="sm"
-              disabled={isRefreshing}
-              className={cn(
-                'h-9 rounded-md px-3 inline-flex items-center gap-2 border-[#D12226]/40 text-[#D12226] hover:bg-[#D12226]/10',
-                isRefreshing && 'pointer-events-none opacity-60',
-              )}
-            >
-              <RefreshCcw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
-              Refresh
-            </Button>
-          </div>
-
-          {/* Key Stats */}
-          {heroStats.length > 0 && (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {heroStats.map(({ key, label, value, meta, icon: Icon, accent = 'muted' }) => {
-                const displayValue = typeof value === 'number' ? value.toLocaleString() : value;
-                const isHighRisk = key === 'highRisk';
-                
-                return (
-                  <div
-                    key={key}
-                    className="rounded-2xl border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-black/40 p-4"
-                  >
-                    <div className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground dark:text-zinc-400">
-                      {label}
-                    </div>
-                    <div className={cn(
-                      'mt-2 text-3xl font-semibold tabular-nums',
-                      isHighRisk ? 'text-[#D12226]' : 'text-foreground dark:text-white'
-                    )}>
-                      {displayValue}
-                    </div>
-                    {meta && (
-                      <p className="mt-1 text-xs text-muted-foreground dark:text-zinc-500">
-                        {meta}
-                      </p>
-                    )}
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </section>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </header>
 
       {error && (
-        <Alert className="rounded-xl border border-[#D12226]/60 dark:border-[#D12226]/60 bg-[#D12226]/15 dark:bg-[#D12226]/15 text-foreground dark:text-white shadow-sm shadow-black/5 dark:shadow-white/5">
+        <Alert className="rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 text-foreground dark:text-white/90 shadow-sm shadow-black/5 dark:shadow-white/5 transition-colors duration-200">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
       {/* Controls: Search, Filters, Actions */}
-      <section className="rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-black/40 p-6 shadow-lg backdrop-blur">
-        <div className="space-y-6">
+      <section className="rounded-xl border border-border/60 dark:border-white/10 bg-card/50 dark:bg-white/5 p-4">
+        <div className="space-y-4">
           {/* Search and Filters Row */}
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="relative w-full md:max-w-sm">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground dark:text-zinc-500" />
-              <input
-                type="text"
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={handleSearchKeyDown}
                 placeholder="Search by package ID..."
-                className={cn(
-                  'w-full rounded-full border border-border dark:border-white/15 bg-[hsl(var(--surface-muted))] dark:bg-black/60 py-2 pl-11 pr-4 text-sm text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-zinc-500 focus:border-[#D12226] focus:outline-none focus:ring-2 focus:ring-[#D12226]/40',
-                  isSearching && 'pr-11'
-                )}
+                className={cn('h-9 pl-9 pr-9 text-sm', isSearching && 'pr-14')}
               />
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
-                {isSearching && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground dark:text-zinc-500" />}
-                {searchQuery && !isSearching && (
-                  <button onClick={clearSearch} className="p-0.5 text-muted-foreground hover:text-foreground dark:hover:text-white" aria-label="Clear search">
-                    <X className="h-4 w-4" />
+              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                {isSearching && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+                {searchQuery && (
+                  <button onClick={clearSearch} className="p-0.5 text-muted-foreground hover:text-foreground" aria-label="Clear search">
+                    <X className="h-3.5 w-3.5" />
                   </button>
                 )}
               </div>
             </div>
-            <div className="flex gap-2">
-              {(['all', ...RISK_LEVELS] as const).map((level) => {
-                const isAll = level === 'all';
-                const isActive = isAll 
-                  ? (selectedFilters.size === 0 || selectedFilters.size === RISK_LEVELS.length)
-                  : selectedFilters.has(level);
-                const label = isAll ? 'All' : getRiskLevelName(level);
-                const count = isAll ? totalAnalyzed : riskCounts[level] ?? 0;
-                const styles = isAll ? null : getRiskFilterStyles(level);
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setSelectedFilters(new Set(RISK_LEVELS));
+                }}
+                size="sm"
+                className={cn(
+                  'h-8 gap-1.5 rounded-full px-2.5 text-xs',
+                  (selectedFilters.size === 0 || selectedFilters.size === RISK_LEVELS.length)
+                    ? 'bg-muted/50 dark:bg-white/10 border-2'
+                    : ''
+                )}
+              >
+                <span>All</span>
+                {(data || riskStats) && (
+                  <span className={cn('ml-0.5 rounded px-1 text-[10px] font-semibold', (selectedFilters.size === 0 || selectedFilters.size === RISK_LEVELS.length) ? 'bg-background/80 dark:bg-white/20' : 'bg-muted/60 dark:bg-white/5')}>
+                    {totalAnalyzed.toLocaleString()}
+                  </span>
+                )}
+              </Button>
+              {RISK_LEVELS.map((level) => {
+                const isActive = selectedFilters.has(level);
+                const label = getRiskLevelName(level);
+                const count = riskCounts[level] ?? 0;
+                const styles = getRiskFilterStyles(level);
 
                 return (
                   <Button
@@ -484,34 +472,29 @@ export default function Dashboard() {
                     type="button"
                     variant="outline"
                     onClick={() => {
-                      if (isAll) {
-                        setSelectedFilters(new Set(RISK_LEVELS));
+                      const newFilters = new Set(selectedFilters);
+                      if (newFilters.has(level)) {
+                        newFilters.delete(level);
                       } else {
-                        const newFilters = new Set(selectedFilters);
-                        if (newFilters.has(level)) {
-                          newFilters.delete(level);
-                        } else {
-                          newFilters.add(level);
-                        }
-                        setSelectedFilters(newFilters);
+                        newFilters.add(level);
                       }
+                      setSelectedFilters(newFilters);
                     }}
                     size="sm"
                     className={cn(
-                      'h-9 rounded-md px-3 text-sm font-medium',
-                      isActive
-                        ? isAll
-                          ? 'bg-[#D12226] text-white border-[#D12226] hover:bg-[#a8181b]'
-                          : styles && cn(styles.bgActive, styles.borderActive, styles.text)
-                        : isAll
-                          ? 'border-border dark:border-white/15 text-foreground dark:text-white hover:bg-[hsl(var(--surface-elevated))] dark:hover:bg-white/10'
-                          : styles && cn(styles.border, styles.bg, styles.text, 'hover:bg-opacity-15')
+                      'h-8 gap-1.5 rounded-full px-2.5 text-xs',
+                      styles && cn(
+                        styles.border,
+                        styles.bg,
+                        styles.text,
+                        isActive && cn(styles.bgActive, styles.borderActive, 'border-2')
+                      )
                     )}
                   >
-                    {!isAll && <span className={cn('h-1.5 w-1.5 rounded-full mr-1.5', getRiskLevelDot(level))} />}
+                    <span className={cn('h-1.5 w-1.5 rounded-full', getRiskLevelDot(level))} />
                     <span>{label}</span>
-                    {(data || riskStats) && count > 0 && (
-                      <span className={cn('ml-1.5 rounded px-1.5 py-0.5 text-xs font-semibold', isActive ? 'bg-white/20' : 'bg-[hsl(var(--surface-elevated))] dark:bg-white/5')}>
+                    {(data || riskStats) && (
+                      <span className={cn('ml-0.5 rounded px-1 text-[10px] font-semibold', isActive ? 'bg-background/80 dark:bg-white/20' : 'bg-muted/60 dark:bg-white/5')}>
                         {count.toLocaleString()}
                       </span>
                     )}
@@ -523,13 +506,13 @@ export default function Dashboard() {
 
           {/* Active Filters */}
           {(debouncedSearchQuery || isRiskFiltered) && (
-            <div className="flex flex-wrap items-center gap-2 text-sm">
+            <div className="flex flex-wrap items-center gap-2 text-xs">
               {debouncedSearchQuery && (
-                <span className="flex items-center gap-1.5 rounded-full border border-border dark:border-white/15 bg-[hsl(var(--surface-muted))] dark:bg-black/60 px-3 py-1">
-                  <Search className="h-3.5 w-3.5 text-muted-foreground dark:text-zinc-500" />
-                  <span className="text-foreground dark:text-white">&apos;{debouncedSearchQuery}&apos;</span>
-                  <button onClick={clearSearch} className="p-0.5 hover:text-foreground dark:hover:text-white" aria-label="Clear search">
-                    <X className="h-3.5 w-3.5" />
+                <span className="flex items-center gap-1.5 rounded-full border border-border/60 dark:border-white/10 bg-muted/40 dark:bg-white/5 px-2 py-0.5">
+                  <Search className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-foreground">&apos;{debouncedSearchQuery}&apos;</span>
+                  <button onClick={clearSearch} className="p-0.5 hover:text-foreground" aria-label="Clear search">
+                    <X className="h-3 w-3" />
                   </button>
                 </span>
               )}
@@ -539,26 +522,26 @@ export default function Dashboard() {
                     const label = getRiskLevelName(level);
                     const styles = getRiskFilterStyles(level);
                     return (
-                      <span key={level} className="flex items-center gap-1.5 rounded-full border border-border dark:border-white/15 bg-[hsl(var(--surface-muted))] dark:bg-black/60 px-3 py-1">
+                      <span key={level} className="flex items-center gap-1.5 rounded-full border border-border/60 dark:border-white/10 bg-muted/40 dark:bg-white/5 px-2 py-0.5">
                         <span className={cn('h-1.5 w-1.5 rounded-full', styles.dot)} />
-                        <span className="text-foreground dark:text-white">{label}</span>
+                        <span className="text-foreground">{label}</span>
                         <button 
                           onClick={() => {
                             const newFilters = new Set(selectedFilters);
                             newFilters.delete(level);
                             setSelectedFilters(newFilters);
                           }} 
-                          className="p-0.5 hover:text-foreground dark:hover:text-white" 
+                          className="p-0.5 hover:text-foreground" 
                           aria-label={`Remove ${label} filter`}
                         >
-                          <X className="h-3.5 w-3.5" />
+                          <X className="h-3 w-3" />
                         </button>
                       </span>
                     );
                   })}
                   <button 
                     onClick={() => setSelectedFilters(new Set(RISK_LEVELS))} 
-                    className="text-sm text-muted-foreground hover:text-foreground dark:hover:text-white underline"
+                    className="text-xs text-muted-foreground hover:text-foreground underline"
                     aria-label="Show all filters"
                   >
                     Clear filters
@@ -568,28 +551,30 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Actions and Info Bar */}
-          <div className="flex flex-col gap-4 border-t border-border dark:border-white/10 pt-4 md:flex-row md:items-center md:justify-between">
+          {/* Actions Bar */}
+          <div className="flex flex-col gap-3 border-t border-border/60 dark:border-white/10 pt-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-2">
               <Link href="/analyze">
-                <Button size="sm" className="h-9 bg-[#D12226] text-white hover:bg-[#a8181b]">
-                  Analyze Contract
-                </Button>
+                <Button size="sm" className="h-8 gap-1.5 text-xs">➕ Analyze Contract</Button>
               </Link>
-              <Button onClick={toggleAutoRefresh} variant={autoRefresh ? 'default' : 'outline'} size="sm" className="h-9">
-                {autoRefresh ? <PauseCircle className="h-4 w-4 mr-1.5" /> : <PlayCircle className="h-4 w-4 mr-1.5" />}
+              <Button onClick={() => fetchAnalyzedContracts()} variant="outline" size="sm" disabled={isRefreshing} className="h-8 gap-1.5 text-xs">
+                <RefreshCcw className={cn('h-3 w-3', isRefreshing && 'animate-spin')} />
+                Refresh
+              </Button>
+              <Button onClick={toggleAutoRefresh} variant={autoRefresh ? 'default' : 'outline'} size="sm" className="h-8 gap-1.5 text-xs">
+                {autoRefresh ? <PauseCircle className="h-3 w-3" /> : <PlayCircle className="h-3 w-3" />}
                 {autoRefresh ? 'Pause' : 'Resume'}
               </Button>
             </div>
-            <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground dark:text-zinc-400">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               {formattedLastUpdated && (
-                <span>
+                <span className="rounded-full border border-border/60 dark:border-white/10 bg-muted/40 dark:bg-white/5 px-2 py-0.5">
                   Updated {formattedLastUpdated}
                   {autoRefresh && ` • ${refreshCountdown}s`}
                 </span>
               )}
-              <span className="text-foreground dark:text-white font-medium">
-                {filteredContracts.length} of {data?.total ?? 0}
+              <span className="text-foreground font-medium">
+                {filteredContracts.length} of {data?.total ?? 0} contracts
                 {totalPages > 1 && ` • Page ${currentPage}/${totalPages}`}
               </span>
             </div>
@@ -597,13 +582,13 @@ export default function Dashboard() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex flex-col gap-4 border-t border-border dark:border-white/10 pt-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-col gap-3 border-t border-border/60 dark:border-white/10 pt-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground dark:text-zinc-400 whitespace-nowrap">Show:</span>
+                <span className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap">Show:</span>
                 <select
                   value={pageSize}
                   onChange={(e) => setPaginationPageSize(Number.parseInt(e.target.value, 10))}
-                  className="h-9 rounded-md border border-border dark:border-white/15 bg-[hsl(var(--surface-muted))] dark:bg-black/60 px-3 text-sm text-foreground dark:text-white transition-colors focus:border-[#D12226] focus:outline-none focus:ring-2 focus:ring-[#D12226]/40"
+                  className="h-8 rounded-md border border-border/60 dark:border-white/10 bg-background/60 dark:bg-white/5 px-2.5 text-xs sm:text-sm text-foreground transition-colors focus:border-[#D12226]/50 focus:outline-none focus:ring-2 focus:ring-[#D12226]/20 dark:focus:border-[#D12226]/50 dark:focus:ring-[#D12226]/20"
                 >
                   {PAGE_SIZE_OPTIONS.map((size) => (
                     <option key={size} value={size}>
@@ -611,23 +596,23 @@ export default function Dashboard() {
                     </option>
                   ))}
                 </select>
-                <span className="text-sm text-muted-foreground dark:text-zinc-400 hidden sm:inline">per page</span>
+                <span className="text-xs sm:text-sm text-muted-foreground hidden sm:inline">per page</span>
               </div>
 
               <div className="flex items-center justify-center gap-1 sm:gap-1.5">
                 {currentPage > 4 && totalPages > 7 && (
                   <>
-                <Button
-                  onClick={() => goToPage(1)}
-                  variant="outline"
-                  size="sm"
-                  className="h-9 w-9 p-0 border-border dark:border-white/15 hover:bg-[hsl(var(--surface-elevated))] dark:hover:bg-white/10"
-                  aria-label="First page"
-                >
-                  <ChevronsLeft className="h-4 w-4" />
-                </Button>
+                    <Button
+                      onClick={() => goToPage(1)}
+                      variant="outline"
+                      size="sm"
+                      className="h-8 w-8 p-0 border-border/60 dark:border-white/10 hover:bg-muted/50 dark:hover:bg-white/10"
+                      aria-label="First page"
+                    >
+                      <ChevronsLeft className="h-3.5 w-3.5" />
+                    </Button>
                     {currentPage > 5 && (
-                      <span className="px-1 text-sm text-muted-foreground dark:text-zinc-400">...</span>
+                      <span className="px-1 text-xs text-muted-foreground">...</span>
                     )}
                   </>
                 )}
@@ -637,11 +622,11 @@ export default function Dashboard() {
                   disabled={!hasPreviousPage}
                   variant="outline"
                   size="sm"
-                  className="h-9 px-3 border-border dark:border-white/15 text-foreground dark:text-white hover:bg-[hsl(var(--surface-elevated))] dark:hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="h-8 px-2.5 border-border/60 dark:border-white/10 hover:bg-muted/50 dark:hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed"
                   aria-label="Previous page"
                 >
-                  <ChevronLeft className="h-4 w-4 mr-1" />
-                  <span className="hidden sm:inline text-sm">Prev</span>
+                  <ChevronLeft className="h-3.5 w-3.5 mr-0.5" />
+                  <span className="hidden sm:inline text-xs">Prev</span>
                 </Button>
 
                 <div className="flex items-center gap-1">
@@ -664,10 +649,10 @@ export default function Dashboard() {
                         variant={currentPage === pageNum ? 'default' : 'outline'}
                         size="sm"
                         className={cn(
-                          'h-9 min-w-9 px-3 text-sm font-medium transition-all',
+                          'h-8 min-w-8 px-2 text-xs font-medium transition-all',
                           currentPage === pageNum
-                            ? 'bg-[#D12226] text-white border-[#D12226] hover:bg-[#a8181b]'
-                            : 'border-border dark:border-white/15 text-foreground dark:text-white hover:bg-[hsl(var(--surface-elevated))] dark:hover:bg-white/10'
+                            ? 'bg-[#D12226] text-white border-[#D12226] hover:bg-[#B31B1E] dark:bg-[#D12226] dark:hover:bg-[#ff6b6e] shadow-sm'
+                            : 'border-border/60 dark:border-white/10 hover:bg-muted/50 dark:hover:bg-white/10'
                         )}
                         aria-label={`Page ${pageNum}`}
                         aria-current={currentPage === pageNum ? 'page' : undefined}
@@ -683,26 +668,26 @@ export default function Dashboard() {
                   disabled={!hasNextPage}
                   variant="outline"
                   size="sm"
-                  className="h-9 px-3 border-border dark:border-white/15 text-foreground dark:text-white hover:bg-[hsl(var(--surface-elevated))] dark:hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="h-8 px-2.5 border-border/60 dark:border-white/10 hover:bg-muted/50 dark:hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed"
                   aria-label="Next page"
                 >
-                  <span className="hidden sm:inline text-sm">Next</span>
-                  <ChevronRight className="h-4 w-4 ml-1" />
+                  <span className="hidden sm:inline text-xs">Next</span>
+                  <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
                 </Button>
 
                 {currentPage < totalPages - 3 && totalPages > 7 && (
                   <>
                     {currentPage < totalPages - 4 && (
-                      <span className="px-1 text-sm text-muted-foreground dark:text-zinc-400">...</span>
+                      <span className="px-1 text-xs text-muted-foreground">...</span>
                     )}
                     <Button
                       onClick={() => goToPage(totalPages)}
                       variant="outline"
                       size="sm"
-                      className="h-9 w-9 p-0 border-border dark:border-white/15 hover:bg-[hsl(var(--surface-elevated))] dark:hover:bg-white/10"
+                      className="h-8 w-8 p-0 border-border/60 dark:border-white/10 hover:bg-muted/50 dark:hover:bg-white/10"
                       aria-label="Last page"
                     >
-                      <ChevronsRight className="h-4 w-4" />
+                      <ChevronsRight className="h-3.5 w-3.5" />
                     </Button>
                   </>
                 )}
@@ -713,8 +698,8 @@ export default function Dashboard() {
       </section>
 
       {pauseReason === 'details' && !autoRefresh && (
-        <Alert className="border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-black/40">
-          <AlertDescription className="text-sm text-foreground dark:text-white">
+        <Alert className="border-border/60 dark:border-white/10 bg-card/50 dark:bg-white/5">
+          <AlertDescription className="text-sm">
             Auto-refresh paused while viewing contract details. Resume from the toolbar above.
           </AlertDescription>
         </Alert>
@@ -723,22 +708,20 @@ export default function Dashboard() {
       {/* Contract List */}
       <section className="space-y-4">
         {isEmptyState ? (
-          <div className="rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-black/40 p-12 text-center shadow-lg backdrop-blur">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-black/40 text-2xl mb-4">
+          <div className="rounded-xl border border-border/60 dark:border-white/10 bg-card/50 dark:bg-white/5 p-12 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-border/60 dark:border-white/10 bg-muted/40 dark:bg-white/5 text-2xl mb-4">
               📊
             </div>
             <h3 className="text-lg font-semibold text-foreground dark:text-white mb-2">{emptyTitle}</h3>
-            <p className="text-sm text-muted-foreground dark:text-zinc-400 mb-6">{emptySubtitle}</p>
+            <p className="text-sm text-muted-foreground mb-6">{emptySubtitle}</p>
             <div className="flex justify-center gap-2">
               {debouncedSearchQuery && (
-                <Button onClick={clearSearch} variant="outline" size="sm" className="border-border dark:border-white/15">
+                <Button onClick={clearSearch} variant="outline" size="sm">
                   Clear Search
                 </Button>
               )}
               <Link href="/analyze">
-                <Button size="sm" className="bg-[#D12226] text-white hover:bg-[#a8181b]">
-                  Analyze Contract
-                </Button>
+                <Button size="sm">Analyze Contract</Button>
               </Link>
             </div>
           </div>

@@ -486,6 +486,79 @@ export async function getRecentAnalyses(options: {
 }
 
 /**
+ * Get aggregated risk-level counts matching the provided filter
+ */
+export async function getRiskLevelCounts(options: {
+  packageId?: string | null;
+} = {}): Promise<{
+  success: boolean;
+  counts: Record<'critical' | 'high' | 'moderate' | 'low', number>;
+  error?: string;
+}> {
+  try {
+    if (!supabase) {
+      return {
+        success: false,
+        counts: {
+          critical: 0,
+          high: 0,
+          moderate: 0,
+          low: 0,
+        },
+        error: 'Supabase client not initialized'
+      };
+    }
+
+    const { packageId = null } = options;
+    const levels: Array<'critical' | 'high' | 'moderate' | 'low'> = ['critical', 'high', 'moderate', 'low'];
+    const counts: Record<'critical' | 'high' | 'moderate' | 'low', number> = {
+      critical: 0,
+      high: 0,
+      moderate: 0,
+      low: 0,
+    };
+
+    await Promise.all(
+      levels.map(async (level) => {
+        let query = supabase
+          .from('contract_analyses')
+          .select('id', { count: 'exact', head: true })
+          .eq('risk_level', level);
+
+        if (packageId) {
+          query = query.eq('package_id', packageId);
+        }
+
+        const { count, error } = await query;
+        if (!error && typeof count === 'number') {
+          counts[level] = count;
+        } else if (error) {
+          console.error(`Failed to get ${level} risk count:`, error);
+        }
+      }),
+    );
+
+    return {
+      success: true,
+      counts,
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Unexpected error in getRiskLevelCounts:', error);
+    return {
+      success: false,
+      counts: {
+        critical: 0,
+        high: 0,
+        moderate: 0,
+        low: 0,
+      },
+      error: errorMessage,
+    };
+  }
+}
+
+/**
  * Get high-risk contract analyses
  */
 export async function getHighRiskAnalyses(options: {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
-import { ChevronDown, Copy, ExternalLink, Check, Package, Network, Clock, Users, FileText, AlertTriangle, Gauge } from 'lucide-react';
+import { ChevronDown, ChevronRight, Copy, ExternalLink, Check, Package, Network, Clock, Users, FileText, AlertTriangle, Gauge } from 'lucide-react';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,8 @@ interface AnalyzedContractCardProps {
 
 const DEFAULT_VISIBLE_FUNCTIONS = 3;
 const DEFAULT_VISIBLE_INDICATORS = 2;
+
+const getFunctionKey = (functionName: string, index: number) => `${functionName}-${index}`;
 
 function formatRelativeTime(timestamp: string) {
   const parsed = new Date(timestamp);
@@ -68,6 +70,7 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
   const [showAllFunctions, setShowAllFunctions] = useState(false);
   const [showAllIndicators, setShowAllIndicators] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [expandedFunctions, setExpandedFunctions] = useState<Record<string, boolean>>({});
 
   const toggleFunctions = useCallback(() => {
     if (!showAllFunctions && onAutoRefreshPause) {
@@ -86,10 +89,18 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
   const relativeAnalyzedAt = useMemo(() => formatRelativeTime(contract.analyzed_at), [contract.analyzed_at]);
   const absoluteAnalyzedAt = useMemo(() => new Date(contract.analyzed_at).toLocaleString(), [contract.analyzed_at]);
   const explorerUrl = useMemo(() => getSuiPackageExplorerUrl(contract.package_id, contract.network), [contract.package_id, contract.network]);
+  const allRiskyFunctions = useMemo(
+    () =>
+      contract.analysis.risky_functions.map((func, originalIndex) => ({
+        data: func,
+        originalIndex,
+      })),
+    [contract.analysis.risky_functions],
+  );
 
-  const riskyFunctions = showAllFunctions
-    ? contract.analysis.risky_functions
-    : contract.analysis.risky_functions.slice(0, DEFAULT_VISIBLE_FUNCTIONS);
+  const visibleRiskyFunctions = showAllFunctions
+    ? allRiskyFunctions
+    : allRiskyFunctions.slice(0, DEFAULT_VISIBLE_FUNCTIONS);
 
   const rugPullIndicators = showAllIndicators
     ? contract.analysis.rug_pull_indicators
@@ -97,6 +108,14 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
 
   const hasRiskyFunctions = contract.analysis.risky_functions.length > 0;
   const hasRugPullIndicators = contract.analysis.rug_pull_indicators.length > 0;
+
+  const allFunctionsExpanded = useMemo(() => {
+    if (!contract.analysis.risky_functions.length) {
+      return false;
+    }
+
+    return contract.analysis.risky_functions.every((func, index) => expandedFunctions[getFunctionKey(func.function_name, index)]);
+  }, [contract.analysis.risky_functions, expandedFunctions]);
 
   const handleCopyPackageId = useCallback(async () => {
     try {
@@ -107,6 +126,42 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
       console.error('Failed to copy package id', err);
     }
   }, [contract.package_id]);
+
+  const handleToggleFunctionContent = useCallback(
+    (key: string) => {
+      setExpandedFunctions((prev) => {
+        const nextExpanded = !prev[key];
+        const nextState = {
+          ...prev,
+          [key]: nextExpanded,
+        };
+
+        if (nextExpanded && onAutoRefreshPause) {
+          onAutoRefreshPause();
+        }
+
+        return nextState;
+      });
+    },
+    [onAutoRefreshPause],
+  );
+
+  const handleToggleAllFunctionContent = useCallback(() => {
+    setExpandedFunctions((prev) => {
+      const nextExpanded = !allFunctionsExpanded;
+      const nextState = { ...prev };
+
+      contract.analysis.risky_functions.forEach((func, index) => {
+        nextState[getFunctionKey(func.function_name, index)] = nextExpanded;
+      });
+
+      return nextState;
+    });
+
+    if (!allFunctionsExpanded && onAutoRefreshPause) {
+      onAutoRefreshPause();
+    }
+  }, [allFunctionsExpanded, contract.analysis.risky_functions, onAutoRefreshPause]);
 
   return (
     <Card className="border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 text-foreground dark:text-white shadow-sm shadow-black/5 dark:shadow-white/5 transition-colors duration-200 hover:border-border/50 dark:hover:border-white/20">
@@ -135,48 +190,50 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
                 <span className="text-xs font-medium text-muted-foreground leading-tight">/ 100</span>
               </div>
             </div>
-            <div className="flex items-center gap-1 min-w-0 relative">
-              <CardTitle 
-                className="font-mono text-sm font-semibold text-foreground dark:text-white truncate cursor-pointer hover:text-primary transition-colors min-w-0"
+            <div className="flex flex-wrap items-center gap-1 min-w-0 relative">
+              <CardTitle
+                className="min-w-0 flex-1 break-all font-mono text-sm font-semibold text-foreground dark:text-white sm:break-normal sm:truncate"
                 onClick={handleCopyPackageId}
                 title={`${contract.package_id} - Click to copy`}
               >
                 {contract.package_id}
               </CardTitle>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleCopyPackageId}
-                className="h-7 w-7 p-0 shrink-0 text-muted-foreground hover:text-foreground dark:hover:text-white relative group"
-                aria-label="Copy package id"
-                title={copied ? 'Copied to clipboard!' : `Copy package ID to clipboard\n\n${contract.package_id}`}
-              >
-                {copied ? (
-                  <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-300" />
-                ) : (
-                  <Copy className="h-3.5 w-3.5" />
-                )}
-                {!copied && (
+              <div className="flex w-full items-center justify-start gap-1 sm:w-auto sm:justify-end">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleCopyPackageId}
+                  className="h-7 w-7 p-0 shrink-0 text-muted-foreground hover:text-foreground dark:hover:text-white relative group"
+                  aria-label="Copy package id"
+                  title={copied ? 'Copied to clipboard!' : `Copy package ID to clipboard\n\n${contract.package_id}`}
+                >
+                  {copied ? (
+                    <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-300" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5" />
+                  )}
+                  {!copied && (
+                    <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap px-2 py-1 text-xs font-medium text-white bg-gray-900 dark:bg-gray-800 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50">
+                      Copy package ID
+                      <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-800"></span>
+                    </span>
+                  )}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => window.open(explorerUrl, '_blank', 'noopener,noreferrer')}
+                  className="h-7 w-7 p-0 shrink-0 text-muted-foreground hover:text-foreground dark:hover:text-white relative group"
+                  aria-label="View on Sui Explorer"
+                  title={`View this package on Sui Explorer (${contract.network})\n\nOpens in a new tab`}
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
                   <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap px-2 py-1 text-xs font-medium text-white bg-gray-900 dark:bg-gray-800 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50">
-                    Copy package ID
+                    View on Sui Explorer
                     <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-800"></span>
                   </span>
-                )}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => window.open(explorerUrl, '_blank', 'noopener,noreferrer')}
-                className="h-7 w-7 p-0 shrink-0 text-muted-foreground hover:text-foreground dark:hover:text-white relative group"
-                aria-label="View on Sui Explorer"
-                title={`View this package on Sui Explorer (${contract.network})\n\nOpens in a new tab`}
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-                <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap px-2 py-1 text-xs font-medium text-white bg-gray-900 dark:bg-gray-800 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50">
-                  View on Sui Explorer
-                  <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-800"></span>
-                </span>
-              </Button>
+                </Button>
+              </div>
               <div
                 className={cn(
                   'fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-lg border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50 dark:bg-emerald-900/20 px-4 py-2.5 shadow-lg transition-all duration-200',
@@ -232,54 +289,100 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
           <div className="space-y-4">
             {hasRiskyFunctions && (
               <div className="space-y-2">
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <h5 className="text-sm font-semibold text-foreground dark:text-white flex items-center gap-1.5">
                     <AlertTriangle className="h-4 w-4" />
                     Risky Functions ({contract.analysis.risky_functions.length})
                   </h5>
-                  {contract.analysis.risky_functions.length > DEFAULT_VISIBLE_FUNCTIONS && (
+                  <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto sm:justify-end">
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={toggleFunctions}
-                      className="inline-flex items-center gap-1 px-2 h-7 text-xs font-semibold text-[#D12226] hover:bg-[#D12226]/15 hover:text-white"
+                      onClick={handleToggleAllFunctionContent}
+                      disabled={!contract.analysis.risky_functions.length}
+                      className="inline-flex h-9 w-full items-center justify-center gap-1 px-2 text-xs font-semibold text-[#D12226] hover:bg-[#D12226]/15 hover:text-white sm:h-7 sm:w-auto"
                     >
-                      {showAllFunctions
-                        ? 'Less'
-                        : `+${contract.analysis.risky_functions.length - DEFAULT_VISIBLE_FUNCTIONS}`}
+                      {allFunctionsExpanded ? 'Fold all' : 'Unfold all'}
                       <ChevronDown
-                        className={cn('h-3.5 w-3.5 transition-transform', showAllFunctions && 'rotate-180')}
+                        className={cn('h-3.5 w-3.5 transition-transform', allFunctionsExpanded && 'rotate-180')}
                       />
                     </Button>
-                  )}
+                    {contract.analysis.risky_functions.length > DEFAULT_VISIBLE_FUNCTIONS && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={toggleFunctions}
+                        className="inline-flex h-9 w-full items-center justify-center gap-1 px-2 text-xs font-semibold text-[#D12226] hover:bg-[#D12226]/15 hover:text-white sm:h-7 sm:w-auto"
+                      >
+                        {showAllFunctions ? 'Show less' : `Show all (+${contract.analysis.risky_functions.length - DEFAULT_VISIBLE_FUNCTIONS})`}
+                        <ChevronDown
+                          className={cn('h-3.5 w-3.5 transition-transform', showAllFunctions && 'rotate-180')}
+                        />
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <div className="space-y-2">
-                  {riskyFunctions.map((func, index) => (
-                    <div
-                      key={`${func.function_name}-${index}`}
-                      className={cn(
-                        'space-y-1.5 rounded-lg px-3 py-2 text-sm backdrop-blur',
-                        getRiskLevelSubtle(contract.analysis.risk_level),
-                      )}
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <span className={cn('font-mono text-sm font-semibold', getRiskLevelSubtleText(contract.analysis.risk_level))}>
-                          {func.function_name}
-                        </span>
-                        <span className={cn('text-xs font-medium uppercase tracking-wide', getRiskLevelEmphasis(contract.analysis.risk_level))}>
-                          {getRiskLevelIcon(contract.analysis.risk_level)} {getRiskLevelName(contract.analysis.risk_level)}
-                        </span>
+                  {visibleRiskyFunctions.map(({ data: func, originalIndex }) => {
+                    const functionKey = getFunctionKey(func.function_name, originalIndex);
+                    const isExpanded = Boolean(expandedFunctions[functionKey]);
+
+                    return (
+                      <div
+                        key={functionKey}
+                        className={cn(
+                          'rounded-lg border border-transparent px-3 py-2 text-sm transition-colors duration-150 backdrop-blur',
+                          getRiskLevelSubtle(contract.analysis.risk_level),
+                          isExpanded && 'border-border dark:border-white/15',
+                        )}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => handleToggleFunctionContent(functionKey)}
+                          className="flex w-full flex-wrap items-start gap-2 text-left sm:flex-nowrap sm:items-center sm:justify-between sm:gap-3"
+                          aria-expanded={isExpanded}
+                        >
+                          <span className="flex min-w-0 flex-1 items-start gap-2">
+                            <ChevronRight
+                              className={cn(
+                                'mt-0.5 h-4 w-4 shrink-0 text-[#D12226] transition-transform duration-150 sm:mt-0',
+                                isExpanded && 'rotate-90',
+                              )}
+                            />
+                            <span
+                              className={cn(
+                                'whitespace-pre-wrap wrap-break-word font-mono text-sm font-semibold leading-5',
+                                getRiskLevelSubtleText(contract.analysis.risk_level),
+                              )}
+                            >
+                              {func.function_name}
+                            </span>
+                          </span>
+                          <span
+                            className={cn(
+                              'mt-1 flex w-full items-center gap-1 text-xs font-medium uppercase tracking-wide text-left sm:mt-0 sm:w-auto sm:justify-end sm:text-right sm:whitespace-nowrap',
+                              getRiskLevelEmphasis(contract.analysis.risk_level),
+                            )}
+                          >
+                            {getRiskLevelIcon(contract.analysis.risk_level)}
+                            <span className="font-semibold">{getRiskLevelName(contract.analysis.risk_level)}</span>
+                          </span>
+                        </button>
+                        {isExpanded && (
+                          <p className={cn('mt-2 text-sm leading-5', getRiskLevelSubtleText(contract.analysis.risk_level), 'opacity-90')}>
+                            {func.reason}
+                          </p>
+                        )}
                       </div>
-                      <p className={cn('text-sm leading-5', getRiskLevelSubtleText(contract.analysis.risk_level), 'opacity-90')}>{func.reason}</p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
 
             {hasRugPullIndicators && (
               <div className="space-y-2">
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <h5 className="text-sm font-semibold text-[#D12226] dark:text-[#ff6b6e] flex items-center gap-1.5">
                     <span>⚠️</span>
                     <span>Rug Pull Indicators ({contract.analysis.rug_pull_indicators.length})</span>
@@ -289,7 +392,7 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
                       variant="ghost"
                       size="sm"
                       onClick={toggleIndicators}
-                      className="inline-flex items-center gap-1 px-2 h-7 text-xs font-semibold text-[#D12226] hover:bg-[#D12226]/15 hover:text-white dark:text-[#ff6b6e] dark:hover:bg-[#D12226]/20"
+                      className="inline-flex h-9 w-full items-center justify-center gap-1 px-2 text-xs font-semibold text-[#D12226] hover:bg-[#D12226]/15 hover:text-white dark:text-[#ff6b6e] dark:hover:bg-[#D12226]/20 sm:h-7 sm:w-auto"
                     >
                       {showAllIndicators
                         ? 'Less'
@@ -332,14 +435,14 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
                 Data Source
               </h6>
               <div className="space-y-2">
-                <div className="group flex items-center justify-between gap-3 rounded-md px-2 py-1.5 -mx-2 -my-1.5 hover:bg-background/50 dark:hover:bg-white/5 transition-colors">
+                <div className="group flex flex-wrap items-center justify-between gap-3 rounded-md px-2 py-1.5 -mx-2 -my-1.5 hover:bg-background/50 dark:hover:bg-white/5 transition-colors">
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     <Package className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                     <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground shrink-0">Package</dt>
                   </div>
-                  <div className="flex items-center gap-1.5 min-w-0 flex-1 justify-end">
+                  <div className="flex w-full items-center gap-1.5 min-w-0 flex-1 justify-end sm:w-auto">
                     <dd 
-                      className="font-mono text-xs text-foreground dark:text-white truncate cursor-pointer hover:text-primary transition-colors"
+                      className="font-mono text-xs text-foreground dark:text-white break-all cursor-pointer hover:text-primary transition-colors sm:truncate"
                       onClick={handleCopyPackageId}
                       title={`${contract.package_id} - Click to copy`}
                     >
@@ -360,7 +463,7 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
                     </Button>
                   </div>
                 </div>
-                <div className="flex items-center justify-between gap-3 rounded-md px-2 py-1.5 -mx-2 -my-1.5">
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-md px-2 py-1.5 -mx-2 -my-1.5">
                   <div className="flex items-center gap-2">
                     <Network className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                     <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Network</dt>
@@ -369,7 +472,7 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
                     {contract.network}
                   </dd>
                 </div>
-                <div className="flex items-center justify-between gap-3 rounded-md px-2 py-1.5 -mx-2 -my-1.5">
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-md px-2 py-1.5 -mx-2 -my-1.5">
                   <div className="flex items-center gap-2">
                     <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                     <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Generated</dt>

@@ -25,6 +25,13 @@ export interface DashboardData {
   limit: number;           // Page size
   offset: number;          // Current offset
   contracts: AnalyzedContract[];
+  risk_counts?: {
+    critical: number;
+    high: number;
+    moderate: number;
+    low: number;
+  };
+  last_updated?: string;
   message?: string;
   timestamp?: string;
 }

@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import { testSupabaseConnection, getDeployments, getAnalysisResult, getRecentAnalyses, getHighRiskAnalyses } from './lib/supabase';
+import { testSupabaseConnection, getDeployments, getAnalysisResult, getRecentAnalyses, getHighRiskAnalyses, getRiskLevelCounts } from './lib/supabase';
 import { getRecentPublishTransactions, testSuiConnection } from './lib/sui-client';
 import { startMonitoring, stopMonitoring, getMonitoringStatus } from './workers/sui-monitor';
 import { runFullAnalysisChain, getAnalysis } from './lib/llm-analyzer';
@@ -625,6 +625,10 @@ app.get('/api/llm/analyzed-contracts', async (req, res) => {
         analyzed_at: analysis.analyzed_at
       }));
 
+      const riskCountsResult = await getRiskLevelCounts({ packageId });
+      const riskCounts = riskCountsResult.success ? riskCountsResult.counts : undefined;
+      const lastAnalyzed = offset === 0 && contracts.length > 0 ? contracts[0].analyzed_at : null;
+
       res.json({
         success: true,
         message: 'Analyzed contracts retrieved successfully',
@@ -632,7 +636,9 @@ app.get('/api/llm/analyzed-contracts', async (req, res) => {
         total: result.totalCount,
         limit,
         offset,
-        contracts
+        contracts,
+        risk_counts: riskCounts,
+        last_updated: lastAnalyzed
       });
     } else {
       res.status(500).json({
