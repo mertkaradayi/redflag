@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import Link from 'next/link';
-import { PauseCircle, PlayCircle, RefreshCcw, X, Search, Loader2 } from 'lucide-react';
+import { PauseCircle, PlayCircle, RefreshCcw, X, Search, Loader2, BarChart3, Filter, ShieldAlert, Timer, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,7 @@ import { usePagination } from '@/app/dashboard/usePagination';
 import { cn } from '@/lib/utils';
 
 const AUTO_REFRESH_SECONDS = 30;
-const RISK_FILTERS: Array<'all' | 'critical' | 'high' | 'moderate' | 'low'> = ['all', 'critical', 'high', 'moderate', 'low'];
+const RISK_LEVELS: Array<'critical' | 'high' | 'moderate' | 'low'> = ['critical', 'high', 'moderate', 'low'];
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100, 200];
 
@@ -28,7 +28,7 @@ export default function Dashboard() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<'all' | 'critical' | 'high' | 'moderate' | 'low'>('all');
+  const [selectedFilters, setSelectedFilters] = useState<Set<'critical' | 'high' | 'moderate' | 'low'>>(new Set(RISK_LEVELS));
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const searchDebounceTimer = useRef<NodeJS.Timeout | null>(null);
@@ -94,7 +94,8 @@ export default function Dashboard() {
 
       if (result.success) {
         setData(result);
-        setLastUpdated(new Date());
+        const updatedAt = result.last_updated ? new Date(result.last_updated) : new Date();
+        setLastUpdated(Number.isNaN(updatedAt.getTime()) ? new Date() : updatedAt);
         setRefreshCountdown(AUTO_REFRESH_SECONDS);
 
         const needsReset = offset >= result.total && result.total > 0;
@@ -176,8 +177,13 @@ export default function Dashboard() {
     if (!data) {
       return [];
     }
-    return data.contracts.filter((contract) => filter === 'all' || contract.analysis.risk_level === filter);
-  }, [data, filter]);
+    // Show all if all filters are selected or none are selected (empty set means show all)
+    if (selectedFilters.size === 0 || selectedFilters.size === RISK_LEVELS.length) {
+      return data.contracts;
+    }
+    // Filter by selected risk levels
+    return data.contracts.filter((contract) => selectedFilters.has(contract.analysis.risk_level));
+  }, [data, selectedFilters]);
 
   const riskStats = useMemo(() => {
     if (!data) {
@@ -201,6 +207,88 @@ export default function Dashboard() {
     };
   }, [data]);
 
+  const riskCounts = useMemo(() => {
+    const countsFromResponse = data?.risk_counts;
+    if (countsFromResponse) {
+      return countsFromResponse;
+    }
+    if (riskStats) {
+      return riskStats.counts;
+    }
+    return {
+      critical: 0,
+      high: 0,
+      moderate: 0,
+      low: 0,
+    };
+  }, [data?.risk_counts, riskStats]);
+
+  const totalAnalyzed = useMemo(() => {
+    if (typeof data?.total === 'number') {
+      return data.total;
+    }
+    return riskCounts.critical + riskCounts.high + riskCounts.moderate + riskCounts.low;
+  }, [data?.total, riskCounts]);
+
+  const formattedLastUpdated = useMemo(() => {
+    if (!lastUpdated) {
+      return null;
+    }
+    return lastUpdated.toLocaleString();
+  }, [lastUpdated]);
+
+  const heroStats = useMemo(() => {
+    if (!data && !riskStats) {
+      return [];
+    }
+
+    const visible = filteredContracts.length;
+    const visiblePercent = totalAnalyzed > 0 ? Math.round((visible / totalAnalyzed) * 100) : null;
+    const criticalAndHigh = riskCounts.critical + riskCounts.high;
+
+    return [
+      {
+        key: 'total',
+        label: 'Analyzed packages',
+        value: totalAnalyzed,
+        meta: 'All time',
+        icon: BarChart3,
+        accent: 'info' as const,
+        span: 'double' as const,
+      },
+      {
+        key: 'highRisk',
+        label: 'High risk detected',
+        value: criticalAndHigh,
+        meta: `${riskCounts.critical.toLocaleString()} critical • ${riskCounts.high.toLocaleString()} high`,
+        icon: ShieldAlert,
+        accent: 'alert' as const,
+      },
+      {
+        key: 'visible',
+        label: 'In current view',
+        value: visible,
+        meta: visiblePercent !== null ? `${visiblePercent}% of total` : null,
+        icon: Filter,
+        accent: 'muted' as const,
+      },
+      {
+        key: 'refresh',
+        label: autoRefresh ? 'Auto-refresh' : 'Refresh paused',
+        value: autoRefresh ? `${refreshCountdown}s` : 'Manual',
+        meta: autoRefresh
+          ? formattedLastUpdated
+            ? `Updated ${formattedLastUpdated}`
+            : 'Until next sync'
+          : pauseReason === 'details'
+            ? 'Paused while exploring details'
+            : 'Use toolbar controls to resume',
+        icon: Timer,
+        accent: autoRefresh ? 'muted' : 'alert',
+      },
+    ];
+  }, [autoRefresh, data, filteredContracts.length, formattedLastUpdated, pauseReason, refreshCountdown, riskCounts, riskStats, totalAnalyzed]);
+
   // Handle search input Enter key (instant submit)
   const handleSearchKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -219,13 +307,6 @@ export default function Dashboard() {
     setDebouncedSearchQuery('');
     goToPage(1);
   }, [goToPage]);
-
-  const formattedLastUpdated = useMemo(() => {
-    if (!lastUpdated) {
-      return null;
-    }
-    return lastUpdated.toLocaleString();
-  }, [lastUpdated]);
 
   const pauseAutoRefreshFromDetails = useCallback(() => {
     setAutoRefresh((prev) => {
@@ -249,15 +330,17 @@ export default function Dashboard() {
   }, []);
 
   const isEmptyState = !loading && filteredContracts.length === 0;
-  const isRiskFiltered = filter !== 'all';
-  const activeRiskLabel = isRiskFiltered ? getRiskLevelName(filter) : null;
-  const activeRiskStyle = isRiskFiltered ? getRiskFilterStyles(filter) : null;
+  const isRiskFiltered = selectedFilters.size > 0 && selectedFilters.size < RISK_LEVELS.length;
+  const activeFilters = isRiskFiltered 
+    ? RISK_LEVELS.filter(level => selectedFilters.has(level))
+    : [];
+  const activeFilterLabels = activeFilters.map(level => getRiskLevelName(level));
   const emptyTitle = debouncedSearchQuery
-    ? activeRiskLabel
-      ? `No ${activeRiskLabel} contracts match "${debouncedSearchQuery}"`
+    ? activeFilterLabels.length > 0
+      ? `No ${activeFilterLabels.join(', ')} contracts match "${debouncedSearchQuery}"`
       : `No contracts found for "${debouncedSearchQuery}"`
-    : activeRiskLabel
-      ? `No ${activeRiskLabel} contracts yet`
+    : activeFilterLabels.length > 0
+      ? `No ${activeFilterLabels.join(', ')} contracts yet`
       : 'No analyzed contracts yet';
   const emptySubtitle = debouncedSearchQuery
     ? 'Adjust your filters or verify the package ID to keep exploring.'
@@ -275,80 +358,124 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 pb-24 transition-colors duration-200 sm:px-8 lg:px-16">
-        <header className="rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 p-6 shadow-sm shadow-black/5 dark:shadow-white/5 transition-colors duration-200">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-            <div className="flex-1 space-y-2">
-              <h1 className="text-2xl font-semibold tracking-tight text-foreground dark:text-white sm:text-3xl lg:text-4xl">
-                Monitor your analyzed Sui contracts at a glance.
+    <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 pb-24 transition-colors duration-200 sm:px-8 lg:gap-8 lg:px-16">
+      {/* Header: Title + Key Stats */}
+      <section className="rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-black/40 p-6 shadow-lg backdrop-blur">
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h1 className="text-2xl font-semibold leading-none tracking-tight text-foreground dark:text-white">
+                Analyzed contracts
               </h1>
-              <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
-                Search by package ID, focus on the risk tiers that matter, and let auto-refresh surface fresh findings
-                the moment they land.
+              <p className="mt-2 text-sm text-muted-foreground dark:text-zinc-400">
+                {data && data.total > 0 ? (
+                  <>
+                    {totalAnalyzed.toLocaleString()} analyzed packages
+                    {criticalAndHigh > 0 && (
+                      <span className="text-foreground/70 dark:text-white/70"> • {criticalAndHigh.toLocaleString()} high risk detected</span>
+                    )}
+                    {formattedLastUpdated && (
+                      <span className="text-muted-foreground dark:text-white/60">
+                        {' '}
+                        • Last updated {formattedLastUpdated}
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  'No analyzed contracts yet'
+                )}
               </p>
             </div>
-            {riskStats && (
-              <div className="flex items-center gap-4 shrink-0">
-                <div className="relative rounded-xl border border-border dark:border-white/10 bg-gradient-to-br from-[hsl(var(--surface-elevated))] to-[hsl(var(--surface-muted))] dark:from-white/5 dark:to-white/5 px-5 py-4 shadow-sm shadow-black/5 dark:shadow-white/5">
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-foreground dark:text-white leading-tight tabular-nums">{riskStats.total.toLocaleString()}</div>
-                    <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mt-1">Total</div>
-                  </div>
-                  <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-[#D12226] opacity-80 dark:opacity-100" />
-                </div>
-                <div className="h-10 w-px bg-gradient-to-b from-transparent via-border dark:via-white/10 to-transparent" />
-                <div className="relative rounded-xl border border-border dark:border-white/10 bg-gradient-to-br from-[hsl(var(--surface-elevated))] to-[hsl(var(--surface-muted))] dark:from-white/5 dark:to-white/5 px-5 py-4 shadow-sm shadow-black/5 dark:shadow-white/5">
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-foreground dark:text-white leading-tight tabular-nums">{filteredContracts.length.toLocaleString()}</div>
-                    <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mt-1">In view</div>
-                  </div>
-                  <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-blue-500 opacity-80 dark:opacity-100" />
-                </div>
-              </div>
-            )}
+            <Button
+              onClick={() => fetchAnalyzedContracts()}
+              variant="outline"
+              size="sm"
+              disabled={isRefreshing}
+              className={cn(
+                'h-9 rounded-md px-3 inline-flex items-center gap-2 border-[#D12226]/40 text-[#D12226] hover:bg-[#D12226]/10',
+                isRefreshing && 'pointer-events-none opacity-60',
+              )}
+            >
+              <RefreshCcw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
+              Refresh
+            </Button>
           </div>
-        </header>
 
+          {/* Key Stats */}
+          {heroStats.length > 0 && (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {heroStats.map(({ key, label, value, meta, icon: Icon, accent = 'muted' }) => {
+                const displayValue = typeof value === 'number' ? value.toLocaleString() : value;
+                const isHighRisk = key === 'highRisk';
+                
+                return (
+                  <div
+                    key={key}
+                    className="rounded-2xl border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-black/40 p-4"
+                  >
+                    <div className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground dark:text-zinc-400">
+                      {label}
+                    </div>
+                    <div className={cn(
+                      'mt-2 text-3xl font-semibold tabular-nums',
+                      isHighRisk ? 'text-[#D12226]' : 'text-foreground dark:text-white'
+                    )}>
+                      {displayValue}
+                    </div>
+                    {meta && (
+                      <p className="mt-1 text-xs text-muted-foreground dark:text-zinc-500">
+                        {meta}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </section>
 
-        {error && (
-          <Alert className="rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 text-foreground dark:text-white/90 shadow-sm shadow-black/5 dark:shadow-white/5 transition-colors duration-200">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
+      {error && (
+        <Alert className="rounded-xl border border-[#D12226]/60 dark:border-[#D12226]/60 bg-[#D12226]/15 dark:bg-[#D12226]/15 text-foreground dark:text-white shadow-sm shadow-black/5 dark:shadow-white/5">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
-        <section className="rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 p-4 shadow-sm shadow-black/5 dark:shadow-white/5 transition-colors duration-200">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="relative w-full lg:max-w-md">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-foreground/60 dark:text-muted-foreground" />
-              <Input
+      {/* Controls: Search, Filters, Actions */}
+      <section className="rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-black/40 p-6 shadow-lg backdrop-blur">
+        <div className="space-y-6">
+          {/* Search and Filters Row */}
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="relative w-full md:max-w-sm">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground dark:text-zinc-500" />
+              <input
+                type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={handleSearchKeyDown}
                 placeholder="Search by package ID..."
                 className={cn(
-                  'h-9 rounded-lg border-border/60 bg-background/60 px-9 text-sm text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground/80',
-                  isSearching && 'pr-14'
+                  'w-full rounded-full border border-border dark:border-white/15 bg-[hsl(var(--surface-muted))] dark:bg-black/60 py-2 pl-11 pr-4 text-sm text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-zinc-500 focus:border-[#D12226] focus:outline-none focus:ring-2 focus:ring-[#D12226]/40',
+                  isSearching && 'pr-11'
                 )}
               />
-              <div className="absolute right-2.5 top-1/2 flex -translate-y-1/2 items-center gap-1.5">
-                {isSearching && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
-                {searchQuery && (
-                  <button
-                    onClick={clearSearch}
-                    className="rounded-full p-0.5 text-muted-foreground transition hover:bg-[hsl(var(--surface-elevated))] dark:bg-white/10 hover:text-[hsl(var(--surface-contrast))] dark:text-white"
-                    aria-label="Clear search"
-                  >
-                    <X className="h-3.5 w-3.5" />
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                {isSearching && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground dark:text-zinc-500" />}
+                {searchQuery && !isSearching && (
+                  <button onClick={clearSearch} className="p-0.5 text-muted-foreground hover:text-foreground dark:hover:text-white" aria-label="Clear search">
+                    <X className="h-4 w-4" />
                   </button>
                 )}
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-1.5">
-              {RISK_FILTERS.map((level) => {
-                const isActive = filter === level;
+            <div className="flex gap-2">
+              {(['all', ...RISK_LEVELS] as const).map((level) => {
                 const isAll = level === 'all';
-                const label = isAll ? 'All risk levels' : getRiskLevelName(level);
-                const count = isAll ? riskStats?.total ?? 0 : riskStats?.counts[level] ?? 0;
+                const isActive = isAll 
+                  ? (selectedFilters.size === 0 || selectedFilters.size === RISK_LEVELS.length)
+                  : selectedFilters.has(level);
+                const label = isAll ? 'All' : getRiskLevelName(level);
+                const count = isAll ? totalAnalyzed : riskCounts[level] ?? 0;
                 const styles = isAll ? null : getRiskFilterStyles(level);
 
                 return (
@@ -356,58 +483,36 @@ export default function Dashboard() {
                     key={level}
                     type="button"
                     variant="outline"
-                    onClick={() => setFilter(level)}
+                    onClick={() => {
+                      if (isAll) {
+                        setSelectedFilters(new Set(RISK_LEVELS));
+                      } else {
+                        const newFilters = new Set(selectedFilters);
+                        if (newFilters.has(level)) {
+                          newFilters.delete(level);
+                        } else {
+                          newFilters.add(level);
+                        }
+                        setSelectedFilters(newFilters);
+                      }
+                    }}
+                    size="sm"
                     className={cn(
-                      'group relative flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-all duration-200',
-                      isAll
-                        ? cn(
-                            'text-foreground dark:text-white hover:shadow-sm transition-all',
-                            !isActive && 'border-2 border-border dark:border-white/20 bg-muted/20 dark:bg-white/5 shadow-sm shadow-black/5 dark:shadow-white/5',
-                            isActive && 'border-2 border-border dark:border-white/40 bg-muted/50 dark:bg-white/10 shadow-md dark:shadow-lg shadow-black/10 dark:shadow-white/10',
-                            'hover:border-border dark:hover:border-white/30 hover:bg-muted/40 dark:hover:bg-white/10'
-                          )
-                        : styles && cn(
-                            styles.border,
-                            styles.bg,
-                            styles.text,
-                            'hover:border-opacity-60 hover:shadow-lg',
-                            isActive
-                              ? cn(
-                                  styles.bgActive,
-                                  styles.borderActive,
-                                  'border-2 shadow-lg',
-                                  styles.glow
-                                )
-                              : 'hover:bg-opacity-15'
-                          )
+                      'h-9 rounded-md px-3 text-sm font-medium',
+                      isActive
+                        ? isAll
+                          ? 'bg-[#D12226] text-white border-[#D12226] hover:bg-[#a8181b]'
+                          : styles && cn(styles.bgActive, styles.borderActive, styles.text)
+                        : isAll
+                          ? 'border-border dark:border-white/15 text-foreground dark:text-white hover:bg-[hsl(var(--surface-elevated))] dark:hover:bg-white/10'
+                          : styles && cn(styles.border, styles.bg, styles.text, 'hover:bg-opacity-15')
                     )}
                   >
-                    <span
-                      className={cn(
-                        'h-2 w-2 rounded-full transition-all duration-200 shrink-0',
-                        isAll ? (!isActive ? 'bg-black dark:bg-white/40' : 'bg-foreground dark:bg-white ring-2 ring-offset-2 ring-offset-background dark:ring-offset-black/50 ring-foreground/20 dark:ring-white/30') : getRiskLevelDot(level),
-                        isActive && !isAll && styles && cn('ring-2 ring-offset-2 ring-offset-black/50', styles.ring)
-                      )}
-                    />
-                    <span className="relative z-10 whitespace-nowrap">{label}</span>
-                    {riskStats && (
-                      <span
-                        className={cn(
-                          'relative z-10 ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold transition-colors',
-                          isAll
-                            ? isActive
-                              ? 'bg-foreground/10 dark:bg-white/20 text-foreground dark:text-white font-semibold shadow-sm'
-                              : 'bg-background/60 dark:bg-white/10 text-muted-foreground group-hover:bg-background/80 dark:group-hover:bg-white/15'
-                            : isActive
-                              ? styles
-                                ? 'bg-[hsl(var(--surface-elevated))] dark:bg-white/20 ' + styles.text
-                                : 'bg-[hsl(var(--surface-elevated))] dark:bg-white/20 text-[hsl(var(--surface-contrast))] dark:text-white'
-                              : styles
-                                ? 'bg-[hsl(var(--surface-elevated))] dark:bg-white/5 ' + styles.text + ' opacity-80 group-hover:opacity-100'
-                              : 'bg-[hsl(var(--surface-elevated))] dark:bg-white/5 text-muted-foreground group-hover:bg-[hsl(var(--surface-elevated))] dark:bg-white/10'
-                        )}
-                      >
-                        {count}
+                    {!isAll && <span className={cn('h-1.5 w-1.5 rounded-full mr-1.5', getRiskLevelDot(level))} />}
+                    <span>{label}</span>
+                    {(data || riskStats) && count > 0 && (
+                      <span className={cn('ml-1.5 rounded px-1.5 py-0.5 text-xs font-semibold', isActive ? 'bg-white/20' : 'bg-[hsl(var(--surface-elevated))] dark:bg-white/5')}>
+                        {count.toLocaleString()}
                       </span>
                     )}
                   </Button>
@@ -415,111 +520,130 @@ export default function Dashboard() {
               })}
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2 pt-2 text-xs text-muted-foreground">
-            {debouncedSearchQuery && (
-              <span className="flex items-center gap-1.5 rounded-full border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 px-2 py-0.5">
-                <Search className="h-3 w-3 text-muted-foreground" />
-                <span className="text-foreground dark:text-white/90">&apos;{debouncedSearchQuery}&apos;</span>
-                <button
-                  onClick={clearSearch}
-                  className="rounded-full p-0.5 text-muted-foreground transition hover:bg-[hsl(var(--surface-elevated))] dark:bg-white/10 hover:text-[hsl(var(--surface-contrast))] dark:text-white"
-                  aria-label="Clear search"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            )}
-            {isRiskFiltered && activeRiskLabel && activeRiskStyle && (
-              <span className="flex items-center gap-1.5 rounded-full border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 px-2 py-0.5">
-                <span className={cn('h-2 w-2 rounded-full', activeRiskStyle.dot)} />
-                <span className="text-foreground dark:text-white/90">{activeRiskLabel} focus</span>
-                <button
-                  onClick={() => setFilter('all')}
-                  className="rounded-full p-0.5 text-muted-foreground transition hover:bg-[hsl(var(--surface-elevated))] dark:bg-white/10 hover:text-[hsl(var(--surface-contrast))] dark:text-white"
-                  aria-label="Clear risk level filter"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            )}
-            <span className="text-muted-foreground">
-              Showing {filteredContracts.length} of {data?.total ?? 0} contracts
-              {totalPages > 1 && ` • Page ${currentPage} of ${totalPages}`}
-            </span>
-          </div>
-          <div className="flex flex-col gap-2 pt-3 border-t border-border dark:border-white/10 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap items-center gap-1.5">
+
+          {/* Active Filters */}
+          {(debouncedSearchQuery || isRiskFiltered) && (
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              {debouncedSearchQuery && (
+                <span className="flex items-center gap-1.5 rounded-full border border-border dark:border-white/15 bg-[hsl(var(--surface-muted))] dark:bg-black/60 px-3 py-1">
+                  <Search className="h-3.5 w-3.5 text-muted-foreground dark:text-zinc-500" />
+                  <span className="text-foreground dark:text-white">&apos;{debouncedSearchQuery}&apos;</span>
+                  <button onClick={clearSearch} className="p-0.5 hover:text-foreground dark:hover:text-white" aria-label="Clear search">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </span>
+              )}
+              {isRiskFiltered && activeFilters.length > 0 && (
+                <>
+                  {activeFilters.map((level) => {
+                    const label = getRiskLevelName(level);
+                    const styles = getRiskFilterStyles(level);
+                    return (
+                      <span key={level} className="flex items-center gap-1.5 rounded-full border border-border dark:border-white/15 bg-[hsl(var(--surface-muted))] dark:bg-black/60 px-3 py-1">
+                        <span className={cn('h-1.5 w-1.5 rounded-full', styles.dot)} />
+                        <span className="text-foreground dark:text-white">{label}</span>
+                        <button 
+                          onClick={() => {
+                            const newFilters = new Set(selectedFilters);
+                            newFilters.delete(level);
+                            setSelectedFilters(newFilters);
+                          }} 
+                          className="p-0.5 hover:text-foreground dark:hover:text-white" 
+                          aria-label={`Remove ${label} filter`}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </span>
+                    );
+                  })}
+                  <button 
+                    onClick={() => setSelectedFilters(new Set(RISK_LEVELS))} 
+                    className="text-sm text-muted-foreground hover:text-foreground dark:hover:text-white underline"
+                    aria-label="Show all filters"
+                  >
+                    Clear filters
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Actions and Info Bar */}
+          <div className="flex flex-col gap-4 border-t border-border dark:border-white/10 pt-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-wrap items-center gap-2">
               <Link href="/analyze">
-                <Button size="sm" className="gap-1.5 h-8 text-xs">
-                  ➕ Analyze Contract
+                <Button size="sm" className="h-9 bg-[#D12226] text-white hover:bg-[#a8181b]">
+                  Analyze Contract
                 </Button>
               </Link>
-              <Button
-                onClick={() => fetchAnalyzedContracts()}
-                variant="outline"
-                size="sm"
-                disabled={isRefreshing}
-                className="flex items-center gap-1.5 h-8 text-xs border-border dark:border-white/20 text-[hsl(var(--surface-contrast))] dark:text-white hover:bg-[hsl(var(--surface-elevated))] dark:bg-white/10"
-              >
-                <RefreshCcw className={cn('h-3 w-3', isRefreshing && 'animate-spin')} />
-                Refresh
-              </Button>
-              <Button
-                onClick={toggleAutoRefresh}
-                variant={autoRefresh ? 'default' : 'outline'}
-                size="sm"
-                className={cn(
-                  'flex items-center gap-1.5 h-8 text-xs transition-colors',
-                  autoRefresh
-                    ? 'bg-white text-black hover:bg-white/90'
-                    : 'border-border dark:border-white/20 text-[hsl(var(--surface-contrast))] dark:text-white hover:bg-[hsl(var(--surface-elevated))] dark:bg-white/10',
-                )}
-              >
-                {autoRefresh ? <PauseCircle className="h-3 w-3" /> : <PlayCircle className="h-3 w-3" />}
+              <Button onClick={toggleAutoRefresh} variant={autoRefresh ? 'default' : 'outline'} size="sm" className="h-9">
+                {autoRefresh ? <PauseCircle className="h-4 w-4 mr-1.5" /> : <PlayCircle className="h-4 w-4 mr-1.5" />}
                 {autoRefresh ? 'Pause' : 'Resume'}
               </Button>
             </div>
-            <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground dark:text-zinc-400">
               {formattedLastUpdated && (
-                <span className="rounded-full border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 px-2 py-0.5">
+                <span>
                   Updated {formattedLastUpdated}
                   {autoRefresh && ` • ${refreshCountdown}s`}
                 </span>
               )}
-              <span className="rounded-full border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 px-2 py-0.5">Supabase Synced</span>
-              <span className="rounded-full border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 px-2 py-0.5">Move Pattern Library</span>
+              <span className="text-foreground dark:text-white font-medium">
+                {filteredContracts.length} of {data?.total ?? 0}
+                {totalPages > 1 && ` • Page ${currentPage}/${totalPages}`}
+              </span>
             </div>
           </div>
-        </section>
 
-        {/* Pagination Controls */}
-        {totalPages > 1 && (
-          <section className="rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 p-4 shadow-sm shadow-black/5 dark:shadow-white/5 transition-colors duration-200">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex flex-col gap-4 border-t border-border dark:border-white/10 pt-4 md:flex-row md:items-center md:justify-between">
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Page size:</span>
+                <span className="text-sm text-muted-foreground dark:text-zinc-400 whitespace-nowrap">Show:</span>
                 <select
                   value={pageSize}
                   onChange={(e) => setPaginationPageSize(Number.parseInt(e.target.value, 10))}
-                  className="rounded-lg border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 px-3 py-1.5 text-sm text-foreground dark:text-white focus:border-border dark:border-white/20 focus:outline-none focus:ring-0 transition-colors duration-200"
+                  className="h-9 rounded-md border border-border dark:border-white/15 bg-[hsl(var(--surface-muted))] dark:bg-black/60 px-3 text-sm text-foreground dark:text-white transition-colors focus:border-[#D12226] focus:outline-none focus:ring-2 focus:ring-[#D12226]/40"
                 >
-                {PAGE_SIZE_OPTIONS.map((size) => (
-                  <option key={size} value={size}>
-                    {size}
-                  </option>
-                ))}
-              </select>
+                  {PAGE_SIZE_OPTIONS.map((size) => (
+                    <option key={size} value={size}>
+                      {size}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-sm text-muted-foreground dark:text-zinc-400 hidden sm:inline">per page</span>
               </div>
-              <div className="flex items-center gap-2">
+
+              <div className="flex items-center justify-center gap-1 sm:gap-1.5">
+                {currentPage > 4 && totalPages > 7 && (
+                  <>
+                <Button
+                  onClick={() => goToPage(1)}
+                  variant="outline"
+                  size="sm"
+                  className="h-9 w-9 p-0 border-border dark:border-white/15 hover:bg-[hsl(var(--surface-elevated))] dark:hover:bg-white/10"
+                  aria-label="First page"
+                >
+                  <ChevronsLeft className="h-4 w-4" />
+                </Button>
+                    {currentPage > 5 && (
+                      <span className="px-1 text-sm text-muted-foreground dark:text-zinc-400">...</span>
+                    )}
+                  </>
+                )}
+
                 <Button
                   onClick={previousPage}
                   disabled={!hasPreviousPage}
                   variant="outline"
                   size="sm"
-                  className="border-border dark:border-white/10 text-foreground dark:text-white hover:bg-[hsl(var(--surface-elevated))] dark:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40 transition-colors duration-200"
+                  className="h-9 px-3 border-border dark:border-white/15 text-foreground dark:text-white hover:bg-[hsl(var(--surface-elevated))] dark:hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed"
+                  aria-label="Previous page"
                 >
-                  Previous
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  <span className="hidden sm:inline text-sm">Prev</span>
                 </Button>
+
                 <div className="flex items-center gap-1">
                   {Array.from({ length: Math.min(7, totalPages) }, (_, i) => {
                     let pageNum: number;
@@ -540,75 +664,94 @@ export default function Dashboard() {
                         variant={currentPage === pageNum ? 'default' : 'outline'}
                         size="sm"
                         className={cn(
-                          'min-w-10 transition-colors duration-200',
+                          'h-9 min-w-9 px-3 text-sm font-medium transition-all',
                           currentPage === pageNum
-                            ? 'bg-white text-black hover:bg-white'
-                            : 'border-border dark:border-white/10 text-foreground dark:text-white hover:bg-[hsl(var(--surface-elevated))] dark:bg-white/10'
+                            ? 'bg-[#D12226] text-white border-[#D12226] hover:bg-[#a8181b]'
+                            : 'border-border dark:border-white/15 text-foreground dark:text-white hover:bg-[hsl(var(--surface-elevated))] dark:hover:bg-white/10'
                         )}
+                        aria-label={`Page ${pageNum}`}
+                        aria-current={currentPage === pageNum ? 'page' : undefined}
                       >
                         {pageNum}
                       </Button>
                     );
                   })}
                 </div>
+
                 <Button
                   onClick={nextPage}
                   disabled={!hasNextPage}
                   variant="outline"
                   size="sm"
-                  className="border-border dark:border-white/10 text-foreground dark:text-white hover:bg-[hsl(var(--surface-elevated))] dark:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40 transition-colors duration-200"
+                  className="h-9 px-3 border-border dark:border-white/15 text-foreground dark:text-white hover:bg-[hsl(var(--surface-elevated))] dark:hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed"
+                  aria-label="Next page"
                 >
-                  Next
+                  <span className="hidden sm:inline text-sm">Next</span>
+                  <ChevronRight className="h-4 w-4 ml-1" />
                 </Button>
-              </div>
-            </div>
-          </section>
-        )}
 
-        {pauseReason === 'details' && !autoRefresh && (
-          <Alert className="border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 text-foreground dark:text-white/85 shadow-sm shadow-black/5 dark:shadow-white/5 transition-colors duration-200">
-            <AlertDescription>
-              Auto refresh is paused so the results stay put while you explore a contract. Resume it from the toolbar when you&apos;re ready for new data.
-            </AlertDescription>
-          </Alert>
-        )}
-
-        <section className="space-y-5 transition-colors duration-200 mt-8">
-          {isEmptyState ? (
-            <div className="rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 p-12 text-center shadow-sm shadow-black/5 dark:shadow-white/5 transition-colors duration-200">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 text-2xl">
-                📊
-              </div>
-              <h3 className="mt-4 text-xl font-semibold text-foreground dark:text-white">{emptyTitle}</h3>
-              <p className="mt-2 text-sm text-muted-foreground">{emptySubtitle}</p>
-              <div className="mt-6 flex justify-center gap-3">
-                {debouncedSearchQuery && (
-                  <Button
-                    onClick={clearSearch}
-                    variant="outline"
-                    className="border-border dark:border-white/10 text-foreground dark:text-white hover:bg-[hsl(var(--surface-elevated))] dark:bg-white/10 transition-colors duration-200"
-                  >
-                    Clear Search
-                  </Button>
+                {currentPage < totalPages - 3 && totalPages > 7 && (
+                  <>
+                    {currentPage < totalPages - 4 && (
+                      <span className="px-1 text-sm text-muted-foreground dark:text-zinc-400">...</span>
+                    )}
+                    <Button
+                      onClick={() => goToPage(totalPages)}
+                      variant="outline"
+                      size="sm"
+                      className="h-9 w-9 p-0 border-border dark:border-white/15 hover:bg-[hsl(var(--surface-elevated))] dark:hover:bg-white/10"
+                      aria-label="Last page"
+                    >
+                      <ChevronsRight className="h-4 w-4" />
+                    </Button>
+                  </>
                 )}
-                <Link href="/analyze">
-                  <Button>
-                    Analyze a Contract
-                  </Button>
-                </Link>
               </div>
             </div>
-          ) : (
-            filteredContracts.map((contract) => (
-              <AnalyzedContractCard
-                key={`${contract.package_id}-${contract.network}-${contract.analyzed_at}`}
-                contract={contract}
-                onAutoRefreshPause={pauseAutoRefreshFromDetails}
-              />
-            ))
           )}
+        </div>
+      </section>
+
+      {pauseReason === 'details' && !autoRefresh && (
+        <Alert className="border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-black/40">
+          <AlertDescription className="text-sm text-foreground dark:text-white">
+            Auto-refresh paused while viewing contract details. Resume from the toolbar above.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Contract List */}
+      <section className="space-y-4">
+        {isEmptyState ? (
+          <div className="rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-black/40 p-12 text-center shadow-lg backdrop-blur">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-black/40 text-2xl mb-4">
+              📊
+            </div>
+            <h3 className="text-lg font-semibold text-foreground dark:text-white mb-2">{emptyTitle}</h3>
+            <p className="text-sm text-muted-foreground dark:text-zinc-400 mb-6">{emptySubtitle}</p>
+            <div className="flex justify-center gap-2">
+              {debouncedSearchQuery && (
+                <Button onClick={clearSearch} variant="outline" size="sm" className="border-border dark:border-white/15">
+                  Clear Search
+                </Button>
+              )}
+              <Link href="/analyze">
+                <Button size="sm" className="bg-[#D12226] text-white hover:bg-[#a8181b]">
+                  Analyze Contract
+                </Button>
+              </Link>
+            </div>
+          </div>
+        ) : (
+          filteredContracts.map((contract) => (
+            <AnalyzedContractCard
+              key={`${contract.package_id}-${contract.network}-${contract.analyzed_at}`}
+              contract={contract}
+              onAutoRefreshPause={pauseAutoRefreshFromDetails}
+            />
+          ))
+        )}
         </section>
     </div>
   );
 }
-
