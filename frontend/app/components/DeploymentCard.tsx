@@ -29,24 +29,24 @@ const AGE_STYLES: Record<
   { border: string; dot: string; bg: string }
 > = {
   lastHour: {
-    border: 'border-[#D12226]/40 dark:border-[#D12226]/60',
+    border: 'border-zinc-200/50 dark:border-zinc-800/50',
     dot: 'bg-[#D12226] dark:bg-[#D12226]',
-    bg: 'bg-background/20 backdrop-blur-xl supports-backdrop-filter:bg-background/20 dark:bg-gradient-to-br dark:from-[#D12226]/15 dark:via-black/40 dark:to-black/60',
+    bg: 'bg-white/80 backdrop-blur-xl supports-backdrop-filter:bg-white/80 dark:bg-zinc-950/80 dark:supports-backdrop-filter:bg-zinc-950/80',
   },
   last24h: {
-    border: 'border-zinc-300/80 dark:border-white/40',
+    border: 'border-zinc-200/50 dark:border-zinc-800/50',
     dot: 'bg-zinc-500 dark:bg-white',
-    bg: 'bg-gradient-to-br from-zinc-50/80 via-white to-zinc-50/50 dark:from-white/10 dark:via-black/40 dark:to-black/60',
+    bg: 'bg-white/80 backdrop-blur-xl supports-backdrop-filter:bg-white/80 dark:bg-zinc-950/80 dark:supports-backdrop-filter:bg-zinc-950/80',
   },
   lastWeek: {
-    border: 'border-amber-400/50 dark:border-yellow-300/60',
+    border: 'border-zinc-200/50 dark:border-zinc-800/50',
     dot: 'bg-amber-500 dark:bg-yellow-300',
-    bg: 'bg-gradient-to-br from-amber-50/60 via-white to-zinc-50/50 dark:from-yellow-200/10 dark:via-black/40 dark:to-black/60',
+    bg: 'bg-white/80 backdrop-blur-xl supports-backdrop-filter:bg-white/80 dark:bg-zinc-950/80 dark:supports-backdrop-filter:bg-zinc-950/80',
   },
   older: {
-    border: 'border-zinc-300/60 dark:border-zinc-700/60',
+    border: 'border-zinc-200/50 dark:border-zinc-800/50',
     dot: 'bg-zinc-500 dark:bg-zinc-600',
-    bg: 'bg-white dark:bg-black/40',
+    bg: 'bg-white/80 backdrop-blur-xl supports-backdrop-filter:bg-white/80 dark:bg-zinc-950/80 dark:supports-backdrop-filter:bg-zinc-950/80',
   },
 };
 
@@ -91,8 +91,7 @@ export default function DeploymentCard({ deployment, network }: DeploymentCardPr
   };
 
   return (
-    <Card className={cn('text-card-foreground relative overflow-hidden rounded-3xl border bg-background/20 dark:bg-black/30 p-0 shadow-sm dark:shadow-lg backdrop-blur-xl supports-backdrop-filter:bg-background/20 dark:supports-backdrop-filter:bg-black/30', ageStyle.border)}>
-      <div className="absolute inset-0 opacity-80"></div>
+    <Card className={cn('text-card-foreground relative overflow-hidden rounded-3xl border bg-transparent p-0 shadow-sm dark:shadow-lg', ageStyle.border)}>
       <CardContent className={cn('relative space-y-3 p-4 sm:space-y-4 sm:p-6', ageStyle.bg)}>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
           <div className="space-y-1">
