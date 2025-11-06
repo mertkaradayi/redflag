@@ -2,13 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { PauseCircle, PlayCircle, RefreshCcw, X, Search, Loader2, BarChart3, Filter, ShieldAlert, Timer, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import AnalyzedContractCard from '@/app/components/AnalyzedContractCard';
+import { UnanalyzedPackageCard } from '@/app/components/UnanalyzedPackageCard';
 import type { AnalyzedContract, DashboardData } from '@/app/dashboard/types';
+import type { Deployment } from '@/lib/deployments';
 import {
   getRiskFilterStyles,
   getRiskLevelDot,
@@ -22,7 +25,32 @@ const RISK_LEVELS: Array<'critical' | 'high' | 'moderate' | 'low'> = ['critical'
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100, 200];
 
+type PackageStatusState = {
+  packageId: string;
+  deployment: Deployment | null;
+  analysis: AnalyzedContract['analysis'] | null;
+  analyzedAt: string | null;
+  status: 'analyzed' | 'not_analyzed' | 'analysis_failed' | 'not_found';
+  network: 'mainnet' | 'testnet';
+};
+
+type PackageStatusResponse = {
+  success: boolean;
+  package_id: string;
+  deployment: Deployment | null;
+  analysis: AnalyzedContract['analysis'] | null;
+  analyzed_at: string | null;
+  status: PackageStatusState['status'];
+  network: 'mainnet' | 'testnet';
+  message?: string;
+};
+
+type PendingPackageStatus = Exclude<PackageStatusState['status'], 'analyzed'>;
+
+const buildRequestKey = (pkg: string, net?: 'mainnet' | 'testnet') => `${pkg.toLowerCase()}::${net ?? 'auto'}`;
+
 export default function Dashboard() {
+  const searchParams = useSearchParams();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -36,6 +64,13 @@ export default function Dashboard() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [refreshCountdown, setRefreshCountdown] = useState(AUTO_REFRESH_SECONDS);
   const [pauseReason, setPauseReason] = useState<'toolbar' | 'details' | null>(null);
+  const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
+  const [selectedPackageNetwork, setSelectedPackageNetwork] = useState<'mainnet' | 'testnet' | null>(null);
+  
+  // Package status state (for URL-based package lookup)
+  const [packageStatus, setPackageStatus] = useState<PackageStatusState | null>(null);
+  const [packageStatusLoading, setPackageStatusLoading] = useState(false);
+  const [packageStatusError, setPackageStatusError] = useState<string | null>(null);
 
   // Initialize pagination hook
   const pagination = usePagination({
@@ -57,6 +92,7 @@ export default function Dashboard() {
     setPageSize: setPaginationPageSize
   } = pagination;
 
+  const activePackageIdRef = useRef<string | null>(null);
   const goToPageRef = useRef(goToPage);
 
   useEffect(() => {
@@ -116,6 +152,86 @@ export default function Dashboard() {
       }
     }
   }, [debouncedSearchQuery, offset, pageSize]);
+
+  const fetchPackageStatus = useCallback(async (packageId: string, networkOverride?: 'mainnet' | 'testnet') => {
+    const requestKey = buildRequestKey(packageId, networkOverride);
+    activePackageIdRef.current = requestKey;
+    setPackageStatusLoading(true);
+    setPackageStatusError(null);
+
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+      const url = new URL(`${backendUrl}/api/llm/package-status/${packageId}`);
+      if (networkOverride) {
+        url.searchParams.set('network', networkOverride);
+      }
+      const response = await fetch(url.toString(), {
+        cache: 'no-store',
+      });
+      const result = (await response.json()) as PackageStatusResponse;
+
+      if (!response.ok) {
+        throw new Error(result.message || `Failed to fetch package status (${response.status})`);
+      }
+
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to fetch package status');
+      }
+
+      if (activePackageIdRef.current !== requestKey) {
+        return;
+      }
+
+      const status = result.status;
+      const analyzedAt = typeof result.analyzed_at === 'string' ? result.analyzed_at : null;
+
+      setPackageStatus({
+        packageId: result.package_id,
+        deployment: result.deployment ?? null,
+        analysis: result.analysis ?? null,
+        analyzedAt,
+        status,
+        network: result.network,
+      });
+
+      if (status === 'analyzed' && result.analysis) {
+        setSearchQuery(packageId);
+      }
+    } catch (err) {
+      if (activePackageIdRef.current === requestKey) {
+        setPackageStatus(null);
+        const message = err instanceof Error ? err.message : 'Unknown error occurred';
+        const networkLabel = networkOverride ? ` on ${networkOverride}` : '';
+        setPackageStatusError(`Failed to fetch package status${networkLabel} for ${packageId}: ${message}`);
+      }
+    } finally {
+      if (activePackageIdRef.current === requestKey) {
+        setPackageStatusLoading(false);
+      }
+    }
+  }, [setSearchQuery]);
+
+  const packageIdParam = searchParams.get('packageId');
+  const normalizedPackageId = packageIdParam ? packageIdParam.trim() : null;
+  const networkParam = searchParams.get('network');
+  const normalizedNetwork = networkParam === 'testnet' ? 'testnet' : networkParam === 'mainnet' ? 'mainnet' : null;
+
+  useEffect(() => {
+    if (!normalizedPackageId) {
+      activePackageIdRef.current = null;
+      setSelectedPackageId(null);
+      setSelectedPackageNetwork(null);
+      setPackageStatus(null);
+      setPackageStatusError(null);
+      setPackageStatusLoading(false);
+      return;
+    }
+
+    setSelectedPackageId(normalizedPackageId);
+    setSelectedPackageNetwork(normalizedNetwork);
+    setPackageStatus(null);
+    fetchPackageStatus(normalizedPackageId, normalizedNetwork ?? undefined);
+  }, [normalizedPackageId, normalizedNetwork, fetchPackageStatus]);
 
   // Debounce search query
   useEffect(() => {
@@ -185,6 +301,26 @@ export default function Dashboard() {
     return data.contracts.filter((contract) => selectedFilters.has(contract.analysis.risk_level));
   }, [data, selectedFilters]);
 
+  const hasSelectedAnalyzedPackage = !!(
+    packageStatus &&
+    packageStatus.status === 'analyzed' &&
+    packageStatus.analysis
+  );
+
+  const displayedContracts = useMemo(() => {
+    if (!hasSelectedAnalyzedPackage || !packageStatus) {
+      return filteredContracts;
+    }
+
+    return filteredContracts.filter(
+      (contract) =>
+        !(
+          contract.package_id.toLowerCase() === packageStatus.packageId.toLowerCase() &&
+          contract.network === packageStatus.network
+        )
+    );
+  }, [filteredContracts, hasSelectedAnalyzedPackage, packageStatus]);
+
   const riskStats = useMemo(() => {
     if (!data) {
       return null;
@@ -242,7 +378,7 @@ export default function Dashboard() {
       return [];
     }
 
-    const visible = filteredContracts.length;
+    const visible = displayedContracts.length + (hasSelectedAnalyzedPackage ? 1 : 0);
     const visiblePercent = totalAnalyzed > 0 ? Math.round((visible / totalAnalyzed) * 100) : null;
     const criticalAndHigh = riskCounts.critical + riskCounts.high;
 
@@ -253,7 +389,6 @@ export default function Dashboard() {
         value: totalAnalyzed,
         meta: 'All time',
         icon: BarChart3,
-        accent: 'info' as const,
         span: 'double' as const,
       },
       {
@@ -262,7 +397,6 @@ export default function Dashboard() {
         value: criticalAndHigh,
         meta: `${riskCounts.critical.toLocaleString()} critical • ${riskCounts.high.toLocaleString()} high`,
         icon: ShieldAlert,
-        accent: 'alert' as const,
       },
       {
         key: 'visible',
@@ -270,7 +404,6 @@ export default function Dashboard() {
         value: visible,
         meta: visiblePercent !== null ? `${visiblePercent}% of total` : null,
         icon: Filter,
-        accent: 'muted' as const,
       },
       {
         key: 'refresh',
@@ -284,10 +417,20 @@ export default function Dashboard() {
             ? 'Paused while exploring details'
             : 'Use toolbar controls to resume',
         icon: Timer,
-        accent: autoRefresh ? 'muted' : 'alert',
       },
     ];
-  }, [autoRefresh, data, filteredContracts.length, formattedLastUpdated, pauseReason, refreshCountdown, riskCounts, riskStats, totalAnalyzed]);
+  }, [
+    autoRefresh,
+    data,
+    displayedContracts,
+    formattedLastUpdated,
+    hasSelectedAnalyzedPackage,
+    pauseReason,
+    refreshCountdown,
+    riskCounts,
+    riskStats,
+    totalAnalyzed,
+  ]);
 
   // Handle search input Enter key (instant submit)
   const handleSearchKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -329,7 +472,7 @@ export default function Dashboard() {
     });
   }, []);
 
-  const isEmptyState = !loading && filteredContracts.length === 0;
+  const isEmptyState = !loading && displayedContracts.length === 0;
   const isRiskFiltered = selectedFilters.size > 0 && selectedFilters.size < RISK_LEVELS.length;
   const activeFilters = isRiskFiltered 
     ? RISK_LEVELS.filter(level => selectedFilters.has(level))
@@ -373,7 +516,7 @@ export default function Dashboard() {
         {/* Key Stats */}
         {heroStats.length > 0 && (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {heroStats.map(({ key, label, value, meta, icon: Icon, accent = 'muted', span }) => {
+            {heroStats.map(({ key, label, value, meta, icon: Icon, span }) => {
               const displayValue = typeof value === 'number' ? value.toLocaleString() : value;
               
               return (
@@ -707,7 +850,51 @@ export default function Dashboard() {
 
       {/* Contract List */}
       <section className="space-y-4">
-        {isEmptyState ? (
+        {/* Show package status card if packageId is in URL */}
+        {selectedPackageId && (
+          <>
+            {packageStatusLoading ? (
+              <div className="flex min-h-[20vh] items-center justify-center">
+                <div className="flex flex-col items-center gap-4 text-center">
+                  <div className="h-11 w-11 animate-spin rounded-full border-2 border-border dark:border-white/20 border-t-transparent transition-colors duration-200" />
+                  <p className="text-sm text-muted-foreground">
+                    Loading package status{selectedPackageNetwork ? ` on ${selectedPackageNetwork}` : ''}...
+                  </p>
+                </div>
+              </div>
+            ) : packageStatusError ? (
+              <Alert className="rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 text-foreground dark:text-white/90 shadow-sm shadow-black/5 dark:shadow-white/5 transition-colors duration-200">
+                <AlertDescription>{packageStatusError}</AlertDescription>
+              </Alert>
+            ) : packageStatus && packageStatus.status === 'analyzed' && packageStatus.analysis ? (
+              <AnalyzedContractCard
+                contract={{
+                  package_id: packageStatus.packageId,
+                  network: packageStatus.network,
+                  analysis: packageStatus.analysis,
+                  analyzed_at: packageStatus.analyzedAt || new Date().toISOString(),
+                }}
+                onAutoRefreshPause={pauseAutoRefreshFromDetails}
+              />
+            ) : packageStatus ? (
+              <UnanalyzedPackageCard
+                packageId={packageStatus.packageId}
+                deployment={packageStatus.deployment}
+                status={(packageStatus.status === 'analyzed' ? 'not_analyzed' : packageStatus.status) as PendingPackageStatus}
+                network={packageStatus.network}
+              />
+            ) : (
+              <Alert className="rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 text-foreground dark:text-white/90 shadow-sm shadow-black/5 dark:shadow-white/5 transition-colors duration-200">
+                <AlertDescription>
+                  We could not locate package {selectedPackageId}
+                  {selectedPackageNetwork ? ` on ${selectedPackageNetwork}` : ''}. Double-check the ID or try analyzing it manually.
+                </AlertDescription>
+              </Alert>
+            )}
+          </>
+        )}
+
+        {isEmptyState && !selectedPackageId ? (
           <div className="rounded-xl border border-border/60 dark:border-white/10 bg-card/50 dark:bg-white/5 p-12 text-center">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-border/60 dark:border-white/10 bg-muted/40 dark:bg-white/5 text-2xl mb-4">
               📊
@@ -726,7 +913,7 @@ export default function Dashboard() {
             </div>
           </div>
         ) : (
-          filteredContracts.map((contract) => (
+          displayedContracts.map((contract) => (
             <AnalyzedContractCard
               key={`${contract.package_id}-${contract.network}-${contract.analyzed_at}`}
               contract={contract}

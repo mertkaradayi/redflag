@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import { testSupabaseConnection, getDeployments, getDeploymentStats, getAnalysisResult, getRecentAnalyses, getHighRiskAnalyses, getRiskLevelCounts } from './lib/supabase';
+import { testSupabaseConnection, getDeployments, getDeploymentStats, getAnalysisResult, getRecentAnalyses, getHighRiskAnalyses, getRiskLevelCounts, getDeploymentByPackageId } from './lib/supabase';
 import { getRecentPublishTransactions, testSuiConnection } from './lib/sui-client';
 import { startMonitoring, stopMonitoring, getMonitoringStatus } from './workers/sui-monitor';
 import { runFullAnalysisChain, getAnalysis } from './lib/llm-analyzer';
@@ -704,6 +704,83 @@ app.get('/api/llm/analyzed-contracts', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to get analyzed contracts',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Get package status (deployment + analysis)
+app.get('/api/llm/package-status/:packageId', async (req, res) => {
+  try {
+    const { packageId } = req.params;
+    const networkParam = Array.isArray(req.query.network) ? req.query.network[0] : req.query.network;
+    const normalizedNetwork = typeof networkParam === 'string' ? networkParam.toLowerCase() : undefined;
+    const network = normalizedNetwork === 'testnet' ? 'testnet' : normalizedNetwork === 'mainnet' ? 'mainnet' : getNetwork();
+
+    if (!packageId) {
+      return res.status(400).json({
+        success: false,
+        message: 'packageId is required',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Fetch deployment info
+    const deploymentResult = await getDeploymentByPackageId(packageId);
+    
+    // Fetch analysis info
+    const analysisResult = await getAnalysisResult(packageId, network);
+
+    if (!deploymentResult.success) {
+      return res.status(500).json({
+        success: false,
+        message: deploymentResult.error || 'Failed to fetch deployment',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    if (!analysisResult.success) {
+      return res.status(500).json({
+        success: false,
+        message: analysisResult.error || 'Failed to fetch analysis',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Determine status
+    let status: 'analyzed' | 'not_analyzed' | 'not_found';
+    if (!deploymentResult.deployment) {
+      status = 'not_found';
+    } else if (analysisResult.analysis) {
+      status = 'analyzed';
+    } else {
+      status = 'not_analyzed';
+    }
+
+    res.json({
+      success: true,
+      package_id: packageId,
+      deployment: deploymentResult.deployment,
+      analysis: analysisResult.analysis ? {
+        summary: analysisResult.analysis.summary,
+        risky_functions: analysisResult.analysis.risky_functions,
+        rug_pull_indicators: analysisResult.analysis.rug_pull_indicators,
+        impact_on_user: analysisResult.analysis.impact_on_user,
+        why_risky_one_liner: analysisResult.analysis.why_risky_one_liner,
+        risk_score: analysisResult.analysis.risk_score,
+        risk_level: analysisResult.analysis.risk_level
+      } : null,
+      analyzed_at: analysisResult.analyzedAt,
+      status,
+      network,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Failed to get package status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get package status',
       error: error instanceof Error ? error.message : 'Unknown error',
       timestamp: new Date().toISOString()
     });

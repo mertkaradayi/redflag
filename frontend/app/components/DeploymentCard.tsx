@@ -2,6 +2,7 @@
 
 import { cloneElement, isValidElement, useMemo, useState } from 'react';
 import type { MouseEvent, ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
 import { Check, Copy, ExternalLink, Sparkles } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -51,6 +52,7 @@ const AGE_STYLES: Record<
 };
 
 export default function DeploymentCard({ deployment, network }: DeploymentCardProps) {
+  const router = useRouter();
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [showFullAddress, setShowFullAddress] = useState(false);
   const [showFullPackageId, setShowFullPackageId] = useState(false);
@@ -194,18 +196,14 @@ export default function DeploymentCard({ deployment, network }: DeploymentCardPr
             size="sm"
             className="w-full sm:w-auto inline-flex items-center justify-center whitespace-nowrap text-xs sm:text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border bg-background hover:text-accent-foreground h-8 sm:h-9 px-3 rounded-full border-[#D12226]/40 text-[#D12226] hover:bg-[#D12226]/10"
             onClick={() => {
-              const analysisSection = document.querySelector('[data-llm-analysis]');
-              if (analysisSection) {
-                analysisSection.scrollIntoView({ behavior: 'smooth' });
+              const params = new URLSearchParams({ packageId: deployment.package_id });
+              if (network) {
+                params.set('network', network);
               }
-              const packageInput = document.querySelector('input[placeholder="0x..."]') as HTMLInputElement | null;
-              if (packageInput) {
-                packageInput.value = deployment.package_id;
-                packageInput.dispatchEvent(new Event('input', { bubbles: true }));
-              }
+              router.push(`/dashboard?${params.toString()}`);
             }}
           >
-            Analyze this package
+            View in Dashboard
           </Button>
         </div>
       </CardContent>

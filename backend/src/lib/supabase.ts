@@ -1,6 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 import { ContractDeployment } from './sui-client';
 
+export interface DeploymentRow {
+  package_id: string;
+  deployer_address: string;
+  tx_digest: string;
+  checkpoint: number;
+  timestamp: string;
+  first_seen_at?: string | null;
+}
+
 // Initialize Supabase client with service role key for backend operations
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
@@ -186,7 +195,7 @@ export async function getDeployments(options: {
   offset?: number;
 } = {}): Promise<{
   success: boolean;
-  deployments: any[];
+  deployments: DeploymentRow[];
   totalCount: number;
   error?: string;
 }> {
@@ -236,7 +245,7 @@ export async function getDeployments(options: {
 
     return {
       success: true,
-      deployments: data || [],
+      deployments: (data as DeploymentRow[]) || [],
       totalCount: count || 0
     };
 
@@ -247,6 +256,61 @@ export async function getDeployments(options: {
       success: false,
       deployments: [],
       totalCount: 0,
+      error: errorMessage
+    };
+  }
+}
+
+/**
+ * Get a single deployment by package_id
+ */
+export async function getDeploymentByPackageId(packageId: string): Promise<{
+  success: boolean;
+  deployment: DeploymentRow | null;
+  error?: string;
+}> {
+  try {
+    if (!supabase) {
+      return {
+        success: false,
+        deployment: null,
+        error: 'Supabase client not initialized'
+      };
+    }
+
+    const { data, error } = await supabase
+      .from('sui_package_deployments')
+      .select('*')
+      .eq('package_id', packageId)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No rows returned
+        return {
+          success: true,
+          deployment: null
+        };
+      }
+      console.error('Failed to get deployment by package_id:', error);
+      return {
+        success: false,
+        deployment: null,
+        error: error.message
+      };
+    }
+
+    return {
+      success: true,
+      deployment: (data as DeploymentRow | null) || null
+    };
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Unexpected error in getDeploymentByPackageId:', error);
+    return {
+      success: false,
+      deployment: null,
       error: errorMessage
     };
   }
@@ -472,6 +536,7 @@ export async function getAnalysisResult(
 ): Promise<{
   success: boolean;
   analysis: SafetyCard | null;
+  analyzedAt: string | null;
   error?: string;
 }> {
   try {
@@ -479,6 +544,7 @@ export async function getAnalysisResult(
       return {
         success: false,
         analysis: null,
+        analyzedAt: null,
         error: 'Supabase client not initialized'
       };
     }
@@ -495,7 +561,8 @@ export async function getAnalysisResult(
       if (error.code === 'PGRST116') {
         return {
           success: true,
-          analysis: null
+          analysis: null,
+          analyzedAt: null
         };
       }
       
@@ -503,6 +570,7 @@ export async function getAnalysisResult(
       return {
         success: false,
         analysis: null,
+        analyzedAt: null,
         error: error.message
       };
     }
@@ -510,7 +578,8 @@ export async function getAnalysisResult(
     if (!data) {
       return {
         success: true,
-        analysis: null
+        analysis: null,
+        analyzedAt: null
       };
     }
 
@@ -528,7 +597,8 @@ export async function getAnalysisResult(
 
     return {
       success: true,
-      analysis: safetyCard
+      analysis: safetyCard,
+      analyzedAt: data.analyzed_at ?? null
     };
 
   } catch (error) {
@@ -537,6 +607,7 @@ export async function getAnalysisResult(
     return {
       success: false,
       analysis: null,
+      analyzedAt: null,
       error: errorMessage
     };
   }
