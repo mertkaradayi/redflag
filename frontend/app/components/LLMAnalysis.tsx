@@ -1,9 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { getRiskLevelBadge, getRiskLevelIcon, getRiskLevelName } from '@/app/dashboard/risk-utils';
 import { cn } from '@/lib/utils';
 
@@ -83,17 +81,17 @@ export default function LLMAnalysis({ packageId: initialPackageId, network: init
   return (
     <div className="space-y-6" data-llm-analysis>
       {/* Analysis Input */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Contract Security Analysis</CardTitle>
-          <CardDescription>
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <h2 className="text-2xl font-semibold text-foreground dark:text-white">Contract Security Analysis</h2>
+          <p className="text-sm text-muted-foreground">
             Analyze Sui smart contracts for security risks using AI-powered analysis
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="packageId" className="block text-sm font-medium mb-2">
+          </p>
+        </div>
+        <div className="space-y-5">
+          <div className="grid grid-cols-1 gap-5">
+            <div className="space-y-2">
+              <label htmlFor="packageId" className="block text-sm font-medium text-muted-foreground">
                 Package ID
               </label>
               <input
@@ -102,21 +100,21 @@ export default function LLMAnalysis({ packageId: initialPackageId, network: init
                 value={packageId}
                 onChange={(e) => setPackageId(e.target.value)}
                 placeholder="0x..."
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+                className="w-full px-4 py-3 bg-background/40 dark:bg-black/40 border border-border dark:border-white/20 rounded-xl text-foreground dark:text-white placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[#D12226]/60 focus:border-[#D12226]/40 transition-all duration-200"
               />
             </div>
-            <div>
-              <label htmlFor="network" className="block text-sm font-medium mb-2">
+            <div className="space-y-2">
+              <label htmlFor="network" className="block text-sm font-medium text-muted-foreground">
                 Network
               </label>
               <select
                 id="network"
                 value={network}
                 onChange={(e) => setNetwork(e.target.value as 'mainnet' | 'testnet')}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+                className="w-full px-4 py-3 bg-background/40 dark:bg-black/40 border border-border dark:border-white/20 rounded-xl text-foreground dark:text-white focus:outline-none focus:ring-2 focus:ring-[#D12226]/60 focus:border-[#D12226]/40 transition-all duration-200 cursor-pointer"
               >
-                <option value="mainnet">Mainnet</option>
-                <option value="testnet">Testnet</option>
+                <option value="mainnet" className="bg-background dark:bg-black text-foreground dark:text-white">Mainnet</option>
+                <option value="testnet" className="bg-background dark:bg-black text-foreground dark:text-white">Testnet</option>
               </select>
             </div>
           </div>
@@ -124,124 +122,128 @@ export default function LLMAnalysis({ packageId: initialPackageId, network: init
           <Button 
             onClick={analyzeContract} 
             disabled={isAnalyzing || !packageId.trim()}
-            className="w-full"
+            className={cn(
+              "w-full py-3 text-base font-semibold transition-all duration-200",
+              isAnalyzing || !packageId.trim()
+                ? "bg-zinc-800 text-zinc-500 cursor-not-allowed"
+                : "bg-[#D12226] text-white hover:bg-[#a8181b] hover:shadow-lg hover:shadow-[#D12226]/30"
+            )}
           >
-            {isAnalyzing ? 'Analyzing...' : 'Analyze Contract'}
+            {isAnalyzing ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                Analyzing...
+              </span>
+            ) : (
+              'Start analysis'
+            )}
           </Button>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Error Display */}
       {error && (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+        <div className="rounded-xl border border-[#D12226]/60 bg-[#D12226]/15 p-4 backdrop-blur">
+          <p className="text-sm text-[#ff8a8c] font-medium">{error}</p>
+        </div>
       )}
 
       {/* Analysis Results */}
       {analysisResult && (
-        <div className="space-y-4">
+        <div className="space-y-6 pt-6 border-t border-border dark:border-white/10">
           {/* Risk Summary */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Risk Assessment</span>
-                <div className="flex items-center space-x-2">
-                  <span
-                    className={cn(
-                      'inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide',
-                      getRiskLevelBadge(analysisResult.risk_level),
-                    )}
-                  >
-                    {getRiskLevelIcon(analysisResult.risk_level)} {getRiskLevelName(analysisResult.risk_level)}
-                  </span>
-                  <span className={`text-2xl font-bold ${getRiskScoreColor(analysisResult.risk_score)}`}>
-                    {analysisResult.risk_score}/100
-                  </span>
-                </div>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+          <div className="rounded-2xl border border-border dark:border-white/10 bg-background/40 dark:bg-black/40 p-6 backdrop-blur shadow-lg">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+              <h3 className="text-xl font-semibold text-foreground dark:text-white">Risk Assessment</h3>
+              <div className="flex items-center gap-3">
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-wide',
+                    getRiskLevelBadge(analysisResult.risk_level),
+                  )}
+                >
+                  {getRiskLevelIcon(analysisResult.risk_level)} {getRiskLevelName(analysisResult.risk_level)}
+                </span>
+                <span className={`text-3xl font-bold ${getRiskScoreColor(analysisResult.risk_score)}`}>
+                  {analysisResult.risk_score}/100
+                </span>
+              </div>
+            </div>
+            <div className="space-y-5">
               <div>
-                <h4 className="font-medium mb-2 text-zinc-900 dark:text-zinc-100">Summary</h4>
-                <p className="text-zinc-700 dark:text-zinc-300">{analysisResult.summary}</p>
+                <h4 className="font-semibold mb-2 text-foreground dark:text-white text-sm uppercase tracking-wide">Summary</h4>
+                <p className="text-muted-foreground leading-relaxed">{analysisResult.summary}</p>
               </div>
               
               <div>
-                <h4 className="font-medium mb-2 text-zinc-900 dark:text-zinc-100">Main Risk</h4>
-                <p className="text-zinc-700 dark:text-zinc-300">{analysisResult.why_risky_one_liner}</p>
+                <h4 className="font-semibold mb-2 text-foreground dark:text-white text-sm uppercase tracking-wide">Main Risk</h4>
+                <p className="text-muted-foreground leading-relaxed">{analysisResult.why_risky_one_liner}</p>
               </div>
               
               <div>
-                <h4 className="font-medium mb-2 text-zinc-900 dark:text-zinc-100">Impact on Users</h4>
-                <p className="text-zinc-700 dark:text-zinc-300">{analysisResult.impact_on_user}</p>
+                <h4 className="font-semibold mb-2 text-foreground dark:text-white text-sm uppercase tracking-wide">Impact on Users</h4>
+                <p className="text-muted-foreground leading-relaxed">{analysisResult.impact_on_user}</p>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Risky Functions */}
           {analysisResult.risky_functions.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Risky Functions</CardTitle>
-                <CardDescription>
+            <div className="rounded-2xl border border-border dark:border-white/10 bg-background/40 dark:bg-black/40 p-6 backdrop-blur shadow-lg">
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold text-foreground dark:text-white mb-1">Risky Functions</h3>
+                <p className="text-sm text-muted-foreground">
                   Functions identified as potentially dangerous
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {analysisResult.risky_functions.map((func, index) => (
-                    <div
-                      key={index}
-                      className="space-y-2 rounded-xl border border-white/10 bg-black/40 p-4 text-sm text-white/80 backdrop-blur"
-                    >
-                      <h5 className="font-medium text-white">{func.function_name}</h5>
-                      <p className="text-sm text-white/70">{func.reason}</p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                </p>
+              </div>
+              <div className="space-y-3">
+                {analysisResult.risky_functions.map((func, index) => (
+                  <div
+                    key={index}
+                    className="space-y-2 rounded-xl border border-[#D12226]/30 bg-[#D12226]/5 p-4 text-sm backdrop-blur transition hover:border-[#D12226]/50 hover:bg-[#D12226]/10"
+                  >
+                    <h5 className="font-semibold text-foreground dark:text-white">{func.function_name}</h5>
+                    <p className="text-muted-foreground leading-relaxed">{func.reason}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
 
           {/* Rug Pull Indicators */}
           {analysisResult.rug_pull_indicators.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Rug Pull Indicators</CardTitle>
-                <CardDescription>
+            <div className="rounded-2xl border border-border dark:border-white/10 bg-background/40 dark:bg-black/40 p-6 backdrop-blur shadow-lg">
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold text-foreground dark:text-white mb-1">Rug Pull Indicators</h3>
+                <p className="text-sm text-muted-foreground">
                   Patterns that suggest potential rug pull risks
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {analysisResult.rug_pull_indicators.map((indicator, index) => (
-                    <div
-                      key={index}
-                      className="space-y-2 rounded-xl border border-white/10 bg-black/40 p-4 text-sm text-white/80 backdrop-blur"
-                    >
-                      <h5 className="font-medium text-white">{indicator.pattern_name}</h5>
-                      <p className="text-sm text-white/70">{indicator.evidence}</p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                </p>
+              </div>
+              <div className="space-y-3">
+                {analysisResult.rug_pull_indicators.map((indicator, index) => (
+                  <div
+                    key={index}
+                    className="space-y-2 rounded-xl border border-orange-500/30 bg-orange-500/5 p-4 text-sm backdrop-blur transition hover:border-orange-500/50 hover:bg-orange-500/10"
+                  >
+                    <h5 className="font-semibold text-foreground dark:text-white">{indicator.pattern_name}</h5>
+                    <p className="text-muted-foreground leading-relaxed">{indicator.evidence}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
 
           {/* Safe Contract Message */}
           {analysisResult.risk_level === 'low' && analysisResult.risky_functions.length === 0 && (
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-center">
-                  <div className="text-green-600 dark:text-green-400 text-6xl mb-4">✅</div>
-                  <h3 className="text-xl font-semibold text-green-800 dark:text-green-200 mb-2">Contract Appears Safe</h3>
-                  <p className="text-green-700 dark:text-green-300">
-                    No significant security risks were detected in this contract.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-8 backdrop-blur shadow-lg">
+              <div className="text-center">
+                <div className="text-emerald-400 text-6xl mb-4">✅</div>
+                <h3 className="text-xl font-semibold text-emerald-200 mb-2">Contract Appears Safe</h3>
+                <p className="text-emerald-300">
+                  No significant security risks were detected in this contract.
+                </p>
+              </div>
+            </div>
           )}
         </div>
       )}

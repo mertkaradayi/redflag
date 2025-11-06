@@ -1,4 +1,9 @@
+"use client";
+
+import Link from "next/link";
 import Image, { type StaticImageData } from "next/image";
+import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -9,21 +14,14 @@ import lightWhole from "@/images/light mode whole.png";
 
 type BrandVariant = "horizontal" | "whole";
 
-const logoMap: Record<
-  BrandVariant,
-  {
-    light: string | StaticImageData;
-    dark: string | StaticImageData;
-  }
-> = {
-  horizontal: {
-    light: lightHorizontal,
-    dark: darkHorizontal,
-  },
-  whole: {
-    light: lightWhole,
-    dark: darkWhole,
-  },
+const darkLogoMap: Record<BrandVariant, string | StaticImageData> = {
+  horizontal: darkHorizontal,
+  whole: darkWhole,
+};
+
+const lightLogoMap: Record<BrandVariant, string | StaticImageData> = {
+  horizontal: lightHorizontal,
+  whole: lightWhole,
 };
 
 interface BrandLogoProps {
@@ -31,6 +29,8 @@ interface BrandLogoProps {
   wrapperClassName?: string;
   className?: string;
   priority?: boolean;
+  href?: string;
+  ariaLabel?: string;
 }
 
 export default function BrandLogo({
@@ -38,23 +38,35 @@ export default function BrandLogo({
   wrapperClassName,
   className,
   priority,
+  href = "/",
+  ariaLabel = "Go to homepage",
 }: BrandLogoProps) {
-  const assets = logoMap[variant];
+  const [mounted, setMounted] = useState(false);
+  const { resolvedTheme } = useTheme();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Use light logos for light mode, dark logos for dark mode
+  const logo = mounted && resolvedTheme === "dark" ? darkLogoMap[variant] : lightLogoMap[variant];
+
+  const content = (
+    <Image
+      src={logo}
+      alt="RedFlag logo"
+      className={cn("h-9 w-auto", className)}
+      priority={priority}
+    />
+  );
+
+  if (!href) {
+    return <div className={cn("relative flex items-center", wrapperClassName)}>{content}</div>;
+  }
 
   return (
-    <div className={cn("relative flex items-center", wrapperClassName)}>
-      <Image
-        src={assets.light}
-        alt="RedFlag logo"
-        className={cn("h-9 w-auto dark:hidden", className)}
-        priority={priority}
-      />
-      <Image
-        src={assets.dark}
-        alt="RedFlag logo"
-        className={cn("hidden h-9 w-auto dark:block", className)}
-        priority={priority}
-      />
-    </div>
+    <Link href={href} aria-label={ariaLabel} className={cn("relative flex items-center", wrapperClassName)}>
+      {content}
+    </Link>
   );
 }

@@ -1,5 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 import { ContractDeployment } from './sui-client';
+import type { RiskLevel } from './query-utils';
+
+export interface DeploymentRow {
+  package_id: string;
+  deployer_address: string;
+  tx_digest: string;
+  checkpoint: number;
+  timestamp: string;
+  first_seen_at?: string | null;
+}
 
 // Initialize Supabase client with service role key for backend operations
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -186,7 +196,7 @@ export async function getDeployments(options: {
   offset?: number;
 } = {}): Promise<{
   success: boolean;
-  deployments: any[];
+  deployments: DeploymentRow[];
   totalCount: number;
   error?: string;
 }> {
@@ -236,7 +246,7 @@ export async function getDeployments(options: {
 
     return {
       success: true,
-      deployments: data || [],
+      deployments: (data as DeploymentRow[]) || [],
       totalCount: count || 0
     };
 
@@ -247,6 +257,185 @@ export async function getDeployments(options: {
       success: false,
       deployments: [],
       totalCount: 0,
+      error: errorMessage
+    };
+  }
+}
+
+/**
+ * Get a single deployment by package_id
+ */
+export async function getDeploymentByPackageId(packageId: string): Promise<{
+  success: boolean;
+  deployment: DeploymentRow | null;
+  error?: string;
+}> {
+  try {
+    if (!supabase) {
+      return {
+        success: false,
+        deployment: null,
+        error: 'Supabase client not initialized'
+      };
+    }
+
+    const { data, error } = await supabase
+      .from('sui_package_deployments')
+      .select('*')
+      .eq('package_id', packageId)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No rows returned
+        return {
+          success: true,
+          deployment: null
+        };
+      }
+      console.error('Failed to get deployment by package_id:', error);
+      return {
+        success: false,
+        deployment: null,
+        error: error.message
+      };
+    }
+
+    return {
+      success: true,
+      deployment: (data as DeploymentRow | null) || null
+    };
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Unexpected error in getDeploymentByPackageId:', error);
+    return {
+      success: false,
+      deployment: null,
+      error: errorMessage
+    };
+  }
+}
+
+/**
+ * Get deployment statistics from the database
+ * Calculates total, last 24h, and latest checkpoint directly from DB
+ */
+export async function getDeploymentStats(): Promise<{
+  success: boolean;
+  total: number;
+  last24h: number;
+  previous24h: number;
+  latestCheckpoint: number | null;
+  error?: string;
+}> {
+  try {
+    if (!supabase) {
+      return {
+        success: false,
+        total: 0,
+        last24h: 0,
+        previous24h: 0,
+        latestCheckpoint: null,
+        error: 'Supabase client not initialized'
+      };
+    }
+
+    const now = new Date();
+    const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const previous24h = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+
+    // Get total count
+    const { count: totalCount, error: totalError } = await supabase
+      .from('sui_package_deployments')
+      .select('*', { count: 'exact', head: true });
+
+    if (totalError) {
+      console.error('Failed to get total count:', totalError);
+      return {
+        success: false,
+        total: 0,
+        last24h: 0,
+        previous24h: 0,
+        latestCheckpoint: null,
+        error: totalError.message
+      };
+    }
+
+    // Get last 24h count
+    const { count: last24hCount, error: last24hError } = await supabase
+      .from('sui_package_deployments')
+      .select('*', { count: 'exact', head: true })
+      .gte('timestamp', last24h.toISOString());
+
+    if (last24hError) {
+      console.error('Failed to get last 24h count:', last24hError);
+      return {
+        success: false,
+        total: totalCount || 0,
+        last24h: 0,
+        previous24h: 0,
+        latestCheckpoint: null,
+        error: last24hError.message
+      };
+    }
+
+    // Get previous 24h count (24-48 hours ago)
+    const { count: previous24hCount, error: previous24hError } = await supabase
+      .from('sui_package_deployments')
+      .select('*', { count: 'exact', head: true })
+      .gte('timestamp', previous24h.toISOString())
+      .lt('timestamp', last24h.toISOString());
+
+    if (previous24hError) {
+      console.error('Failed to get previous 24h count:', previous24hError);
+      return {
+        success: false,
+        total: totalCount || 0,
+        last24h: last24hCount || 0,
+        previous24h: 0,
+        latestCheckpoint: null,
+        error: previous24hError.message
+      };
+    }
+
+    // Get latest checkpoint
+    const { data: checkpointData, error: checkpointError } = await supabase
+      .from('sui_package_deployments')
+      .select('checkpoint')
+      .order('checkpoint', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (checkpointError && checkpointError.code !== 'PGRST116') {
+      console.error('Failed to get latest checkpoint:', checkpointError);
+      return {
+        success: false,
+        total: totalCount || 0,
+        last24h: last24hCount || 0,
+        previous24h: previous24hCount || 0,
+        latestCheckpoint: null,
+        error: checkpointError.message
+      };
+    }
+
+    return {
+      success: true,
+      total: totalCount || 0,
+      last24h: last24hCount || 0,
+      previous24h: previous24hCount || 0,
+      latestCheckpoint: checkpointData?.checkpoint ?? null
+    };
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Unexpected error in getDeploymentStats:', error);
+    return {
+      success: false,
+      total: 0,
+      last24h: 0,
+      previous24h: 0,
+      latestCheckpoint: null,
       error: errorMessage
     };
   }
@@ -348,6 +537,7 @@ export async function getAnalysisResult(
 ): Promise<{
   success: boolean;
   analysis: SafetyCard | null;
+  analyzedAt: string | null;
   error?: string;
 }> {
   try {
@@ -355,6 +545,7 @@ export async function getAnalysisResult(
       return {
         success: false,
         analysis: null,
+        analyzedAt: null,
         error: 'Supabase client not initialized'
       };
     }
@@ -371,7 +562,8 @@ export async function getAnalysisResult(
       if (error.code === 'PGRST116') {
         return {
           success: true,
-          analysis: null
+          analysis: null,
+          analyzedAt: null
         };
       }
       
@@ -379,6 +571,7 @@ export async function getAnalysisResult(
       return {
         success: false,
         analysis: null,
+        analyzedAt: null,
         error: error.message
       };
     }
@@ -386,7 +579,8 @@ export async function getAnalysisResult(
     if (!data) {
       return {
         success: true,
-        analysis: null
+        analysis: null,
+        analyzedAt: null
       };
     }
 
@@ -404,7 +598,8 @@ export async function getAnalysisResult(
 
     return {
       success: true,
-      analysis: safetyCard
+      analysis: safetyCard,
+      analyzedAt: data.analyzed_at ?? null
     };
 
   } catch (error) {
@@ -413,6 +608,7 @@ export async function getAnalysisResult(
     return {
       success: false,
       analysis: null,
+      analyzedAt: null,
       error: errorMessage
     };
   }
@@ -424,6 +620,8 @@ export async function getAnalysisResult(
 export async function getRecentAnalyses(options: {
   limit?: number;
   offset?: number;
+  packageId?: string | null;
+  riskLevels?: RiskLevel[] | null;
 } = {}): Promise<{
   success: boolean;
   analyses: any[];
@@ -440,29 +638,25 @@ export async function getRecentAnalyses(options: {
       };
     }
 
-    const { limit = 50, offset = 0 } = options;
+    const { limit = 50, offset = 0, packageId = null, riskLevels = null } = options;
 
-    // Get total count
-    const { count, error: countError } = await supabase
+    // Build base query
+    let query = supabase
       .from('contract_analyses')
-      .select('*', { count: 'exact', head: true });
+      .select('*', { count: 'exact', head: false })
+      .order('analyzed_at', { ascending: false });
 
-    if (countError) {
-      console.error('Failed to get analyses count:', countError);
-      return {
-        success: false,
-        analyses: [],
-        totalCount: 0,
-        error: countError.message
-      };
+    // Apply packageId filter if provided (exact match, case-sensitive)
+    if (packageId) {
+      query = query.eq('package_id', packageId);
     }
 
-    // Get paginated analyses
-    const { data, error } = await supabase
-      .from('contract_analyses')
-      .select('*')
-      .order('analyzed_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+    if (riskLevels && riskLevels.length > 0) {
+      query = query.in('risk_level', riskLevels);
+    }
+
+    // Get paginated analyses with accurate total count in one query
+    const { data, error, count } = await query.range(offset, offset + limit - 1);
 
     if (error) {
       console.error('Failed to get analyses:', error);
@@ -488,6 +682,79 @@ export async function getRecentAnalyses(options: {
       analyses: [],
       totalCount: 0,
       error: errorMessage
+    };
+  }
+}
+
+/**
+ * Get aggregated risk-level counts matching the provided filter
+ */
+export async function getRiskLevelCounts(options: {
+  packageId?: string | null;
+} = {}): Promise<{
+  success: boolean;
+  counts: Record<'critical' | 'high' | 'moderate' | 'low', number>;
+  error?: string;
+}> {
+  try {
+    if (!supabase) {
+      return {
+        success: false,
+        counts: {
+          critical: 0,
+          high: 0,
+          moderate: 0,
+          low: 0,
+        },
+        error: 'Supabase client not initialized'
+      };
+    }
+
+    const { packageId = null } = options;
+    const levels: Array<'critical' | 'high' | 'moderate' | 'low'> = ['critical', 'high', 'moderate', 'low'];
+    const counts: Record<'critical' | 'high' | 'moderate' | 'low', number> = {
+      critical: 0,
+      high: 0,
+      moderate: 0,
+      low: 0,
+    };
+
+    await Promise.all(
+      levels.map(async (level) => {
+        let query = supabase
+          .from('contract_analyses')
+          .select('id', { count: 'exact', head: true })
+          .eq('risk_level', level);
+
+        if (packageId) {
+          query = query.eq('package_id', packageId);
+        }
+
+        const { count, error } = await query;
+        if (!error && typeof count === 'number') {
+          counts[level] = count;
+        } else if (error) {
+          console.error(`Failed to get ${level} risk count:`, error);
+        }
+      }),
+    );
+
+    return {
+      success: true,
+      counts,
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Unexpected error in getRiskLevelCounts:', error);
+    return {
+      success: false,
+      counts: {
+        critical: 0,
+        high: 0,
+        moderate: 0,
+        low: 0,
+      },
+      error: errorMessage,
     };
   }
 }

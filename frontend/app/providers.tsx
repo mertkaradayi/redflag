@@ -1,26 +1,17 @@
 'use client';
 
 import { PrivyProvider } from '@privy-io/react-auth';
+import { ThemeProvider } from 'next-themes';
+import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
+import { ToastProvider } from '@/components/ui/toast';
 
-export default function Providers({ children }: { children: React.ReactNode }) {
-  const [isDarkMode, setIsDarkMode] = useState(false);
+function PrivyProviderWithTheme({ children }: { children: React.ReactNode }) {
+  const { resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    // Check system theme preference
-    const checkTheme = () => {
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      setIsDarkMode(prefersDark);
-    };
-
-    // Initial check
-    checkTheme();
-
-    // Listen for changes
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    mediaQuery.addEventListener('change', checkTheme);
-
-    return () => mediaQuery.removeEventListener('change', checkTheme);
+    setMounted(true);
   }, []);
 
   return (
@@ -29,8 +20,8 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       config={{
         // Appearance customization
         appearance: {
-          theme: isDarkMode ? 'dark' : 'light',
-          accentColor: '#3b82f6', // Blue that matches the project's button colors
+          theme: mounted && resolvedTheme === 'dark' ? 'dark' : 'light',
+          accentColor: '#D12226', // Red that matches the project's accent color
         },
         // Login methods
         loginMethods: ['email'],
@@ -42,5 +33,20 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     >
       {children}
     </PrivyProvider>
+  );
+}
+
+export default function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <ThemeProvider 
+      attribute="class" 
+      defaultTheme="system" 
+      enableSystem={true}
+      enableColorScheme={true}
+    >
+      <ToastProvider>
+        <PrivyProviderWithTheme>{children}</PrivyProviderWithTheme>
+      </ToastProvider>
+    </ThemeProvider>
   );
 }

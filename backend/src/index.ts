@@ -1,11 +1,27 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import { testSupabaseConnection, getDeployments, getAnalysisResult, getRecentAnalyses, getHighRiskAnalyses } from './lib/supabase';
+import { testSupabaseConnection, getDeployments, getDeploymentStats, getAnalysisResult, getRecentAnalyses, getHighRiskAnalyses, getRiskLevelCounts, getDeploymentByPackageId } from './lib/supabase';
 import { getRecentPublishTransactions, testSuiConnection } from './lib/sui-client';
 import { startMonitoring, stopMonitoring, getMonitoringStatus } from './workers/sui-monitor';
 import { runFullAnalysisChain, getAnalysis } from './lib/llm-analyzer';
 import { SuiClient } from '@mysten/sui/client';
+import { envFlag } from './lib/env-utils';
+import { validatePaginationParams } from './lib/query-utils';
+
+/**
+ * Determine network from environment variables
+ */
+function getNetwork(): 'mainnet' | 'testnet' {
+  const networkEnv = process.env.SUI_NETWORK?.toLowerCase();
+  if (networkEnv === 'mainnet' || networkEnv === 'testnet') {
+    return networkEnv;
+  }
+  
+  // Fallback to checking RPC URL
+  const rpcUrl = process.env.SUI_RPC_URL?.toLowerCase() || '';
+  return rpcUrl.includes('testnet') ? 'testnet' : 'mainnet';
+}
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -40,13 +56,20 @@ app.use(express.json());
 app.get('/health', async (req, res) => {
   const hasSupabaseKey = !!process.env.SUPABASE_SERVICE_KEY;
   const hasSuiRpcUrl = !!process.env.SUI_RPC_URL;
+  const suiEnabled = envFlag('ENABLE_SUI_RPC', true);
   
   // Test Sui RPC connection
-  let suiStatus = 'not configured';
-  if (hasSuiRpcUrl) {
+  let suiStatus = hasSuiRpcUrl ? 'configured' : 'missing url';
+  if (!suiEnabled) {
+    suiStatus = 'disabled';
+  } else if (hasSuiRpcUrl) {
     try {
       const suiResult = await testSuiConnection();
-      suiStatus = suiResult.success ? 'connected' : 'connection failed';
+      if (suiResult.disabled) {
+        suiStatus = 'disabled';
+      } else {
+        suiStatus = suiResult.success ? 'connected' : 'connection failed';
+      }
     } catch (error) {
       suiStatus = 'connection error';
     }
@@ -63,6 +86,7 @@ app.get('/health', async (req, res) => {
       },
       sui: {
         configured: hasSuiRpcUrl,
+        enabled: suiEnabled,
         status: suiStatus
       }
     }
@@ -114,6 +138,18 @@ app.get('/api/sui/recent-deployments', async (req, res) => {
       afterCheckpoint
     });
 
+    if (result.disabled) {
+      return res.status(503).json({
+        success: false,
+        message: result.message,
+        disabled: true,
+        timestamp: new Date().toISOString(),
+        connectionInfo: result.connectionInfo,
+        pollIntervalMs: result.pollIntervalMs,
+        queryStrategy: result.queryStrategy ?? null
+      });
+    }
+
     if (result.success) {
       res.json({
         success: true,
@@ -152,6 +188,20 @@ app.get('/api/sui/recent-deployments', async (req, res) => {
 app.get('/api/sui/latest-deployment', async (req, res) => {
   try {
     const result = await getRecentPublishTransactions({ limit: 1 });
+
+    if (result.disabled) {
+      return res.status(503).json({
+        success: false,
+        message: result.message,
+        disabled: true,
+        timestamp: new Date().toISOString(),
+        connectionInfo: result.connectionInfo,
+        latestCheckpoint: result.latestCheckpoint ?? null,
+        nextCursor: result.nextCursor ?? null,
+        pollIntervalMs: result.pollIntervalMs,
+        queryStrategy: result.queryStrategy ?? null
+      });
+    }
 
     if (result.success) {
       const latestDeployment = result.deployments && result.deployments.length > 0
@@ -198,6 +248,16 @@ app.get('/api/sui/health', async (req, res) => {
   try {
     const result = await testSuiConnection();
     
+    if (result.disabled) {
+      return res.status(503).json({
+        success: false,
+        message: result.message,
+        disabled: true,
+        timestamp: new Date().toISOString(),
+        connectionInfo: result.connectionInfo
+      });
+    }
+
     if (result.success) {
       res.json({
         success: true,
@@ -211,13 +271,45 @@ app.get('/api/sui/health', async (req, res) => {
         message: result.message,
         error: result.error,
         timestamp: new Date().toISOString(),
-        connectionInfo: result.connectionInfo
+        connectionInfo: result.connectionInfo,
+        disabled: result.disabled ?? false
       });
     }
   } catch (error) {
     res.status(500).json({
       success: false,
       message: `Sui health check failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Deployment statistics endpoint - calculates stats from all database records
+app.get('/api/sui/deployment-stats', async (req, res) => {
+  try {
+    const result = await getDeploymentStats();
+
+    if (result.success) {
+      res.json({
+        success: true,
+        timestamp: new Date().toISOString(),
+        total: result.total,
+        last24h: result.last24h,
+        previous24h: result.previous24h,
+        last24hDelta: result.last24h - result.previous24h,
+        latestCheckpoint: result.latestCheckpoint
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: result.error || 'Failed to retrieve deployment stats',
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: `Stats query failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
       timestamp: new Date().toISOString()
     });
   }
@@ -238,6 +330,7 @@ app.get('/api/sui/deployments', async (req, res) => {
     const result = await getDeployments({ limit, offset });
 
     if (result.success) {
+      const network = getNetwork();
       res.json({
         success: true,
         message: `Retrieved ${result.deployments.length} deployments`,
@@ -245,7 +338,8 @@ app.get('/api/sui/deployments', async (req, res) => {
         deployments: result.deployments,
         totalCount: result.totalCount,
         limit: limit || 50,
-        offset: offset || 0
+        offset: offset || 0,
+        network
       });
     } else {
       res.status(500).json({
@@ -270,13 +364,25 @@ app.get('/api/sui/monitor-status', (req, res) => {
     success: true,
     message: 'Monitor status retrieved',
     timestamp: new Date().toISOString(),
-    monitor: status
+    monitor: {
+      ...status,
+      enabled: envFlag('ENABLE_AUTO_ANALYSIS', true)
+    }
   });
 });
 
 // Debug endpoint to see what transactions we're getting
 app.get('/api/sui/debug', async (req, res) => {
   try {
+    if (!envFlag('ENABLE_SUI_RPC', true)) {
+      return res.status(503).json({
+        success: false,
+        message: 'Sui RPC access disabled by configuration (ENABLE_SUI_RPC=false)',
+        disabled: true,
+        timestamp: new Date().toISOString()
+      });
+    }
+
     const { SuiClient } = await import('@mysten/sui/client');
     const client = new SuiClient({ url: process.env.SUI_RPC_URL || 'https://fullnode.testnet.sui.io:443' });
     
@@ -336,6 +442,17 @@ app.post('/api/llm/analyze', async (req, res) => {
     
     // Validate network parameter
     const validatedNetwork = (network === 'testnet') ? 'testnet' : 'mainnet';
+
+    if (!envFlag('ENABLE_SUI_RPC', true)) {
+      return res.status(503).json({
+        success: false,
+        message: 'Sui RPC access disabled by configuration (ENABLE_SUI_RPC=false)',
+        timestamp: new Date().toISOString(),
+        package_id,
+        network: validatedNetwork,
+        disabled: true
+      });
+    }
     
     console.log(`[LLM] Analyzing package_id: ${package_id} on ${validatedNetwork}`);
     
@@ -520,7 +637,25 @@ app.get('/api/llm/health', async (req, res) => {
 // Get All Analyzed Contracts (alias for recent-analyses)
 app.get('/api/llm/analyzed-contracts', async (req, res) => {
   try {
-    const result = await getRecentAnalyses({ limit: 100 });
+    // Validate and parse query parameters
+    const validation = validatePaginationParams(
+      req.query.limit,
+      req.query.offset,
+      req.query.packageId,
+      req.query.riskLevels
+    );
+
+    if (!validation.success) {
+      return res.status(400).json({
+        success: false,
+        message: validation.error,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    const { limit, offset, packageId, riskLevels } = validation.params;
+
+    const result = await getRecentAnalyses({ limit, offset, packageId, riskLevels });
 
     if (result.success) {
       const contracts = result.analyses.map(analysis => ({
@@ -538,12 +673,25 @@ app.get('/api/llm/analyzed-contracts', async (req, res) => {
         analyzed_at: analysis.analyzed_at
       }));
 
+      const riskCountsResult = await getRiskLevelCounts({ packageId });
+      const riskCounts = riskCountsResult.success ? riskCountsResult.counts : undefined;
+      
+      // Always fetch the most recent analysis timestamp regardless of pagination offset
+      const mostRecentResult = await getRecentAnalyses({ limit: 1, offset: 0, packageId, riskLevels });
+      const lastAnalyzed = mostRecentResult.success && mostRecentResult.analyses.length > 0 
+        ? mostRecentResult.analyses[0].analyzed_at 
+        : null;
+
       res.json({
         success: true,
         message: 'Analyzed contracts retrieved successfully',
         timestamp: new Date().toISOString(),
         total: result.totalCount,
-        contracts
+        limit,
+        offset,
+        contracts,
+        risk_counts: riskCounts,
+        last_updated: lastAnalyzed
       });
     } else {
       res.status(500).json({
@@ -563,6 +711,83 @@ app.get('/api/llm/analyzed-contracts', async (req, res) => {
   }
 });
 
+// Get package status (deployment + analysis)
+app.get('/api/llm/package-status/:packageId', async (req, res) => {
+  try {
+    const { packageId } = req.params;
+    const networkParam = Array.isArray(req.query.network) ? req.query.network[0] : req.query.network;
+    const normalizedNetwork = typeof networkParam === 'string' ? networkParam.toLowerCase() : undefined;
+    const network = normalizedNetwork === 'testnet' ? 'testnet' : normalizedNetwork === 'mainnet' ? 'mainnet' : getNetwork();
+
+    if (!packageId) {
+      return res.status(400).json({
+        success: false,
+        message: 'packageId is required',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Fetch deployment info
+    const deploymentResult = await getDeploymentByPackageId(packageId);
+    
+    // Fetch analysis info
+    const analysisResult = await getAnalysisResult(packageId, network);
+
+    if (!deploymentResult.success) {
+      return res.status(500).json({
+        success: false,
+        message: deploymentResult.error || 'Failed to fetch deployment',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    if (!analysisResult.success) {
+      return res.status(500).json({
+        success: false,
+        message: analysisResult.error || 'Failed to fetch analysis',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Determine status
+    let status: 'analyzed' | 'not_analyzed' | 'not_found';
+    if (!deploymentResult.deployment) {
+      status = 'not_found';
+    } else if (analysisResult.analysis) {
+      status = 'analyzed';
+    } else {
+      status = 'not_analyzed';
+    }
+
+    res.json({
+      success: true,
+      package_id: packageId,
+      deployment: deploymentResult.deployment,
+      analysis: analysisResult.analysis ? {
+        summary: analysisResult.analysis.summary,
+        risky_functions: analysisResult.analysis.risky_functions,
+        rug_pull_indicators: analysisResult.analysis.rug_pull_indicators,
+        impact_on_user: analysisResult.analysis.impact_on_user,
+        why_risky_one_liner: analysisResult.analysis.why_risky_one_liner,
+        risk_score: analysisResult.analysis.risk_score,
+        risk_level: analysisResult.analysis.risk_level
+      } : null,
+      analyzed_at: analysisResult.analyzedAt,
+      status,
+      network,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Failed to get package status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get package status',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Start server
 app.listen(PORT, async () => {
   console.log(`🚀 RedFlag Backend running on port ${PORT} - Dashboard Ready!`);
@@ -576,10 +801,24 @@ app.listen(PORT, async () => {
   console.log(`📊 Monitor status: http://localhost:${PORT}/api/sui/monitor-status`);
 
   // Start the Sui deployment monitor
-  try {
-    await startMonitoring();
-  } catch (error) {
-    console.error('❌ Failed to start Sui deployment monitor:', error);
+  const autoAnalysisEnabled = envFlag('ENABLE_AUTO_ANALYSIS', true);
+  const suiRpcEnabled = envFlag('ENABLE_SUI_RPC', true);
+
+  if (autoAnalysisEnabled && suiRpcEnabled) {
+    try {
+      await startMonitoring();
+    } catch (error) {
+      console.error('❌ Failed to start Sui deployment monitor:', error);
+    }
+  } else {
+    const reasons: string[] = [];
+    if (!autoAnalysisEnabled) {
+      reasons.push('ENABLE_AUTO_ANALYSIS=false');
+    }
+    if (!suiRpcEnabled) {
+      reasons.push('ENABLE_SUI_RPC=false');
+    }
+    console.log(`⚠️ Sui deployment monitor not started (${reasons.join(', ') || 'no reason provided'})`);
   }
 });
 

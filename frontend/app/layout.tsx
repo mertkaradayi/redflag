@@ -6,6 +6,7 @@ import socialPreview from "@/images/Light mode horizontal.png";
 
 import "./globals.css";
 import Providers from "./providers";
+import Header from "./components/Header";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -17,13 +18,13 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
-const socialPreviewUrl = siteUrl
-  ? new URL(socialPreview.src, siteUrl).toString()
-  : socialPreview.src;
+const fallbackSiteUrl = "http://localhost:3000";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? fallbackSiteUrl;
+const metadataBase = new URL(siteUrl);
+const socialPreviewUrl = new URL(socialPreview.src, metadataBase).toString();
 
 export const metadata: Metadata = {
-  metadataBase: siteUrl ? new URL(siteUrl) : undefined,
+  metadataBase,
   title: {
     default: "RedFlag | AI-Powered Sui Contract Risk Intelligence",
     template: "%s | RedFlag",
@@ -100,11 +101,22 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Providers>{children}</Providers>
+        <Providers>
+          <div className="relative flex min-h-screen flex-col">
+            <div className="pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-center">
+              <div className="pointer-events-auto mt-6 flex w-full max-w-6xl mx-auto px-4 sm:mt-8 sm:px-8 lg:mt-10 lg:px-16">
+                <Header />
+              </div>
+            </div>
+            <main className="flex-1 overflow-x-hidden bg-[hsl(var(--background))] text-[hsl(var(--foreground))] pt-28 transition-colors duration-200 dark:bg-gradient-to-b dark:from-black dark:via-zinc-950 dark:to-black sm:pt-32 lg:pt-36">
+              {children}
+            </main>
+          </div>
+        </Providers>
       </body>
     </html>
   );

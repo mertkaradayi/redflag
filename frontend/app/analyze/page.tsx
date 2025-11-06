@@ -1,9 +1,8 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, BrainCircuit, Gauge, ShieldAlert } from "lucide-react";
+import { ArrowRight, BrainCircuit, Gauge, ShieldAlert } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import BrandLogo from "../components/BrandLogo";
 import LLMAnalysis from "../components/LLMAnalysis";
 
 interface Highlight {
@@ -112,73 +111,31 @@ const patternGroups: PatternGroup[] = [
 const toneClasses: Record<PatternGroup["tone"], string> = {
   critical:
     "border-[#D12226]/60 bg-[#D12226]/10 text-white",
-  high: "border-white/20 bg-white/5 text-zinc-100",
-  moderate: "border-white/15 bg-black/40 text-zinc-200",
-  low: "border-white/10 bg-black/30 text-zinc-300",
+  high: "border-border/50 dark:border-white/20 bg-card/50 dark:bg-white/5 text-foreground dark:text-zinc-100",
+  moderate: "border-border/50 dark:border-white/15 bg-background/40 dark:bg-black/40 text-muted-foreground dark:text-zinc-200",
+  low: "border-border dark:border-white/10 bg-background/30 dark:bg-black/30 text-muted-foreground",
 };
 
 export default function AnalyzePage() {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-black text-white">
-      <div className="absolute inset-0 -z-10">
-        <div className="absolute inset-x-0 top-[-12%] h-[520px] bg-[radial-gradient(circle_at_center,_rgba(209,34,38,0.28),_transparent_60%)]" />
-        <div className="absolute left-1/2 top-[45%] h-[540px] w-[540px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,_rgba(209,34,38,0.18),_transparent_60%)] blur-3xl" />
+    <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-16 px-4 pb-24 transition-colors duration-200 sm:px-8 lg:gap-20 lg:px-16">
+      <div className="pointer-events-none fixed inset-0 -z-10">
+        <div className="absolute inset-x-0 top-[-12%] h-[520px] bg-[radial-gradient(circle_at_center,_rgba(209,34,38,0.28),_transparent_60%)] dark:opacity-100 opacity-0" />
+        <div className="absolute left-1/2 top-[45%] h-[540px] w-[540px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,_rgba(209,34,38,0.18),_transparent_60%)] blur-3xl dark:opacity-100 opacity-0" />
       </div>
-
-      <main className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-20 px-6 pb-24 pt-12 sm:px-12 lg:px-16">
-        <header className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
-            <BrandLogo className="h-9" priority />
-            <span className="hidden text-xs font-semibold uppercase tracking-[0.3em] text-zinc-400 sm:inline">
-              Analyze Contracts
-            </span>
-          </div>
-          <div className="flex items-center gap-3">
-            <Link href="/" className="hidden sm:block">
-              <Button
-                variant="outline"
-                size="sm"
-                className="border-white/20 bg-transparent text-zinc-200 hover:border-white hover:text-white"
-              >
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back Home
-              </Button>
-            </Link>
-            <Link href="/dashboard">
-              <Button className="bg-[#D12226] text-white hover:bg-[#a8181b]">
-                View Dashboard
-              </Button>
-            </Link>
-          </div>
-        </header>
-
-        <section className="grid items-start gap-12 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="space-y-8">
-            <div className="space-y-6">
-              <h1 className="text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
+        <section className="grid items-start gap-12 transition-colors duration-200 lg:grid-cols-[1fr_1.2fr]">
+          <div className="space-y-6">
+            <div className="space-y-4">
+              <h1 className="text-3xl font-semibold leading-tight tracking-tight sm:text-5xl">
                 Stress-test Sui contracts before they stress you.
               </h1>
-              <p className="max-w-xl text-lg leading-8 text-zinc-300">
+              <p className="text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
                 Paste a package ID, pick your network, and our multi-agent reviewer spins up a full security audit in
                 minutes. Every risky function is ranked, justified, and ready for action.
               </p>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {highlights.map((highlight) => (
-                <div
-                  key={highlight.title}
-                  className="flex h-full flex-col gap-3 rounded-2xl border border-white/15 bg-white/5 p-5 text-sm text-zinc-300 transition hover:border-[#D12226]/40 hover:bg-[#D12226]/10"
-                >
-                  <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-[#D12226]">
-                    {highlight.icon}
-                    {highlight.title}
-                  </div>
-                  <p className="leading-6 text-zinc-300">{highlight.description}</p>
-                </div>
-              ))}
-            </div>
-            <div className="flex flex-wrap items-center gap-4 text-xs font-semibold uppercase tracking-[0.35em] text-zinc-400">
-              <span className="rounded-full border border-white/15 px-3 py-1">
+            <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.35em] text-muted-foreground sm:text-xs">
+              <span className="rounded-full border border-border dark:border-white/15 px-3 py-1">
                 Gemini 2.5 Flash
               </span>
               <span className="rounded-full border border-white/15 px-3 py-1">
@@ -190,10 +147,34 @@ export default function AnalyzePage() {
             </div>
           </div>
           <div className="relative">
-            <div className="absolute -inset-6 rounded-3xl bg-gradient-to-br from-[#D12226]/30 via-transparent to-[#D12226]/10 blur-2xl" />
-            <div className="relative overflow-hidden rounded-3xl border border-white/15 bg-black/40 p-8 shadow-xl backdrop-blur">
-              <div className="space-y-4 text-sm text-zinc-300">
-                <h2 className="text-lg font-semibold text-white">What you’ll get</h2>
+            <div className="pointer-events-none absolute -inset-3 rounded-3xl bg-gradient-to-br from-[#D12226]/30 via-transparent to-[#D12226]/10 blur-2xl sm:-inset-4 lg:-inset-6" />
+            <div className="relative overflow-hidden rounded-3xl border border-border dark:border-white/15 bg-background/40 dark:bg-black/40 p-6 shadow-xl backdrop-blur sm:p-8">
+              <LLMAnalysis />
+            </div>
+          </div>
+        </section>
+
+        <section className="grid gap-4 transition-colors duration-200 sm:grid-cols-2 lg:grid-cols-3">
+          {highlights.map((highlight) => (
+            <div
+              key={highlight.title}
+              className="flex h-full flex-col gap-3 rounded-2xl border border-border dark:border-white/15 bg-card/50 dark:bg-white/5 p-5 text-sm text-muted-foreground transition-colors duration-200 hover:border-[#D12226]/40 hover:bg-[#D12226]/10"
+            >
+              <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-[#D12226]">
+                {highlight.icon}
+                {highlight.title}
+              </div>
+              <p className="leading-6 text-muted-foreground">{highlight.description}</p>
+            </div>
+          ))}
+        </section>
+
+        <section className="transition-colors duration-200">
+          <div className="relative">
+            <div className="pointer-events-none absolute -inset-3 rounded-3xl bg-gradient-to-br from-[#D12226]/30 via-transparent to-[#D12226]/10 blur-2xl sm:-inset-4 lg:-inset-6" />
+            <div className="relative overflow-hidden rounded-3xl border border-border dark:border-white/15 bg-background/40 dark:bg-black/40 p-6 shadow-xl backdrop-blur transition-colors duration-200 sm:p-8">
+              <div className="space-y-4 text-sm text-muted-foreground">
+                <h2 className="text-lg font-semibold text-foreground dark:text-white">What you'll get</h2>
                 <ul className="space-y-3">
                   <li className="flex items-start gap-3">
                     <span className="mt-1 h-2 w-2 rounded-full bg-[#D12226]" />
@@ -209,49 +190,32 @@ export default function AnalyzePage() {
                   </li>
                 </ul>
               </div>
-              <div className="mt-8 rounded-2xl border border-white/10 bg-black/30 p-5 text-sm text-zinc-300">
-                <p className="font-semibold text-white">Need to triage historical runs?</p>
+              <div className="mt-8 rounded-2xl border border-border dark:border-white/10 bg-background/30 dark:bg-black/30 p-5 text-sm text-muted-foreground">
+                <p className="font-semibold text-foreground dark:text-white">Need to triage historical runs?</p>
                 <p className="mt-2">
                   Head to the dashboard to replay past findings, export JSON payloads, and monitor score deltas across
                   deployments.
                 </p>
-                <Link href="/dashboard" className="mt-4 inline-flex items-center text-sm font-semibold text-[#D12226] hover:text-[#ff3d41]">
-                  Jump to dashboard
-                  <ArrowRight className="ml-2 h-4 w-4" />
+                <Link href="/dashboard" className="mt-4 inline-block">
+                  <Button variant="outline" className="border-[#D12226] text-[#D12226] hover:bg-[#D12226]/20 hover:text-white">
+                    Jump to dashboard
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
                 </Link>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-lg backdrop-blur-lg sm:p-10">
-          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-2xl font-semibold text-white">Run an analysis</h2>
-              <p className="text-sm text-zinc-300">
-                Enter a Move package ID to launch RedFlag’s end-to-end review pipeline.
-              </p>
-            </div>
-            <Link href="/dashboard">
-              <Button variant="outline" className="border-[#D12226] text-[#D12226] hover:bg-[#D12226]/20 hover:text-white">
-                View completed reports
-              </Button>
-            </Link>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-black/40 p-6 sm:p-8">
-            <LLMAnalysis />
-          </div>
-        </section>
-
-        <section className="space-y-10">
+        <section className="space-y-10 transition-colors duration-200">
           <div className="space-y-3">
             <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#D12226]">
               How it works
             </p>
-            <h2 className="text-3xl font-semibold text-white sm:text-4xl">
+            <h2 className="text-3xl font-semibold text-foreground dark:text-white sm:text-4xl">
               From package submission to remediation guidance
             </h2>
-            <p className="max-w-2xl text-base text-zinc-300">
+            <p className="max-w-2xl text-base text-muted-foreground">
               Every stage of the pipeline is tuned to catch real exploits, document context, and accelerate your
               engineering response.
             </p>
@@ -260,28 +224,28 @@ export default function AnalyzePage() {
             {processSteps.map((step, index) => (
               <div
                 key={step.title}
-                className="relative flex h-full flex-col gap-3 rounded-2xl border border-white/10 bg-black/40 p-6 shadow-inner transition hover:border-[#D12226]/40"
+                className="relative flex h-full flex-col gap-3 rounded-2xl border border-border dark:border-white/10 bg-background/40 dark:bg-black/40 p-6 shadow-inner transition-colors duration-200 hover:border-[#D12226]/40"
               >
                 <span className="absolute right-6 top-6 text-xs font-semibold uppercase tracking-[0.3em] text-[#D12226]">
                   Step {index + 1}
                 </span>
-                <h3 className="text-lg font-semibold text-white">{step.title}</h3>
-                <p className="text-sm font-medium text-zinc-200">{step.summary}</p>
-                <p className="text-sm text-zinc-300">{step.detail}</p>
+                <h3 className="text-lg font-semibold text-foreground dark:text-white">{step.title}</h3>
+                <p className="text-sm font-medium text-muted-foreground dark:text-zinc-200">{step.summary}</p>
+                <p className="text-sm text-muted-foreground">{step.detail}</p>
               </div>
             ))}
           </div>
         </section>
 
-        <section className="space-y-8">
+        <section className="space-y-8 transition-colors duration-200">
           <div className="space-y-3">
             <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#D12226]">
               Signals we classify
             </p>
-            <h2 className="text-3xl font-semibold text-white sm:text-4xl">
+            <h2 className="text-3xl font-semibold text-foreground dark:text-white sm:text-4xl">
               Risk pattern library aligned to Move semantics
             </h2>
-            <p className="max-w-2xl text-base text-zinc-300">
+            <p className="max-w-2xl text-base text-muted-foreground">
               RedFlag distills hundreds of attack patterns we&apos;ve collected from audits, red team engagements, and
               live incidents across the Sui ecosystem.
             </p>
@@ -290,9 +254,9 @@ export default function AnalyzePage() {
             {patternGroups.map((group) => (
               <div
                 key={group.title}
-                className={`rounded-2xl border p-6 ${toneClasses[group.tone]}`}
+                className={`rounded-2xl border p-6 transition-colors duration-200 ${toneClasses[group.tone]}`}
               >
-                <h3 className="text-lg font-semibold text-white">{group.title}</h3>
+                <h3 className="text-lg font-semibold text-foreground dark:text-white">{group.title}</h3>
                 <ul className="mt-4 space-y-2 text-sm">
                   {group.items.map((item) => (
                     <li key={item} className="flex items-start gap-3">
@@ -306,7 +270,7 @@ export default function AnalyzePage() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-white/10 bg-gradient-to-br from-[#D12226]/60 via-[#D12226]/30 to-black p-10 text-center shadow-2xl">
+        <section className="rounded-3xl border border-border dark:border-white/10 bg-gradient-to-br from-[#D12226]/60 via-[#D12226]/30 to-background dark:to-black p-6 text-center shadow-2xl transition-colors duration-200 sm:p-8 lg:p-10">
           <div className="mx-auto max-w-3xl space-y-6">
             <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.3em] text-white/80">
               Ready when you are
@@ -335,7 +299,6 @@ export default function AnalyzePage() {
             </div>
           </div>
         </section>
-      </main>
     </div>
   );
 }

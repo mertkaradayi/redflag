@@ -98,6 +98,8 @@ The frontend uses the `@/` alias (rooted at `frontend/`) for cross-module import
 | `SUPABASE_ANON_KEY` | No | Optional anon key; retained for future read-only client use. | – |
 | `GOOGLE_API_KEY` | Yes (for analysis) | Primary Gemini 2.5 Flash key. Required to run the analyzer and background worker. | – |
 | `GOOGLE_API_KEY_FALLBACK` | No | Secondary Gemini key used automatically when the primary hits quota. | – |
+| `ENABLE_AUTO_ANALYSIS` | No | Enables the background Sui monitor + automatic Gemini analysis. Flip to `false` while developing UI without hitting external services. | `true` |
+| `ENABLE_SUI_RPC` | No | Master kill switch for all Sui RPC calls (health checks, monitor, manual analysis). Set to `false` to avoid network calls locally. | `true` |
 | `SUI_RPC_URL` | No | Sui RPC endpoint (testnet by default). | `https://fullnode.testnet.sui.io:443` |
 | `POLL_INTERVAL_MS` | No | Worker polling interval in milliseconds. | `15000` |
 | `SUI_PRIVATE_KEY` | No | Optional Ed25519 private key for authenticated Sui calls. | – |
@@ -139,6 +141,8 @@ The frontend uses the `@/` alias (rooted at `frontend/`) for cross-module import
 3. For each new package the worker requests a Gemini safety card via `runFullAnalysisChain`.
 4. Results are persisted in `contract_analyses` (idempotent upsert) and exposed through `/api/llm/*` endpoints.
 5. High-risk packages are logged with elevated console output for operational awareness.
+
+Set `ENABLE_AUTO_ANALYSIS=false` to skip this worker entirely, or `ENABLE_SUI_RPC=false` to short-circuit every Sui RPC call while working offline.
 
 ## Supabase Schema (minimum viable)
 

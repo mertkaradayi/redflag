@@ -15,14 +15,23 @@ export interface AnalyzedContract {
     why_risky_one_liner: string;
     risk_score: number;
     risk_level: "low" | "moderate" | "high" | "critical";
-    timestamp: string;
   };
   analyzed_at: string;
 }
 
 export interface DashboardData {
   success: boolean;
-  total: number;
+  total: number;           // Total matching records
+  limit: number;           // Page size
+  offset: number;          // Current offset
   contracts: AnalyzedContract[];
+  risk_counts?: {
+    critical: number;
+    high: number;
+    moderate: number;
+    low: number;
+  };
+  last_updated?: string;
   message?: string;
+  timestamp?: string;
 }

@@ -7,9 +7,11 @@ import riskPatterns from './risk-patterns';
 import { saveAnalysisResult, getAnalysisResult, type SafetyCard } from './supabase';
 
 // Initialize Gemini AI with fallback support
-let currentApiKey = process.env.GOOGLE_API_KEY || '';
-let fallbackApiKey = process.env.GOOGLE_API_KEY_FALLBACK || '';
-let genAI = new GoogleGenerativeAI(currentApiKey);
+const primaryApiKey = process.env.GOOGLE_API_KEY || '';
+const fallbackApiKeyEnv = process.env.GOOGLE_API_KEY_FALLBACK || '';
+let currentApiKey = primaryApiKey || fallbackApiKeyEnv;
+let fallbackApiKey = fallbackApiKeyEnv;
+let genAI: GoogleGenerativeAI | null = currentApiKey ? new GoogleGenerativeAI(currentApiKey) : null;
 
 // Function to validate API keys at startup
 export function validateApiKeys() {
@@ -39,6 +41,28 @@ function switchToFallbackApiKey() {
     return false;
 }
 
+function isQuotaError(error: unknown) {
+    const status = (error as { status?: number })?.status;
+    if (status === 429) return true;
+
+    const message = (error instanceof Error && error.message) ? error.message : String(error ?? '');
+    const lowerMessage = message.toLowerCase();
+
+    if (message.includes('429')) return true;
+
+    return lowerMessage.includes('quota exceeded') || lowerMessage.includes('resource has been exhausted') || lowerMessage.includes('rate limit');
+}
+
+function getGenAI() {
+    if (!currentApiKey) {
+        throw new Error('[LLM] No active Google API key available for Gemini client');
+    }
+    if (!genAI) {
+        genAI = new GoogleGenerativeAI(currentApiKey);
+    }
+    return genAI;
+}
+
 // Function to add exponential backoff delay
 function getRetryDelay(attempt: number): number {
     const baseDelay = 2000; // 2 seconds
@@ -54,7 +78,7 @@ function getRetryDelay(attempt: number): number {
 /**
  * Extracts public functions, dependencies, and disassembled code from Sui modules
  */
-function extractPackageData(modules: any, modulesContent: any) {
+export function extractPackageData(modules: any, modulesContent: any) {
     const functions: any[] = [];
     const dependencySet = new Set();
     
@@ -66,52 +90,7 @@ function extractPackageData(modules: any, modulesContent: any) {
                 for (const funcName in (module as any).exposedFunctions) {
                     const func = (module as any).exposedFunctions[funcName];
                     if (func.visibility === 'Public') {
-                        const paramTypes = func.parameters.map((param: any) => {
-                            // Handle reference types (&T or &mut T)
-                            if (typeof param === 'object' && param.Reference) {
-                                let innerType = param.Reference;
-                                let mutable = false;
-                                
-                                if (typeof innerType === 'object' && innerType.MutableReference) {
-                                    innerType = innerType.MutableReference;
-                                    mutable = true;
-                                }
-                                
-                                if (typeof innerType === 'string') {
-                                    return { kind: 'reference', type: innerType, mutable };
-                                }
-                                if (typeof innerType === 'object' && innerType.Struct) {
-                                    const structId = `${innerType.Struct.address}::${innerType.Struct.module}::${innerType.Struct.name}`;
-                                    return { kind: 'reference', type: 'struct', value: structId, mutable };
-                                }
-                                if (typeof innerType === 'object' && innerType.Vector) {
-                                    return { kind: 'reference', type: 'vector', value: '...', mutable };
-                                }
-                            }
-                            
-                            // Handle non-reference types
-                            if (typeof param === 'string') {
-                                return { kind: 'primitive', type: param };
-                            }
-                            
-                            if (typeof param === 'object' && param.Struct) {
-                                const structId = `${param.Struct.address}::${param.Struct.module}::${param.Struct.name}`;
-                                const typeArgs = param.Struct.type_arguments?.map((arg: any) => {
-                                    if (typeof arg === 'string') return arg;
-                                    if (typeof arg === 'object' && arg.Struct) {
-                                        return `${arg.Struct.address}::${arg.Struct.module}::${arg.Struct.name}`;
-                                    }
-                                    return 'TypeArg';
-                                }) || [];
-                                return { kind: 'struct', value: structId, typeArgs };
-                            }
-                            
-                            if (typeof param === 'object' && param.Vector) {
-                                return { kind: 'vector', value: '...' };
-                            }
-                            
-                            return { kind: 'unknown', value: JSON.stringify(param) };
-                        });
+                        const paramTypes = func.parameters.map((param: any) => normalizeMoveType(param));
                         
                         functions.push({
                             module: moduleName,
@@ -139,6 +118,98 @@ function extractPackageData(modules: any, modulesContent: any) {
     };
 }
 
+function normalizeMoveType(param: any): any {
+    if (typeof param === 'string') {
+        return { kind: 'primitive', type: param };
+    }
+
+    if (typeof param !== 'object' || param === null) {
+        return { kind: 'unknown', value: JSON.stringify(param) };
+    }
+
+    if (param.MutableReference) {
+        return normalizeReferenceType(param.MutableReference, true);
+    }
+
+    if (param.Reference) {
+        return normalizeReferenceType(param.Reference, false);
+    }
+
+    if (param.Struct) {
+        const structInfo = normalizeStructType(param.Struct);
+        return { kind: 'struct', value: structInfo.identifier, typeArgs: structInfo.typeArguments };
+    }
+
+    if (param.Vector) {
+        return { kind: 'vector', value: normalizeMoveType(param.Vector) };
+    }
+
+    if (param.TypeParameter !== undefined) {
+        return { kind: 'type-parameter', value: param.TypeParameter };
+    }
+
+    return { kind: 'unknown', value: JSON.stringify(param) };
+}
+
+function normalizeReferenceType(innerType: any, mutable: boolean) {
+    if (typeof innerType === 'string') {
+        return { kind: 'reference', type: innerType, mutable };
+    }
+
+    if (typeof innerType !== 'object' || innerType === null) {
+        return { kind: 'reference', type: 'unknown', value: JSON.stringify(innerType), mutable };
+    }
+
+    if (innerType.Struct) {
+        const structInfo = normalizeStructType(innerType.Struct);
+        return {
+            kind: 'reference',
+            type: 'struct',
+            value: structInfo.identifier,
+            typeArgs: structInfo.typeArguments,
+            mutable
+        };
+    }
+
+    if (innerType.Vector) {
+        return {
+            kind: 'reference',
+            type: 'vector',
+            value: normalizeMoveType(innerType.Vector),
+            mutable
+        };
+    }
+
+    if (innerType.MutableReference || innerType.Reference) {
+        const nested = innerType.MutableReference ?? innerType.Reference;
+        const nestedMutable = !!innerType.MutableReference || mutable;
+        return normalizeReferenceType(nested, nestedMutable);
+    }
+
+    return { kind: 'reference', type: 'unknown', value: JSON.stringify(innerType), mutable };
+}
+
+function normalizeStructType(struct: any) {
+    const identifier = `${struct.address}::${struct.module}::${struct.name}`;
+    const typeArguments = (struct.typeArguments || []).map((arg: any) => {
+        if (typeof arg === 'string') return arg;
+        if (arg && typeof arg === 'object') {
+            if (arg.Struct) {
+                const nested = normalizeStructType(arg.Struct);
+                return nested.identifier;
+            }
+            if (arg.Address) return `Address(${arg.Address})`;
+            if (arg.Vector) {
+                const vector = normalizeMoveType(arg.Vector);
+                return typeof vector === 'string' ? `vector<${vector}>` : `vector`;
+            }
+        }
+        return JSON.stringify(arg);
+    });
+
+    return { identifier, typeArguments };
+}
+
 /**
  * Generic LLM Helper - Calls Gemini with any prompt and fallback API key support
  */
@@ -146,7 +217,7 @@ async function callGemini(prompt: string, isJson = false, retryWithFallback = tr
     console.log(` > [Gemini Call] Firing agent... (attempt ${attempt + 1})`);
     
     try {
-        const model = genAI.getGenerativeModel({ 
+        const model = getGenAI().getGenerativeModel({ 
             // model: "gemini-2.5-flash"
             model: "gemini-2.5-flash-lite"
         });
@@ -199,7 +270,7 @@ async function callGemini(prompt: string, isJson = false, retryWithFallback = tr
         console.error('[Gemini Call] Error:', errorMessage);
         
         // Check if it's a quota limit error
-        if (errorMessage.includes('429 Too Many Requests') && errorMessage.includes('quota')) {
+        if (isQuotaError(error)) {
             
             // Try switching to fallback API key if we haven't already
             if (retryWithFallback && switchToFallbackApiKey()) {

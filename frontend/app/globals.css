@@ -13,7 +13,7 @@
     --secondary: 210 40% 96%;
     --secondary-foreground: 222.2 84% 4.9%;
     --muted: 210 40% 96%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted-foreground: 215.4 16.3% 30%;
     --accent: 210 40% 96%;
     --accent-foreground: 222.2 84% 4.9%;
     --destructive: 0 84.2% 60.2%;
@@ -27,14 +27,17 @@
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
+    --surface-contrast: 222.2 84% 4.9%;
+    --surface-elevated: 0 0% 100%;
+    --surface-muted: 210 40% 97%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
+    --background: 0 0% 0%;
     --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
+    --card: 0 0% 0%;
     --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
+    --popover: 0 0% 0%;
     --popover-foreground: 210 40% 98%;
     --primary: 210 40% 98%;
     --primary-foreground: 222.2 47.4% 11.2%;
@@ -54,15 +57,37 @@
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
+    --surface-contrast: 210 40% 98%;
+    --surface-elevated: 0 0% 5%;
+    --surface-muted: 0 0% 3%;
   }
 }
 
 @layer base {
   * {
-    @apply border-zinc-200 dark:border-zinc-800;
+    border-color: hsl(var(--border));
   }
   body {
-    @apply bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-50;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
     font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
   }
+  html {
+    background-color: hsl(var(--background));
+  }
+}
+
+@keyframes toastSlideIn {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.toast-enter {
+  animation: toastSlideIn 0.3s ease-out;
 }

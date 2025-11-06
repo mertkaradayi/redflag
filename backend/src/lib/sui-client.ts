@@ -1,6 +1,7 @@
 import { SuiClient } from '@mysten/sui/client';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { fromB64, fromHex } from '@mysten/sui/utils';
+import { envFlag } from './env-utils';
 
 // TypeScript types for Sui contract deployments
 export interface ContractDeployment {
@@ -16,6 +17,7 @@ export interface SuiClientResult {
   message: string;
   deployments?: ContractDeployment[];
   error?: string;
+  disabled?: boolean;
   connectionInfo?: {
     url: string;
     hasRpcUrl: boolean;
@@ -86,12 +88,30 @@ export async function getRecentPublishTransactions({
   cursor: initialCursor = null,
   afterCheckpoint
 }: RecentPublishOptions = {}): Promise<SuiClientResult> {
+  const effectiveRpcUrl = process.env.SUI_RPC_URL?.trim() || 'https://fullnode.testnet.sui.io:443';
+  const hasCustomRpcUrl = Boolean(process.env.SUI_RPC_URL);
+  const parsedPollInterval = Number.parseInt(process.env.POLL_INTERVAL_MS ?? '', 10);
+  const pollIntervalMs = Number.isFinite(parsedPollInterval) ? parsedPollInterval : 3000;
+
+  if (!envFlag('ENABLE_SUI_RPC', true)) {
+    return {
+      success: false,
+      message: 'Sui RPC access disabled by configuration (ENABLE_SUI_RPC=false)',
+      disabled: true,
+      connectionInfo: {
+        url: effectiveRpcUrl,
+        hasRpcUrl: hasCustomRpcUrl
+      },
+      deployments: [],
+      latestCheckpoint: undefined,
+      nextCursor: null,
+      pollIntervalMs,
+      queryStrategy: undefined
+    };
+  }
+
   try {
     const client = createSuiClient();
-    const effectiveRpcUrl = process.env.SUI_RPC_URL?.trim() || 'https://fullnode.testnet.sui.io:443';
-    const hasCustomRpcUrl = Boolean(process.env.SUI_RPC_URL);
-    const parsedPollInterval = Number.parseInt(process.env.POLL_INTERVAL_MS ?? '', 10);
-    const pollIntervalMs = Number.isFinite(parsedPollInterval) ? parsedPollInterval : 3000;
     const normalizedLimit = Number.isFinite(limit) ? Math.max(1, Math.floor(limit)) : 3;
 
     const deployments: ContractDeployment[] = [];
@@ -278,11 +298,6 @@ export async function getRecentPublishTransactions({
     };
 
   } catch (error) {
-    const effectiveRpcUrl = process.env.SUI_RPC_URL?.trim() || 'https://fullnode.testnet.sui.io:443';
-    const hasCustomRpcUrl = Boolean(process.env.SUI_RPC_URL);
-    const parsedPollInterval = Number.parseInt(process.env.POLL_INTERVAL_MS ?? '', 10);
-    const pollIntervalMs = Number.isFinite(parsedPollInterval) ? parsedPollInterval : 3000;
-
     return {
       success: false,
       message: `Failed to query Sui RPC: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -303,15 +318,28 @@ export async function getRecentPublishTransactions({
  * Test Sui RPC connection
  */
 export async function testSuiConnection(): Promise<SuiClientResult> {
-  const rpcUrl = process.env.SUI_RPC_URL;
-  
+  const rpcUrl = process.env.SUI_RPC_URL?.trim();
+  const hasRpcUrl = Boolean(rpcUrl);
+
+  if (!envFlag('ENABLE_SUI_RPC', true)) {
+    return {
+      success: false,
+      message: 'Sui RPC access disabled by configuration (ENABLE_SUI_RPC=false)',
+      disabled: true,
+      connectionInfo: {
+        url: rpcUrl ?? 'not set',
+        hasRpcUrl
+      }
+    };
+  }
+
   if (!rpcUrl) {
     return {
       success: false,
       message: 'SUI_RPC_URL not found in environment variables',
       connectionInfo: {
         url: 'not set',
-        hasRpcUrl: false
+        hasRpcUrl
       }
     };
   }
