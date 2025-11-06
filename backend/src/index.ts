@@ -641,7 +641,8 @@ app.get('/api/llm/analyzed-contracts', async (req, res) => {
     const validation = validatePaginationParams(
       req.query.limit,
       req.query.offset,
-      req.query.packageId
+      req.query.packageId,
+      req.query.riskLevels
     );
 
     if (!validation.success) {
@@ -652,9 +653,9 @@ app.get('/api/llm/analyzed-contracts', async (req, res) => {
       });
     }
 
-    const { limit, offset, packageId } = validation.params;
+    const { limit, offset, packageId, riskLevels } = validation.params;
 
-    const result = await getRecentAnalyses({ limit, offset, packageId });
+    const result = await getRecentAnalyses({ limit, offset, packageId, riskLevels });
 
     if (result.success) {
       const contracts = result.analyses.map(analysis => ({
@@ -676,7 +677,7 @@ app.get('/api/llm/analyzed-contracts', async (req, res) => {
       const riskCounts = riskCountsResult.success ? riskCountsResult.counts : undefined;
       
       // Always fetch the most recent analysis timestamp regardless of pagination offset
-      const mostRecentResult = await getRecentAnalyses({ limit: 1, offset: 0, packageId });
+      const mostRecentResult = await getRecentAnalyses({ limit: 1, offset: 0, packageId, riskLevels });
       const lastAnalyzed = mostRecentResult.success && mostRecentResult.analyses.length > 0 
         ? mostRecentResult.analyses[0].analyzed_at 
         : null;

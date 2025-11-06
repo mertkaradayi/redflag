@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { ContractDeployment } from './sui-client';
+import type { RiskLevel } from './query-utils';
 
 export interface DeploymentRow {
   package_id: string;
@@ -620,6 +621,7 @@ export async function getRecentAnalyses(options: {
   limit?: number;
   offset?: number;
   packageId?: string | null;
+  riskLevels?: RiskLevel[] | null;
 } = {}): Promise<{
   success: boolean;
   analyses: any[];
@@ -636,7 +638,7 @@ export async function getRecentAnalyses(options: {
       };
     }
 
-    const { limit = 50, offset = 0, packageId = null } = options;
+    const { limit = 50, offset = 0, packageId = null, riskLevels = null } = options;
 
     // Build base query
     let query = supabase
@@ -647,6 +649,10 @@ export async function getRecentAnalyses(options: {
     // Apply packageId filter if provided (exact match, case-sensitive)
     if (packageId) {
       query = query.eq('package_id', packageId);
+    }
+
+    if (riskLevels && riskLevels.length > 0) {
+      query = query.in('risk_level', riskLevels);
     }
 
     // Get paginated analyses with accurate total count in one query

@@ -8,7 +8,6 @@ import { X, Search, Loader2, BarChart3, Filter, ShieldAlert, Timer, ChevronLeft,
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import AnalyzedContractCard from '@/app/components/AnalyzedContractCard';
 import { UnanalyzedPackageCard } from '@/app/components/UnanalyzedPackageCard';
 import type { AnalyzedContract, DashboardData } from '@/app/dashboard/types';
@@ -22,7 +21,8 @@ import { usePagination } from '@/app/dashboard/usePagination';
 import { cn } from '@/lib/utils';
 
 const AUTO_REFRESH_SECONDS = 30;
-const RISK_LEVELS: Array<'critical' | 'high' | 'moderate' | 'low'> = ['critical', 'high', 'moderate', 'low'];
+const RISK_LEVELS = ['critical', 'high', 'moderate', 'low'] as const;
+type RiskLevel = typeof RISK_LEVELS[number];
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100, 200];
 
@@ -57,7 +57,7 @@ export default function Dashboard() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedFilters, setSelectedFilters] = useState<Set<'critical' | 'high' | 'moderate' | 'low'>>(new Set(RISK_LEVELS));
+  const [selectedFilters, setSelectedFilters] = useState<Set<RiskLevel>>(new Set(RISK_LEVELS));
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const searchDebounceTimer = useRef<NodeJS.Timeout | null>(null);
@@ -72,6 +72,20 @@ export default function Dashboard() {
   const [packageStatus, setPackageStatus] = useState<PackageStatusState | null>(null);
   const [packageStatusLoading, setPackageStatusLoading] = useState(false);
   const [packageStatusError, setPackageStatusError] = useState<string | null>(null);
+
+  const areAllFiltersSelected = useMemo(
+    () => selectedFilters.size === RISK_LEVELS.length,
+    [selectedFilters],
+  );
+
+  const activeRiskFilters = useMemo(() => {
+    if (areAllFiltersSelected) {
+      return [];
+    }
+    return Array.from(selectedFilters).sort(
+      (a, b) => RISK_LEVELS.indexOf(a) - RISK_LEVELS.indexOf(b)
+    );
+  }, [areAllFiltersSelected, selectedFilters]);
 
   // Initialize pagination hook
   const pagination = usePagination({
@@ -100,6 +114,37 @@ export default function Dashboard() {
     goToPageRef.current = goToPage;
   }, [goToPage]);
 
+  const handleResetFilters = useCallback(() => {
+    setSelectedFilters(new Set(RISK_LEVELS));
+    goToPage(1);
+  }, [goToPage]);
+
+  const handleToggleRiskFilter = useCallback(
+    (level: RiskLevel) => {
+      setSelectedFilters((prev) => {
+        const next = new Set(prev);
+        const wasAllSelected = prev.size === RISK_LEVELS.length;
+
+        if (wasAllSelected) {
+          return new Set<RiskLevel>([level]);
+        }
+
+        if (next.has(level)) {
+          next.delete(level);
+          if (next.size === 0) {
+            return new Set(RISK_LEVELS);
+          }
+        } else {
+          next.add(level);
+        }
+
+        return next;
+      });
+      goToPage(1);
+    },
+    [goToPage],
+  );
+
   const fetchAnalyzedContracts = useCallback(async ({ silent }: { silent?: boolean } = {}) => {
     try {
       if (!silent) {
@@ -118,6 +163,10 @@ export default function Dashboard() {
       
       if (debouncedSearchQuery.trim()) {
         params.append('packageId', debouncedSearchQuery.trim());
+      }
+
+      if (activeRiskFilters.length > 0) {
+        params.append('riskLevels', activeRiskFilters.join(','));
       }
 
       const response = await fetch(`${backendUrl}/api/llm/analyzed-contracts?${params}`, {
@@ -152,7 +201,7 @@ export default function Dashboard() {
         setIsRefreshing(false);
       }
     }
-  }, [debouncedSearchQuery, offset, pageSize]);
+  }, [activeRiskFilters, debouncedSearchQuery, offset, pageSize]);
 
   const fetchPackageStatus = useCallback(async (packageId: string, networkOverride?: 'mainnet' | 'testnet') => {
     const requestKey = buildRequestKey(packageId, networkOverride);
@@ -470,22 +519,9 @@ export default function Dashboard() {
     }, 0);
   }, []);
 
-  const toggleAutoRefresh = useCallback(() => {
-    setAutoRefresh((prev) => {
-      const next = !prev;
-      setPauseReason(next ? null : 'toolbar');
-      if (next) {
-        setRefreshCountdown(AUTO_REFRESH_SECONDS);
-      }
-      return next;
-    });
-  }, []);
-
   const isEmptyState = !loading && displayedContracts.length === 0;
-  const isRiskFiltered = selectedFilters.size > 0 && selectedFilters.size < RISK_LEVELS.length;
-  const activeFilters = isRiskFiltered 
-    ? RISK_LEVELS.filter(level => selectedFilters.has(level))
-    : [];
+  const isRiskFiltered = activeRiskFilters.length > 0;
+  const activeFilters = activeRiskFilters;
   const activeFilterLabels = activeFilters.map(level => getRiskLevelName(level));
   const emptyTitle = debouncedSearchQuery
     ? activeFilterLabels.length > 0
@@ -559,6 +595,9 @@ export default function Dashboard() {
                         </div>
                       </div>
                       <div className="flex items-baseline gap-2">
+                        {Icon ? (
+                          <Icon className="h-4 w-4 flex-shrink-0 text-muted-foreground dark:text-zinc-400" aria-hidden="true" />
+                        ) : null}
                         <div className={cn(
                           'text-2xl font-bold tabular-nums',
                           key === 'highRisk' ? 'text-[#D12226]' : 'text-foreground dark:text-white'
@@ -616,15 +655,13 @@ export default function Dashboard() {
             <div className="flex flex-wrap items-center gap-1.5">
               <button
                 type="button"
-                onClick={() => {
-                  setSelectedFilters(new Set(RISK_LEVELS));
-                }}
+                onClick={handleResetFilters}
                 className={cn(
                   'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-medium transition-all duration-200',
                   'border-zinc-200/50 dark:border-zinc-800/50',
                   'bg-white/80 backdrop-blur-xl supports-backdrop-filter:bg-white/80 dark:bg-zinc-950/80 dark:supports-backdrop-filter:bg-zinc-950/80',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D12226]/40 focus-visible:ring-offset-2',
-                  (selectedFilters.size === 0 || selectedFilters.size === RISK_LEVELS.length)
+                  areAllFiltersSelected
                     ? 'text-zinc-900 dark:text-white/90 border-zinc-300 dark:border-zinc-700 shadow-sm'
                     : 'text-zinc-600 dark:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-700 hover:bg-white/90 dark:hover:bg-zinc-950/90 hover:shadow-sm hover:scale-[1.02] active:scale-[0.98]'
                 )}
@@ -633,7 +670,7 @@ export default function Dashboard() {
                 {(data || riskStats) && (
                   <span className={cn(
                     'ml-0.5 rounded px-1.5 py-0.5 text-[10px] font-semibold transition-colors',
-                    (selectedFilters.size === 0 || selectedFilters.size === RISK_LEVELS.length)
+                    areAllFiltersSelected
                       ? 'bg-zinc-100 dark:bg-black/40 text-zinc-700 dark:text-zinc-200'
                       : 'bg-zinc-50 dark:bg-black/60 text-zinc-500 dark:text-zinc-400'
                   )}>
@@ -651,15 +688,7 @@ export default function Dashboard() {
                   <button
                     key={level}
                     type="button"
-                    onClick={() => {
-                      const newFilters = new Set(selectedFilters);
-                      if (newFilters.has(level)) {
-                        newFilters.delete(level);
-                      } else {
-                        newFilters.add(level);
-                      }
-                      setSelectedFilters(newFilters);
-                    }}
+                    onClick={() => handleToggleRiskFilter(level)}
                     className={cn(
                       'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-medium transition-all duration-200',
                       'bg-white/80 backdrop-blur-xl supports-backdrop-filter:bg-white/80 dark:bg-zinc-950/80 dark:supports-backdrop-filter:bg-zinc-950/80',
@@ -723,11 +752,7 @@ export default function Dashboard() {
                         <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', styles.dot)} />
                         <span>{label}</span>
                         <button 
-                          onClick={() => {
-                            const newFilters = new Set(selectedFilters);
-                            newFilters.delete(level);
-                            setSelectedFilters(newFilters);
-                          }} 
+                          onClick={() => handleToggleRiskFilter(level)} 
                           className="p-0.5 hover:text-foreground dark:hover:text-white transition-colors" 
                           aria-label={`Remove ${label} filter`}
                         >
@@ -737,7 +762,7 @@ export default function Dashboard() {
                     );
                   })}
                   <button 
-                    onClick={() => setSelectedFilters(new Set(RISK_LEVELS))} 
+                    onClick={handleResetFilters} 
                     className="text-sm text-muted-foreground dark:text-zinc-400 hover:text-foreground dark:hover:text-white/90 underline transition-colors"
                     aria-label="Show all filters"
                   >

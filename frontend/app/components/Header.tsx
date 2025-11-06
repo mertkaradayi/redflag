@@ -2,7 +2,6 @@
 
 import BrandLogo from "./BrandLogo";
 import Navigation from "./Navigation";
-import ThemeToggle from "./ThemeToggle";
 import { cn } from "@/lib/utils";
 
 interface HeaderProps {
@@ -22,7 +21,6 @@ export default function Header({ className }: HeaderProps) {
       </div>
       <div className="flex items-center gap-2">
         <Navigation />
-        <ThemeToggle />
       </div>
     </header>
   );

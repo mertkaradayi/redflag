@@ -14,7 +14,6 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import BrandLogo from "./BrandLogo";
-import ThemeToggle from "./ThemeToggle";
 
 type NavLink = 
   | { label: string; href: string; external?: never }
@@ -134,13 +133,6 @@ export default function Navigation({ className }: NavigationProps) {
           <nav className="flex flex-1 flex-col gap-2 overflow-y-auto px-5 py-6" aria-label="Primary mobile">
             <NavLinks isMobile={true} />
           </nav>
-          <div className="flex flex-col gap-3 border-t border-border/60 px-5 pt-4">
-            <div className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Theme</div>
-            <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-muted/40 px-4 py-3 dark:border-white/10 dark:bg-white/10">
-              <span className="text-sm text-muted-foreground">Toggle appearance</span>
-              <ThemeToggle />
-            </div>
-          </div>
         </SheetContent>
       </Sheet>
     </>
