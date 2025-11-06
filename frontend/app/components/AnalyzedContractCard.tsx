@@ -167,98 +167,71 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
   }, [allFunctionsExpanded, contract.analysis.risky_functions, onAutoRefreshPause]);
 
   return (
-    <Card className="border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 text-foreground dark:text-white shadow-sm shadow-black/5 dark:shadow-white/5 transition-colors duration-200 hover:border-border/50 dark:hover:border-white/20">
-      <CardHeader className="pb-3">
+    <Card className="relative overflow-hidden rounded-3xl border border-zinc-200/50 dark:border-zinc-800/50 bg-transparent p-0 shadow-sm dark:shadow-lg">
+      <CardContent className="relative space-y-3 p-4 sm:space-y-4 sm:p-6 bg-white/80 backdrop-blur-xl supports-backdrop-filter:bg-white/80 dark:bg-zinc-950/80 dark:supports-backdrop-filter:bg-zinc-950/80">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex-1 min-w-0 space-y-2">
-            <div className="flex items-center gap-1 min-w-0 flex-wrap">
+          <div className="flex-1 min-w-0 space-y-2.5 sm:space-y-3">
+            <div className="flex items-center gap-2 min-w-0 flex-wrap">
               <span
                 className={cn(
-                  'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold uppercase tracking-wide shrink-0 shadow-sm',
+                  'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.3em] shrink-0',
                   getRiskLevelBadge(contract.analysis.risk_level),
                 )}
               >
                 <span className="text-xs leading-none">{getRiskLevelIcon(contract.analysis.risk_level)}</span>
                 <span className="leading-tight">{getRiskLevelName(contract.analysis.risk_level)}</span>
               </span>
-              <span className="inline-flex items-center gap-1 rounded-full border border-border/60 dark:border-white/25 bg-[hsl(var(--surface-elevated))] dark:bg-white/10 px-2.5 py-1 text-xs font-medium uppercase tracking-wide text-foreground/90 dark:text-white/90 shrink-0 shadow-sm backdrop-blur-sm">
-                <Network className="h-3 w-3" />
-                {contract.network}
+              <span className="inline-flex items-center gap-1.5 rounded-md bg-[hsl(var(--surface-muted))] dark:bg-black/40 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground dark:text-zinc-400 shrink-0">
+                <Network className="h-3 w-3 shrink-0" />
+                <span>{contract.network}</span>
               </span>
-              <div className="inline-flex items-center gap-1 rounded-full border border-border/50 dark:border-white/20 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 px-2.5 py-1 shrink-0 shadow-sm">
+              <div className="inline-flex items-center gap-1.5 rounded-md bg-[hsl(var(--surface-muted))] dark:bg-black/40 px-2.5 py-1 shrink-0">
                 <Gauge className={cn('h-3 w-3 shrink-0', getRiskScoreTextColor(contract.analysis.risk_score))} />
-                <span className={cn('text-sm font-bold leading-tight', getRiskScoreTextColor(contract.analysis.risk_score))}>
+                <span className={cn('text-xs font-bold leading-tight tabular-nums', getRiskScoreTextColor(contract.analysis.risk_score))}>
                   {contract.analysis.risk_score}
                 </span>
-                <span className="text-xs font-medium text-muted-foreground leading-tight">/ 100</span>
+                <span className="text-[10px] font-medium text-muted-foreground leading-tight">/ 100</span>
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-1 min-w-0 relative">
-              <CardTitle
-                className="min-w-0 flex-1 break-all font-mono text-sm font-semibold text-foreground dark:text-white sm:break-normal sm:truncate"
-                onClick={handleCopyPackageId}
-                title={`${contract.package_id} - Click to copy`}
-              >
-                {contract.package_id}
-              </CardTitle>
-              <div className="flex w-full items-center justify-start gap-1 sm:w-auto sm:justify-end">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleCopyPackageId}
-                  className="h-7 w-7 p-0 shrink-0 text-muted-foreground hover:text-foreground dark:hover:text-white relative group"
-                  aria-label="Copy package id"
-                  title={copied ? 'Copied to clipboard!' : `Copy package ID to clipboard\n\n${contract.package_id}`}
-                >
-                  {copied ? (
-                    <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-300" />
-                  ) : (
-                    <Copy className="h-3.5 w-3.5" />
-                  )}
-                  {!copied && (
-                    <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap px-2 py-1 text-xs font-medium text-white bg-gray-900 dark:bg-gray-800 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50">
-                      Copy package ID
-                      <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-800"></span>
-                    </span>
-                  )}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => window.open(explorerUrl, '_blank', 'noopener,noreferrer')}
-                  className="h-7 w-7 p-0 shrink-0 text-muted-foreground hover:text-foreground dark:hover:text-white relative group"
-                  aria-label="View on Sui Explorer"
-                  title={`View this package on Sui Explorer (${contract.network})\n\nOpens in a new tab`}
-                >
-                  <ExternalLink className="h-3.5 w-3.5" />
-                  <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap px-2 py-1 text-xs font-medium text-white bg-gray-900 dark:bg-gray-800 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50">
-                    View on Sui Explorer
-                    <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-800"></span>
-                  </span>
-                </Button>
-              </div>
-              <div
-                className={cn(
-                  'fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-lg border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50 dark:bg-emerald-900/20 px-4 py-2.5 shadow-lg transition-all duration-200',
-                  copied
-                    ? 'opacity-100 translate-y-0 pointer-events-auto'
-                    : 'opacity-0 translate-y-2 pointer-events-none'
-                )}
-                role="status"
-                aria-live="polite"
-              >
-                <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-300 shrink-0" />
-                <span className="text-sm font-medium text-emerald-800 dark:text-emerald-100">
-                  Package ID copied to clipboard
+            
+            {/* Package ID Field Block */}
+            <div className="min-w-0 space-y-1.5">
+              <label className="text-[10px] font-semibold uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-500">
+                Package ID
+              </label>
+              <div className="flex min-w-0 items-center gap-2 rounded-xl border border-zinc-200 dark:border-white/10 bg-white/60 dark:bg-black/40 h-10 px-3 transition">
+                <span className="min-w-0 flex-1 truncate font-mono text-sm text-zinc-900 dark:text-white/90">
+                  {contract.package_id}
                 </span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-zinc-100 dark:hover:bg-accent h-7 w-7 rounded-md text-zinc-600 dark:text-white/70 hover:text-zinc-900 dark:hover:text-white shrink-0"
+                    onClick={handleCopyPackageId}
+                    aria-label="Copy package ID"
+                  >
+                    {copied ? <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-300" /> : <Copy className="h-3.5 w-3.5" />}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-zinc-100 dark:hover:bg-accent h-7 w-7 rounded-md text-zinc-600 dark:text-white/70 hover:text-zinc-900 dark:hover:text-white shrink-0"
+                    onClick={() => window.open(explorerUrl, '_blank', 'noopener,noreferrer')}
+                    aria-label="View package on Sui Explorer"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                  </Button>
+                </div>
               </div>
             </div>
+            
             <div className="flex items-center gap-2 flex-wrap">
-              <CardDescription className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <div className="text-[10px] text-muted-foreground dark:text-zinc-400 flex items-center gap-1.5">
                 <Clock className="h-3 w-3" />
                 Analyzed {relativeAnalyzedAt}
-              </CardDescription>
-              <div className="h-2 w-full max-w-[120px] overflow-hidden rounded-full bg-foreground/10 dark:bg-white/10">
+              </div>
+              <div className="h-1.5 w-full max-w-[100px] overflow-hidden rounded-full bg-foreground/10 dark:bg-white/10">
                 <div
                   className={cn('h-full rounded-full transition-all', getRiskScoreBarColor(contract.analysis.risk_score))}
                   style={{ width: `${contract.analysis.risk_score}%` }}
@@ -267,10 +240,25 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
             </div>
           </div>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-4 pt-0">
+        
+        {/* Toast notification for copy */}
+        <div
+          className={cn(
+            'fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-lg border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50 dark:bg-emerald-900/20 px-4 py-2.5 shadow-lg transition-all duration-200',
+            copied
+              ? 'opacity-100 translate-y-0 pointer-events-auto'
+              : 'opacity-0 translate-y-2 pointer-events-none'
+          )}
+          role="status"
+          aria-live="polite"
+        >
+          <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-300 shrink-0" />
+          <span className="text-sm font-medium text-emerald-800 dark:text-emerald-100">
+            Package ID copied to clipboard
+          </span>
+        </div>
         <section className="space-y-2">
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+          <h4 className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-500 flex items-center gap-1.5">
             <FileText className="h-3 w-3" />
             Summary
           </h4>
@@ -279,7 +267,7 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
           </p>
           <div
             className={cn(
-              'rounded-lg border px-3 py-2 text-sm font-medium',
+              'rounded-lg px-3 py-2 text-sm font-medium',
               getRiskLevelSubtle(contract.analysis.risk_level),
               getRiskLevelSubtleText(contract.analysis.risk_level),
             )}
@@ -294,7 +282,7 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
               <div className="space-y-2">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <h5 className="text-sm font-semibold text-foreground dark:text-white flex items-center gap-1.5">
-                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTriangle className="h-4 w-4 text-[#D12226] dark:text-[#ff6b6e]" />
                     Risky Functions ({contract.analysis.risky_functions.length})
                   </h5>
                   <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto sm:justify-end">
@@ -303,7 +291,7 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
                       size="sm"
                       onClick={handleToggleAllFunctionContent}
                       disabled={!contract.analysis.risky_functions.length}
-                      className="inline-flex h-9 w-full items-center justify-center gap-1 px-2 text-xs font-semibold text-[#D12226] hover:bg-[#D12226]/15 hover:text-white sm:h-7 sm:w-auto"
+                      className="inline-flex h-9 w-full items-center justify-center gap-1 px-2 text-xs font-semibold text-foreground dark:text-white hover:bg-[hsl(var(--surface-muted))] dark:hover:bg-black/40 sm:h-7 sm:w-auto"
                     >
                       {allFunctionsExpanded ? 'Fold all' : 'Unfold all'}
                       <ChevronDown
@@ -315,7 +303,7 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
                         variant="ghost"
                         size="sm"
                         onClick={toggleFunctions}
-                        className="inline-flex h-9 w-full items-center justify-center gap-1 px-2 text-xs font-semibold text-[#D12226] hover:bg-[#D12226]/15 hover:text-white sm:h-7 sm:w-auto"
+                        className="inline-flex h-9 w-full items-center justify-center gap-1 px-2 text-xs font-semibold text-foreground dark:text-white hover:bg-[hsl(var(--surface-muted))] dark:hover:bg-black/40 sm:h-7 sm:w-auto"
                       >
                         {showAllFunctions ? 'Show less' : `Show all (+${contract.analysis.risky_functions.length - DEFAULT_VISIBLE_FUNCTIONS})`}
                         <ChevronDown
@@ -334,9 +322,8 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
                       <div
                         key={functionKey}
                         className={cn(
-                          'rounded-lg border border-transparent px-3 py-2 text-sm transition-colors duration-150 backdrop-blur',
-                          getRiskLevelSubtle(contract.analysis.risk_level),
-                          isExpanded && 'border-border dark:border-white/15',
+                          'rounded-lg bg-[hsl(var(--surface-muted))] dark:bg-black/40 px-3 py-2 text-sm transition-colors duration-150',
+                          isExpanded && 'border border-zinc-200/50 dark:border-zinc-800/50',
                         )}
                       >
                         <button
@@ -348,31 +335,27 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
                           <span className="flex min-w-0 flex-1 items-start gap-2">
                             <ChevronRight
                               className={cn(
-                                'mt-0.5 h-4 w-4 shrink-0 text-[#D12226] transition-transform duration-150 sm:mt-0',
+                                'mt-0.5 h-4 w-4 shrink-0 text-[#D12226] dark:text-[#ff6b6e] transition-transform duration-150 sm:mt-0',
                                 isExpanded && 'rotate-90',
                               )}
                             />
-                            <span
-                              className={cn(
-                                'whitespace-pre-wrap wrap-break-word font-mono text-sm font-semibold leading-5',
-                                getRiskLevelSubtleText(contract.analysis.risk_level),
-                              )}
-                            >
+                            <span className={cn(
+                              'whitespace-pre-wrap wrap-break-word font-mono text-sm font-semibold leading-5',
+                              getRiskLevelEmphasis(contract.analysis.risk_level),
+                            )}>
                               {func.function_name}
                             </span>
                           </span>
-                          <span
-                            className={cn(
-                              'mt-1 flex w-full items-center gap-1 text-xs font-medium uppercase tracking-wide text-left sm:mt-0 sm:w-auto sm:justify-end sm:text-right sm:whitespace-nowrap',
-                              getRiskLevelEmphasis(contract.analysis.risk_level),
-                            )}
-                          >
+                          <span className={cn(
+                            'mt-1 flex w-full items-center gap-1 text-xs font-medium uppercase tracking-wide text-left sm:mt-0 sm:w-auto sm:justify-end sm:text-right sm:whitespace-nowrap',
+                            getRiskLevelEmphasis(contract.analysis.risk_level),
+                          )}>
                             {getRiskLevelIcon(contract.analysis.risk_level)}
                             <span className="font-semibold">{getRiskLevelName(contract.analysis.risk_level)}</span>
                           </span>
                         </button>
                         {isExpanded && (
-                          <p className={cn('mt-2 text-sm leading-5', getRiskLevelSubtleText(contract.analysis.risk_level), 'opacity-90')}>
+                          <p className="mt-2 text-sm leading-5 text-foreground/80 dark:text-white/80">
                             {func.reason}
                           </p>
                         )}
@@ -395,7 +378,7 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
                       variant="ghost"
                       size="sm"
                       onClick={toggleIndicators}
-                      className="inline-flex h-9 w-full items-center justify-center gap-1 px-2 text-xs font-semibold text-[#D12226] hover:bg-[#D12226]/15 hover:text-white dark:text-[#ff6b6e] dark:hover:bg-[#D12226]/20 sm:h-7 sm:w-auto"
+                      className="inline-flex h-9 w-full items-center justify-center gap-1 px-2 text-xs font-semibold text-foreground dark:text-white hover:bg-[hsl(var(--surface-muted))] dark:hover:bg-black/40 sm:h-7 sm:w-auto"
                     >
                       {showAllIndicators
                         ? 'Less'
@@ -410,12 +393,12 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
                   {rugPullIndicators.map((indicator, index) => (
                     <div
                       key={`${indicator.pattern_name}-${index}`}
-                      className="space-y-1.5 rounded-lg border-2 border-[#D12226]/50 dark:border-[#D12226]/60 bg-[#D12226]/10 dark:bg-[#D12226]/15 px-3 py-2 text-sm backdrop-blur shadow-sm shadow-[#D12226]/10"
+                      className="space-y-1.5 rounded-lg border border-[#D12226]/30 dark:border-[#D12226]/40 bg-[#D12226]/5 dark:bg-[#D12226]/10 px-3 py-2 text-sm"
                     >
-                      <div className="font-semibold text-[#8B1518] dark:text-[#ff8a8c]">
+                      <div className="font-semibold text-[#D12226] dark:text-[#ff6b6e]">
                         {indicator.pattern_name}
                       </div>
-                      <p className="text-sm leading-5 text-[#8B1518]/90 dark:text-[#ffbdbf]">{indicator.evidence}</p>
+                      <p className="text-sm leading-5 text-foreground/80 dark:text-white/80">{indicator.evidence}</p>
                     </div>
                   ))}
                 </div>
@@ -423,29 +406,37 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
             )}
           </div>
           <div className="space-y-4">
-                <div className="space-y-2 rounded-lg border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 p-3 shadow-sm shadow-black/5 dark:shadow-white/5">
-                  <h6 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
-                    <Users className="h-3 w-3" />
-                    Impact On Users
-                  </h6>
-                  <p className="text-sm leading-5 text-foreground/80 dark:text-white/80">
+                <div className="rounded-lg border border-zinc-200 dark:border-white/10 bg-[hsl(var(--surface-muted))]/50 dark:bg-black/20 p-4 sm:p-5 transition-colors duration-200">
+                  <div className="mb-3 flex items-center gap-2">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[hsl(var(--surface-muted))] dark:bg-black/40">
+                      <Users className="h-4 w-4 text-muted-foreground dark:text-zinc-400" />
+                    </div>
+                    <h6 className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.3em] text-foreground dark:text-white">
+                      Impact On Users
+                    </h6>
+                  </div>
+                  <p className="text-sm leading-5 text-foreground/90 dark:text-white/90">
                     {contract.analysis.impact_on_user}
                   </p>
                 </div>
-                <div className="space-y-2 rounded-lg border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 p-3 shadow-sm shadow-black/5 dark:shadow-white/5">
-              <h6 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
-                <Package className="h-3 w-3" />
-                Data Source
-              </h6>
-              <div className="space-y-2">
-                <div className="group flex flex-wrap items-center justify-between gap-3 rounded-md px-2 py-1.5 -mx-2 -my-1.5 hover:bg-background/50 dark:hover:bg-white/5 transition-colors">
+                <div className="rounded-lg border border-zinc-200 dark:border-white/10 bg-[hsl(var(--surface-muted))]/50 dark:bg-black/20 p-4 sm:p-5 transition-colors duration-200">
+                  <div className="mb-3 flex items-center gap-2">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[hsl(var(--surface-muted))] dark:bg-black/40">
+                      <Package className="h-4 w-4 text-muted-foreground dark:text-zinc-400" />
+                    </div>
+                    <h6 className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.3em] text-foreground dark:text-white">
+                      Data Source
+                    </h6>
+                  </div>
+                  <div className="space-y-2.5">
+                <div className="group flex flex-wrap items-center justify-between gap-3 rounded-xl px-2 py-1.5 -mx-2 -my-1.5 hover:bg-[hsl(var(--surface-muted))] dark:hover:bg-white/5 transition-colors">
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     <Package className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground shrink-0">Package</dt>
+                    <dt className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-500 shrink-0">Package</dt>
                   </div>
                   <div className="flex w-full items-center gap-1.5 min-w-0 flex-1 justify-end sm:w-auto">
                     <dd 
-                      className="font-mono text-xs text-foreground dark:text-white break-all cursor-pointer hover:text-primary transition-colors sm:truncate"
+                      className="font-mono text-xs text-foreground dark:text-white break-all cursor-pointer hover:text-[#D12226] transition-colors sm:truncate"
                       onClick={handleCopyPackageId}
                       title={`${contract.package_id} - Click to copy`}
                     >
@@ -466,19 +457,19 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
                     </Button>
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-md px-2 py-1.5 -mx-2 -my-1.5">
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl px-2 py-1.5 -mx-2 -my-1.5">
                   <div className="flex items-center gap-2">
                     <Network className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Network</dt>
+                    <dt className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-500">Network</dt>
                   </div>
-                  <dd className="text-xs font-semibold uppercase tracking-wide text-foreground dark:text-white">
+                  <dd className="text-xs font-semibold uppercase tracking-[0.3em] text-foreground dark:text-white">
                     {contract.network}
                   </dd>
                 </div>
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-md px-2 py-1.5 -mx-2 -my-1.5">
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl px-2 py-1.5 -mx-2 -my-1.5">
                   <div className="flex items-center gap-2">
                     <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Generated</dt>
+                    <dt className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-500">Generated</dt>
                   </div>
                   <dd className="text-xs font-medium text-foreground/80 dark:text-white/80" title={absoluteAnalyzedAt}>
                     {relativeAnalyzedAt}

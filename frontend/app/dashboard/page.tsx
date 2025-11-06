@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { PauseCircle, PlayCircle, RefreshCcw, X, Search, Loader2, BarChart3, Filter, ShieldAlert, Timer, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { X, Search, Loader2, BarChart3, Filter, ShieldAlert, Timer, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, RefreshCcw } from 'lucide-react';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import AnalyzedContractCard from '@/app/components/AnalyzedContractCard';
 import { UnanalyzedPackageCard } from '@/app/components/UnanalyzedPackageCard';
@@ -23,7 +24,7 @@ import { cn } from '@/lib/utils';
 const AUTO_REFRESH_SECONDS = 30;
 const RISK_LEVELS: Array<'critical' | 'high' | 'moderate' | 'low'> = ['critical', 'high', 'moderate', 'low'];
 
-const PAGE_SIZE_OPTIONS = [25, 50, 100, 200];
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100, 200];
 
 type PackageStatusState = {
   packageId: string;
@@ -75,7 +76,7 @@ export default function Dashboard() {
   // Initialize pagination hook
   const pagination = usePagination({
     initialPage: 1,
-    initialPageSize: 50,
+    initialPageSize: 10,
     total: data?.total ?? 0
   });
 
@@ -255,6 +256,11 @@ export default function Dashboard() {
   useEffect(() => {
     fetchAnalyzedContracts();
   }, [fetchAnalyzedContracts]);
+
+  // Scroll to top when page changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [currentPage]);
 
   // Auto-refresh effect
   useEffect(() => {
@@ -452,13 +458,16 @@ export default function Dashboard() {
   }, [goToPage]);
 
   const pauseAutoRefreshFromDetails = useCallback(() => {
-    setAutoRefresh((prev) => {
-      if (!prev) {
-        return prev;
-      }
-      setPauseReason('details');
-      return false;
-    });
+    // Defer state update to avoid updating during render
+    setTimeout(() => {
+      setAutoRefresh((prev) => {
+        if (!prev) {
+          return prev;
+        }
+        setPauseReason('details');
+        return false;
+      });
+    }, 0);
   }, []);
 
   const toggleAutoRefresh = useCallback(() => {
@@ -501,56 +510,75 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 pb-24 transition-colors duration-200 sm:px-8 lg:gap-8 lg:px-16">
+    <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 pb-24 transition-colors duration-200 sm:px-8 lg:gap-6 lg:px-16">
       {/* Header: Title + Key Stats */}
-      <header className="space-y-4 sm:space-y-6">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground dark:text-white sm:text-3xl">
-            Dashboard
-          </h1>
-          <p className="mt-1.5 text-sm text-muted-foreground sm:text-base">
-            Monitor and analyze your Sui smart contracts
-          </p>
-        </div>
+      <section className="-mx-4 py-4 px-4 sm:-mx-8 sm:px-8 lg:-mx-16 lg:px-16">
+        <Card className="border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-elevated))] dark:bg-black/40 text-foreground dark:text-white shadow-lg backdrop-blur">
+          <CardHeader className="space-y-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <CardTitle className="text-2xl font-semibold leading-none tracking-tight text-foreground dark:text-white">
+                  Dashboard
+                </CardTitle>
+                <CardDescription className="mt-2 text-sm text-muted-foreground dark:text-zinc-400">
+                  Monitor and analyze your Sui smart contracts
+                </CardDescription>
+              </div>
+              <Button
+                onClick={() => fetchAnalyzedContracts()}
+                variant="outline"
+                size="sm"
+                className={cn(
+                  'justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border bg-background hover:text-accent-foreground h-9 rounded-md px-3 inline-flex items-center gap-2 border-[#D12226]/40 text-[#D12226] hover:bg-[#D12226]/10',
+                  (isRefreshing || loading) && 'pointer-events-none opacity-60',
+                )}
+              >
+                <RefreshCcw className={cn('h-4 w-4', (isRefreshing || loading) && 'animate-spin')} />
+                Refresh
+              </Button>
+            </div>
 
-        {/* Key Stats */}
-        {heroStats.length > 0 && (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {heroStats.map(({ key, label, value, meta, icon: Icon, span }) => {
-              const displayValue = typeof value === 'number' ? value.toLocaleString() : value;
-              
-              return (
-                <div
-                  key={key}
-                  className={cn(
-                    'flex flex-col justify-between rounded-lg border border-border/60 dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-white/5 px-4 py-3.5 transition-colors',
-                    span === 'double' && 'sm:col-span-2 lg:col-span-1',
-                  )}
-                >
-                  <div className="flex items-center gap-2 mb-2.5">
-                    <span className="rounded-md p-1.5 shrink-0 bg-foreground/5 text-foreground/70 dark:bg-white/10 dark:text-white/80">
-                      <Icon className="h-3.5 w-3.5" />
-                    </span>
-                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground truncate">
-                      {label}
-                    </span>
-                  </div>
-                  <div className="flex items-baseline justify-between gap-2">
-                    <span className="text-2xl sm:text-3xl font-bold tabular-nums leading-none text-foreground dark:text-white">
-                      {displayValue}
-                    </span>
-                    {meta && (
-                      <span className="text-xs text-muted-foreground text-right leading-tight whitespace-nowrap">
-                        {meta}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </header>
+            {/* Key Stats */}
+            {heroStats.length > 0 && (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {heroStats.map(({ key, label, value, meta, icon: Icon, span }) => {
+                  const displayValue = typeof value === 'number' ? value.toLocaleString() : value;
+                  
+                  return (
+                    <div
+                      key={key}
+                      className={cn(
+                        'group relative rounded-xl border p-3.5 text-left transition-all',
+                        span === 'double' && 'sm:col-span-2 lg:col-span-1',
+                        'border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-muted))] dark:bg-black/40',
+                      )}
+                    >
+                      <div className="mb-2">
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground dark:text-zinc-400">
+                          {label}
+                        </div>
+                      </div>
+                      <div className="flex items-baseline gap-2">
+                        <div className={cn(
+                          'text-2xl font-bold tabular-nums',
+                          key === 'highRisk' ? 'text-[#D12226]' : 'text-foreground dark:text-white'
+                        )}>
+                          {displayValue}
+                        </div>
+                      </div>
+                      {meta && (
+                        <p className="mt-1 text-[10px] text-muted-foreground dark:text-zinc-500">
+                          {meta}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardHeader>
+        </Card>
+      </section>
 
       {error && (
         <Alert className="rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 text-foreground dark:text-white/90 shadow-sm shadow-black/5 dark:shadow-white/5 transition-colors duration-200">
@@ -559,50 +587,60 @@ export default function Dashboard() {
       )}
 
       {/* Controls: Search, Filters, Actions */}
-      <section className="rounded-xl border border-border/60 dark:border-white/10 bg-card/50 dark:bg-white/5 p-4">
-        <div className="space-y-4">
+      <Card className="border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-elevated))] dark:bg-black/40 text-foreground dark:text-white shadow-lg backdrop-blur">
+        <CardContent className="p-6 pt-0 space-y-6">
           {/* Search and Filters Row */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-              <Input
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="relative w-full md:max-w-sm">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground dark:text-zinc-500" />
+              <input
+                type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={handleSearchKeyDown}
                 placeholder="Search by package ID..."
-                className={cn('h-9 pl-9 pr-9 text-sm', isSearching && 'pr-14')}
+                className={cn(
+                  'w-full rounded-full border border-border dark:border-white/15 bg-[hsl(var(--surface-muted))] dark:bg-black/60 py-2 pl-11 pr-10 text-sm text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-zinc-500 focus:border-[#D12226] focus:outline-none focus:ring-2 focus:ring-[#D12226]/40',
+                  isSearching && 'pr-14'
+                )}
               />
-              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
-                {isSearching && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                {isSearching && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground dark:text-zinc-500" />}
                 {searchQuery && (
-                  <button onClick={clearSearch} className="p-0.5 text-muted-foreground hover:text-foreground" aria-label="Clear search">
+                  <button onClick={clearSearch} className="p-1 text-muted-foreground hover:text-foreground dark:hover:text-white transition-colors" aria-label="Clear search">
                     <X className="h-3.5 w-3.5" />
                   </button>
                 )}
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
-              <Button
+              <button
                 type="button"
-                variant="outline"
                 onClick={() => {
                   setSelectedFilters(new Set(RISK_LEVELS));
                 }}
-                size="sm"
                 className={cn(
-                  'h-8 gap-1.5 rounded-full px-2.5 text-xs',
+                  'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-medium transition-all duration-200',
+                  'border-zinc-200/50 dark:border-zinc-800/50',
+                  'bg-white/80 backdrop-blur-xl supports-backdrop-filter:bg-white/80 dark:bg-zinc-950/80 dark:supports-backdrop-filter:bg-zinc-950/80',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D12226]/40 focus-visible:ring-offset-2',
                   (selectedFilters.size === 0 || selectedFilters.size === RISK_LEVELS.length)
-                    ? 'bg-muted/50 dark:bg-white/10 border-2'
-                    : ''
+                    ? 'text-zinc-900 dark:text-white/90 border-zinc-300 dark:border-zinc-700 shadow-sm'
+                    : 'text-zinc-600 dark:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-700 hover:bg-white/90 dark:hover:bg-zinc-950/90 hover:shadow-sm hover:scale-[1.02] active:scale-[0.98]'
                 )}
               >
                 <span>All</span>
                 {(data || riskStats) && (
-                  <span className={cn('ml-0.5 rounded px-1 text-[10px] font-semibold', (selectedFilters.size === 0 || selectedFilters.size === RISK_LEVELS.length) ? 'bg-background/80 dark:bg-white/20' : 'bg-muted/60 dark:bg-white/5')}>
+                  <span className={cn(
+                    'ml-0.5 rounded px-1.5 py-0.5 text-[10px] font-semibold transition-colors',
+                    (selectedFilters.size === 0 || selectedFilters.size === RISK_LEVELS.length)
+                      ? 'bg-zinc-100 dark:bg-black/40 text-zinc-700 dark:text-zinc-200'
+                      : 'bg-zinc-50 dark:bg-black/60 text-zinc-500 dark:text-zinc-400'
+                  )}>
                     {totalAnalyzed.toLocaleString()}
                   </span>
                 )}
-              </Button>
+              </button>
               {RISK_LEVELS.map((level) => {
                 const isActive = selectedFilters.has(level);
                 const label = getRiskLevelName(level);
@@ -610,10 +648,9 @@ export default function Dashboard() {
                 const styles = getRiskFilterStyles(level);
 
                 return (
-                  <Button
+                  <button
                     key={level}
                     type="button"
-                    variant="outline"
                     onClick={() => {
                       const newFilters = new Set(selectedFilters);
                       if (newFilters.has(level)) {
@@ -623,25 +660,42 @@ export default function Dashboard() {
                       }
                       setSelectedFilters(newFilters);
                     }}
-                    size="sm"
                     className={cn(
-                      'h-8 gap-1.5 rounded-full px-2.5 text-xs',
-                      styles && cn(
-                        styles.border,
-                        styles.bg,
-                        styles.text,
-                        isActive && cn(styles.bgActive, styles.borderActive, 'border-2')
-                      )
+                      'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-medium transition-all duration-200',
+                      'bg-white/80 backdrop-blur-xl supports-backdrop-filter:bg-white/80 dark:bg-zinc-950/80 dark:supports-backdrop-filter:bg-zinc-950/80',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
+                      isActive && styles
+                        ? cn(
+                            styles.borderActive,
+                            styles.text,
+                            'bg-white/90 dark:bg-zinc-950/90 shadow-sm',
+                            styles.ring && 'focus-visible:ring-[#D12226]/40'
+                          )
+                        : cn(
+                            'border-zinc-200/50 dark:border-zinc-800/50',
+                            'text-zinc-600 dark:text-zinc-300',
+                            'hover:border-zinc-300 dark:hover:border-zinc-700 hover:bg-white/90 dark:hover:bg-zinc-950/90 hover:shadow-sm hover:scale-[1.02] active:scale-[0.98]',
+                            'focus-visible:ring-zinc-400/40'
+                          )
                     )}
                   >
-                    <span className={cn('h-1.5 w-1.5 rounded-full', getRiskLevelDot(level))} />
-                    <span>{label}</span>
+                    <span className={cn(
+                      'h-1.5 w-1.5 rounded-full shrink-0 transition-all duration-200',
+                      getRiskLevelDot(level),
+                      isActive && 'ring-2 ring-offset-1 ring-offset-transparent ring-current/20'
+                    )} />
+                    <span className="font-medium">{label}</span>
                     {(data || riskStats) && (
-                      <span className={cn('ml-0.5 rounded px-1 text-[10px] font-semibold', isActive ? 'bg-background/80 dark:bg-white/20' : 'bg-muted/60 dark:bg-white/5')}>
+                      <span className={cn(
+                        'ml-0.5 rounded px-1.5 py-0.5 text-[10px] font-semibold transition-all duration-200',
+                        isActive
+                          ? 'bg-zinc-100 dark:bg-black/40 text-zinc-700 dark:text-zinc-200 shadow-sm'
+                          : 'bg-zinc-50 dark:bg-black/60 text-zinc-500 dark:text-zinc-400'
+                      )}>
                         {count.toLocaleString()}
                       </span>
                     )}
-                  </Button>
+                  </button>
                 );
               })}
             </div>
@@ -649,12 +703,12 @@ export default function Dashboard() {
 
           {/* Active Filters */}
           {(debouncedSearchQuery || isRiskFiltered) && (
-            <div className="flex flex-wrap items-center gap-2 text-xs">
+            <div className="flex flex-wrap items-center gap-2 text-sm">
               {debouncedSearchQuery && (
-                <span className="flex items-center gap-1.5 rounded-full border border-border/60 dark:border-white/10 bg-muted/40 dark:bg-white/5 px-2 py-0.5">
-                  <Search className="h-3 w-3 text-muted-foreground" />
-                  <span className="text-foreground">&apos;{debouncedSearchQuery}&apos;</span>
-                  <button onClick={clearSearch} className="p-0.5 hover:text-foreground" aria-label="Clear search">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-muted))] dark:bg-black/40 px-2.5 py-1 text-[10px] font-medium text-foreground dark:text-white/80">
+                  <Search className="h-3 w-3 text-muted-foreground dark:text-zinc-400" />
+                  <span>&apos;{debouncedSearchQuery}&apos;</span>
+                  <button onClick={clearSearch} className="p-0.5 hover:text-foreground dark:hover:text-white transition-colors" aria-label="Clear search">
                     <X className="h-3 w-3" />
                   </button>
                 </span>
@@ -665,16 +719,16 @@ export default function Dashboard() {
                     const label = getRiskLevelName(level);
                     const styles = getRiskFilterStyles(level);
                     return (
-                      <span key={level} className="flex items-center gap-1.5 rounded-full border border-border/60 dark:border-white/10 bg-muted/40 dark:bg-white/5 px-2 py-0.5">
-                        <span className={cn('h-1.5 w-1.5 rounded-full', styles.dot)} />
-                        <span className="text-foreground">{label}</span>
+                      <span key={level} className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-muted))] dark:bg-black/40 px-2.5 py-1 text-[10px] font-medium text-foreground dark:text-white/80">
+                        <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', styles.dot)} />
+                        <span>{label}</span>
                         <button 
                           onClick={() => {
                             const newFilters = new Set(selectedFilters);
                             newFilters.delete(level);
                             setSelectedFilters(newFilters);
                           }} 
-                          className="p-0.5 hover:text-foreground" 
+                          className="p-0.5 hover:text-foreground dark:hover:text-white transition-colors" 
                           aria-label={`Remove ${label} filter`}
                         >
                           <X className="h-3 w-3" />
@@ -684,7 +738,7 @@ export default function Dashboard() {
                   })}
                   <button 
                     onClick={() => setSelectedFilters(new Set(RISK_LEVELS))} 
-                    className="text-xs text-muted-foreground hover:text-foreground underline"
+                    className="text-sm text-muted-foreground dark:text-zinc-400 hover:text-foreground dark:hover:text-white/90 underline transition-colors"
                     aria-label="Show all filters"
                   >
                     Clear filters
@@ -694,83 +748,58 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Actions Bar */}
-          <div className="flex flex-col gap-3 border-t border-border/60 dark:border-white/10 pt-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap items-center gap-2">
-              <Link href="/analyze">
-                <Button size="sm" className="h-8 gap-1.5 text-xs">Analyze this package</Button>
-              </Link>
-              <Button onClick={() => fetchAnalyzedContracts()} variant="outline" size="sm" disabled={isRefreshing} className="h-8 gap-1.5 text-xs">
-                <RefreshCcw className={cn('h-3 w-3', isRefreshing && 'animate-spin')} />
-                Refresh
-              </Button>
-              <Button onClick={toggleAutoRefresh} variant={autoRefresh ? 'default' : 'outline'} size="sm" className="h-8 gap-1.5 text-xs">
-                {autoRefresh ? <PauseCircle className="h-3 w-3" /> : <PlayCircle className="h-3 w-3" />}
-                {autoRefresh ? 'Pause' : 'Resume'}
-              </Button>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              {formattedLastUpdated && (
-                <span className="rounded-full border border-border/60 dark:border-white/10 bg-muted/40 dark:bg-white/5 px-2 py-0.5">
-                  Updated {formattedLastUpdated}
-                  {autoRefresh && ` • ${refreshCountdown}s`}
-                </span>
+          {/* Pagination */}
+          <div className="flex flex-col gap-3 border-t border-zinc-200/50 dark:border-zinc-800/50 pt-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2">
+              {totalPages > 1 && (
+                <>
+                  <span className="text-xs sm:text-sm text-muted-foreground dark:text-zinc-400 whitespace-nowrap">Show:</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => setPaginationPageSize(Number.parseInt(e.target.value, 10))}
+                    className="h-8 rounded-md border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-muted))] dark:bg-black/60 px-2.5 text-xs sm:text-sm text-foreground dark:text-white transition-colors focus:border-[#D12226] focus:outline-none focus:ring-2 focus:ring-[#D12226]/40"
+                  >
+                    {PAGE_SIZE_OPTIONS.map((size) => (
+                      <option key={size} value={size}>
+                        {size}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="text-xs sm:text-sm text-muted-foreground dark:text-zinc-400 hidden sm:inline">per page</span>
+                </>
               )}
-              <span className="text-foreground font-medium">
-                {filteredContracts.length} of {data?.total ?? 0} contracts
+              <span className="text-sm text-foreground dark:text-white font-medium ml-2">
+                {displayedContracts.length} of {data?.total ?? 0} contracts
                 {totalPages > 1 && ` • Page ${currentPage}/${totalPages}`}
               </span>
             </div>
-          </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex flex-col gap-3 border-t border-border/60 dark:border-white/10 pt-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap">Show:</span>
-                <select
-                  value={pageSize}
-                  onChange={(e) => setPaginationPageSize(Number.parseInt(e.target.value, 10))}
-                  className="h-8 rounded-md border border-border/60 dark:border-white/10 bg-background/60 dark:bg-white/5 px-2.5 text-xs sm:text-sm text-foreground transition-colors focus:border-[#D12226]/50 focus:outline-none focus:ring-2 focus:ring-[#D12226]/20 dark:focus:border-[#D12226]/50 dark:focus:ring-[#D12226]/20"
-                >
-                  {PAGE_SIZE_OPTIONS.map((size) => (
-                    <option key={size} value={size}>
-                      {size}
-                    </option>
-                  ))}
-                </select>
-                <span className="text-xs sm:text-sm text-muted-foreground hidden sm:inline">per page</span>
-              </div>
-
+            {totalPages > 1 && (
               <div className="flex items-center justify-center gap-1 sm:gap-1.5">
                 {currentPage > 4 && totalPages > 7 && (
                   <>
-                    <Button
+                    <button
                       onClick={() => goToPage(1)}
-                      variant="outline"
-                      size="sm"
-                      className="h-8 w-8 p-0 border-border/60 dark:border-white/10 hover:bg-muted/50 dark:hover:bg-white/10"
+                      className="inline-flex items-center justify-center h-8 w-8 p-0 rounded-md border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-muted))] dark:bg-black/40 text-foreground dark:text-white hover:border-[#D12226]/40 dark:hover:border-[#D12226]/60 hover:bg-[#D12226]/5 dark:hover:bg-[#D12226]/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                       aria-label="First page"
                     >
                       <ChevronsLeft className="h-3.5 w-3.5" />
-                    </Button>
+                    </button>
                     {currentPage > 5 && (
-                      <span className="px-1 text-xs text-muted-foreground">...</span>
+                      <span className="px-1 text-xs text-muted-foreground dark:text-zinc-400">...</span>
                     )}
                   </>
                 )}
 
-                <Button
+                <button
                   onClick={previousPage}
                   disabled={!hasPreviousPage}
-                  variant="outline"
-                  size="sm"
-                  className="h-8 px-2.5 border-border/60 dark:border-white/10 hover:bg-muted/50 dark:hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed"
+                      className="inline-flex items-center justify-center h-8 px-2.5 rounded-md border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-muted))] dark:bg-black/40 text-foreground dark:text-white hover:border-[#D12226]/40 dark:hover:border-[#D12226]/60 hover:bg-[#D12226]/5 dark:hover:bg-[#D12226]/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-30 disabled:cursor-not-allowed"
                   aria-label="Previous page"
                 >
                   <ChevronLeft className="h-3.5 w-3.5 mr-0.5" />
                   <span className="hidden sm:inline text-xs">Prev</span>
-                </Button>
+                </button>
 
                 <div className="flex items-center gap-1">
                   {Array.from({ length: Math.min(7, totalPages) }, (_, i) => {
@@ -786,59 +815,53 @@ export default function Dashboard() {
                     }
                     
                     return (
-                      <Button
+                      <button
                         key={pageNum}
                         onClick={() => goToPage(pageNum)}
-                        variant={currentPage === pageNum ? 'default' : 'outline'}
-                        size="sm"
                         className={cn(
-                          'h-8 min-w-8 px-2 text-xs font-medium transition-all',
+                          'inline-flex items-center justify-center h-8 min-w-8 px-2 rounded-md text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
                           currentPage === pageNum
-                            ? 'bg-[#D12226] text-white border-[#D12226] hover:bg-[#B31B1E] dark:bg-[#D12226] dark:hover:bg-[#ff6b6e] shadow-sm'
-                            : 'border-border/60 dark:border-white/10 hover:bg-muted/50 dark:hover:bg-white/10'
+                            ? 'bg-[#D12226] text-white border border-[#D12226] hover:bg-[#a8181b] shadow-sm focus-visible:ring-[#D12226]/50'
+                            : 'border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-muted))] dark:bg-black/40 text-foreground dark:text-white hover:border-[#D12226]/40 dark:hover:border-[#D12226]/60 hover:bg-[#D12226]/5 dark:hover:bg-[#D12226]/10 focus-visible:ring-ring'
                         )}
                         aria-label={`Page ${pageNum}`}
                         aria-current={currentPage === pageNum ? 'page' : undefined}
                       >
                         {pageNum}
-                      </Button>
+                      </button>
                     );
                   })}
                 </div>
 
-                <Button
+                <button
                   onClick={nextPage}
                   disabled={!hasNextPage}
-                  variant="outline"
-                  size="sm"
-                  className="h-8 px-2.5 border-border/60 dark:border-white/10 hover:bg-muted/50 dark:hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed"
+                      className="inline-flex items-center justify-center h-8 px-2.5 rounded-md border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-muted))] dark:bg-black/40 text-foreground dark:text-white hover:border-[#D12226]/40 dark:hover:border-[#D12226]/60 hover:bg-[#D12226]/5 dark:hover:bg-[#D12226]/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-30 disabled:cursor-not-allowed"
                   aria-label="Next page"
                 >
                   <span className="hidden sm:inline text-xs">Next</span>
                   <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
-                </Button>
+                </button>
 
                 {currentPage < totalPages - 3 && totalPages > 7 && (
                   <>
                     {currentPage < totalPages - 4 && (
-                      <span className="px-1 text-xs text-muted-foreground">...</span>
+                      <span className="px-1 text-xs text-muted-foreground dark:text-zinc-400">...</span>
                     )}
-                    <Button
+                    <button
                       onClick={() => goToPage(totalPages)}
-                      variant="outline"
-                      size="sm"
-                      className="h-8 w-8 p-0 border-border/60 dark:border-white/10 hover:bg-muted/50 dark:hover:bg-white/10"
+                      className="inline-flex items-center justify-center h-8 w-8 p-0 rounded-md border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-muted))] dark:bg-black/40 text-foreground dark:text-white hover:border-[#D12226]/40 dark:hover:border-[#D12226]/60 hover:bg-[#D12226]/5 dark:hover:bg-[#D12226]/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                       aria-label="Last page"
                     >
                       <ChevronsRight className="h-3.5 w-3.5" />
-                    </Button>
+                    </button>
                   </>
                 )}
               </div>
-            </div>
-          )}
-        </div>
-      </section>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {pauseReason === 'details' && !autoRefresh && (
         <Alert className="border-border/60 dark:border-white/10 bg-card/50 dark:bg-white/5">
@@ -922,6 +945,119 @@ export default function Dashboard() {
           ))
         )}
         </section>
+
+      {/* Pagination - Bottom */}
+      <div className="flex flex-col gap-3 border-t border-zinc-200/50 dark:border-zinc-800/50 pt-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
+          {totalPages > 1 && (
+            <>
+              <span className="text-xs sm:text-sm text-muted-foreground dark:text-zinc-400 whitespace-nowrap">Show:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => setPaginationPageSize(Number.parseInt(e.target.value, 10))}
+                    className="h-8 rounded-md border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-muted))] dark:bg-black/60 px-2.5 text-xs sm:text-sm text-foreground dark:text-white transition-colors focus:border-[#D12226] focus:outline-none focus:ring-2 focus:ring-[#D12226]/40"
+              >
+                {PAGE_SIZE_OPTIONS.map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+              <span className="text-xs sm:text-sm text-muted-foreground dark:text-zinc-400 hidden sm:inline">per page</span>
+            </>
+          )}
+          <span className="text-sm text-foreground dark:text-white font-medium ml-2">
+            {displayedContracts.length} of {data?.total ?? 0} contracts
+            {totalPages > 1 && ` • Page ${currentPage}/${totalPages}`}
+          </span>
+        </div>
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-1 sm:gap-1.5">
+            {currentPage > 4 && totalPages > 7 && (
+              <>
+                    <button
+                      onClick={() => goToPage(1)}
+                      className="inline-flex items-center justify-center h-8 w-8 p-0 rounded-md border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-muted))] dark:bg-black/40 text-foreground dark:text-white hover:border-[#D12226]/40 dark:hover:border-[#D12226]/60 hover:bg-[#D12226]/5 dark:hover:bg-[#D12226]/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      aria-label="First page"
+                    >
+                      <ChevronsLeft className="h-3.5 w-3.5" />
+                    </button>
+                {currentPage > 5 && (
+                  <span className="px-1 text-xs text-muted-foreground dark:text-zinc-400">...</span>
+                )}
+              </>
+            )}
+
+            <button
+              onClick={previousPage}
+              disabled={!hasPreviousPage}
+                      className="inline-flex items-center justify-center h-8 px-2.5 rounded-md border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-muted))] dark:bg-black/40 text-foreground dark:text-white hover:border-[#D12226]/40 dark:hover:border-[#D12226]/60 hover:bg-[#D12226]/5 dark:hover:bg-[#D12226]/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-30 disabled:cursor-not-allowed"
+              aria-label="Previous page"
+            >
+              <ChevronLeft className="h-3.5 w-3.5 mr-0.5" />
+              <span className="hidden sm:inline text-xs">Prev</span>
+            </button>
+
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(7, totalPages) }, (_, i) => {
+                let pageNum: number;
+                if (totalPages <= 7) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 4) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 3) {
+                  pageNum = totalPages - 6 + i;
+                } else {
+                  pageNum = currentPage - 3 + i;
+                }
+                
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => goToPage(pageNum)}
+                    className={cn(
+                      'inline-flex items-center justify-center h-8 min-w-8 px-2 rounded-md text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
+                      currentPage === pageNum
+                        ? 'bg-[#D12226] text-white border border-[#D12226] hover:bg-[#a8181b] shadow-sm focus-visible:ring-[#D12226]/50'
+                        : 'border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-muted))] dark:bg-black/40 text-foreground dark:text-white hover:border-[#D12226]/40 dark:hover:border-[#D12226]/60 hover:bg-[#D12226]/5 dark:hover:bg-[#D12226]/10 focus-visible:ring-ring'
+                    )}
+                    aria-label={`Page ${pageNum}`}
+                    aria-current={currentPage === pageNum ? 'page' : undefined}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={nextPage}
+              disabled={!hasNextPage}
+                      className="inline-flex items-center justify-center h-8 px-2.5 rounded-md border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-muted))] dark:bg-black/40 text-foreground dark:text-white hover:border-[#D12226]/40 dark:hover:border-[#D12226]/60 hover:bg-[#D12226]/5 dark:hover:bg-[#D12226]/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-30 disabled:cursor-not-allowed"
+              aria-label="Next page"
+            >
+              <span className="hidden sm:inline text-xs">Next</span>
+              <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
+            </button>
+
+            {currentPage < totalPages - 3 && totalPages > 7 && (
+              <>
+                {currentPage < totalPages - 4 && (
+                  <span className="px-1 text-xs text-muted-foreground dark:text-zinc-400">...</span>
+                )}
+                    <button
+                      onClick={() => goToPage(totalPages)}
+                      className="inline-flex items-center justify-center h-8 w-8 p-0 rounded-md border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-muted))] dark:bg-black/40 text-foreground dark:text-white hover:border-[#D12226]/40 dark:hover:border-[#D12226]/60 hover:bg-[#D12226]/5 dark:hover:bg-[#D12226]/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      aria-label="Last page"
+                    >
+                      <ChevronsRight className="h-3.5 w-3.5" />
+                    </button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -13,7 +13,7 @@ export default function Header({ className }: HeaderProps) {
   return (
     <header
       className={cn(
-        "flex w-full items-center justify-between gap-4 rounded-full border border-border/50 bg-background/30 px-5 py-3 text-sm shadow-[0_18px_45px_rgba(0,0,0,0.45)] dark:shadow-[0_18px_45px_rgba(0,0,0,0.45)] backdrop-blur-xl transition-colors supports-[backdrop-filter]:bg-background/20 dark:supports-[backdrop-filter]:bg-black/20 sm:px-6 lg:gap-6",
+        "flex w-full items-center justify-between gap-4 rounded-full border border-zinc-200/50 dark:border-zinc-800/50 bg-background/30 px-5 py-3 text-sm shadow-[0_18px_45px_rgba(0,0,0,0.45)] dark:shadow-[0_18px_45px_rgba(0,0,0,0.45)] backdrop-blur-xl transition-colors supports-[backdrop-filter]:bg-background/20 dark:supports-[backdrop-filter]:bg-black/20 sm:px-6 lg:gap-6",
         className,
       )}
     >

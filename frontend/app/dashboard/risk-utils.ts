@@ -15,7 +15,7 @@ const riskLevelTokens: Record<
 > = {
   critical: {
     name: "Red Flag",
-    badge: "border-[#D12226]/60 bg-[#D12226]/20 text-[#ff8a8c] dark:text-[#ff8a8c]",
+    badge: "bg-[#D12226]/10 dark:bg-[#D12226]/20 text-[#D12226] dark:text-[#ff6b6e]",
     emphasis: "text-[#D12226] dark:text-[#ff6b6e]",
     subtle: "border-[#D12226]/50 bg-[#D12226]/10 dark:bg-[#D12226]/10",
     subtleText: "text-[#8B1518] dark:text-[#ffbdbf]",
@@ -23,7 +23,7 @@ const riskLevelTokens: Record<
   },
   high: {
     name: "High Risk",
-    badge: "border-orange-500/50 bg-orange-500/15 text-orange-700 dark:text-orange-200",
+    badge: "bg-orange-500/10 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400",
     emphasis: "text-orange-700 dark:text-orange-200",
     subtle: "border-orange-500/40 bg-orange-500/10 dark:bg-orange-500/10",
     subtleText: "text-orange-900 dark:text-orange-100",
@@ -31,7 +31,7 @@ const riskLevelTokens: Record<
   },
   moderate: {
     name: "Moderate Risk",
-    badge: "border-yellow-400/50 bg-yellow-400/15 text-yellow-800 dark:text-yellow-200",
+    badge: "bg-yellow-400/10 dark:bg-yellow-400/20 text-yellow-600 dark:text-yellow-400",
     emphasis: "text-yellow-800 dark:text-yellow-200",
     subtle: "border-yellow-400/40 bg-yellow-400/10 dark:bg-yellow-400/10",
     subtleText: "text-yellow-900 dark:text-yellow-100",
@@ -39,7 +39,7 @@ const riskLevelTokens: Record<
   },
   low: {
     name: "Green Flag",
-    badge: "border-emerald-500/50 bg-emerald-500/15 text-emerald-700 dark:text-emerald-200",
+    badge: "bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400",
     emphasis: "text-emerald-700 dark:text-emerald-200",
     subtle: "border-emerald-500/40 bg-emerald-500/10 dark:bg-emerald-500/10",
     subtleText: "text-emerald-900 dark:text-emerald-100",
