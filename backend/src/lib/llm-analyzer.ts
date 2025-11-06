@@ -1,7 +1,7 @@
 // LLM Contract Analyzer - Simplified 3-Agent Chain with Database Persistence
 // Architecture: Analyzer → Scorer → Reporter
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, SchemaType, type Schema } from '@google/generative-ai';
 import { SuiClient } from '@mysten/sui/client';
 import riskPatterns from './risk-patterns';
 import { saveAnalysisResult, getAnalysisResult, type SafetyCard } from './supabase';
@@ -213,8 +213,19 @@ function normalizeStructType(struct: any) {
 /**
  * Generic LLM Helper - Calls Gemini with any prompt and fallback API key support
  */
-async function callGemini(prompt: string, isJson = false, retryWithFallback = true, attempt = 0) {
+type GeminiCallOptions = {
+    expectsJson?: boolean;
+    responseSchema?: Schema;
+    retryWithFallback?: boolean;
+};
+
+async function callGemini(
+    prompt: string,
+    options: GeminiCallOptions = {},
+    attempt = 0
+) {
     console.log(` > [Gemini Call] Firing agent... (attempt ${attempt + 1})`);
+    const { expectsJson = false, responseSchema, retryWithFallback = true } = options;
     
     try {
         const model = getGenAI().getGenerativeModel({ 
@@ -222,13 +233,16 @@ async function callGemini(prompt: string, isJson = false, retryWithFallback = tr
             model: "gemini-2.5-flash-lite"
         });
 
-        const generationConfig = isJson 
-            ? { responseMimeType: "application/json" }
-            : {};
+        const generationConfig = expectsJson
+            ? {
+                responseMimeType: "application/json",
+                ...(responseSchema ? { responseSchema } : {})
+            }
+            : undefined;
 
         const result = await model.generateContent({
             contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig
+            ...(generationConfig ? { generationConfig } : {})
         });
 
         const response = result.response;
@@ -237,7 +251,7 @@ async function callGemini(prompt: string, isJson = false, retryWithFallback = tr
         }
         const rawText = response.text();
         
-        if (isJson) {
+        if (expectsJson) {
             try {
                 // Look for JSON object in the response
                 const jsonMatch = rawText.match(/\{[\s\S]*\}/);
@@ -280,7 +294,7 @@ async function callGemini(prompt: string, isJson = false, retryWithFallback = tr
                 await new Promise(resolve => setTimeout(resolve, delay));
                 
                 // Retry with fallback API key (but don't retry again if this fails)
-                return callGemini(prompt, isJson, false, attempt + 1);
+                return callGemini(prompt, { ...options, retryWithFallback: false }, attempt + 1);
             }
             
             // If we can't switch to fallback or already tried, wait and retry with current key
@@ -289,7 +303,7 @@ async function callGemini(prompt: string, isJson = false, retryWithFallback = tr
                 console.log(`[API KEY] Quota exceeded, waiting ${Math.round(delay)}ms before retry ${attempt + 1}/3...`);
                 await new Promise(resolve => setTimeout(resolve, delay));
                 
-                return callGemini(prompt, isJson, retryWithFallback, attempt + 1);
+                return callGemini(prompt, options, attempt + 1);
             }
         }
         
@@ -332,8 +346,75 @@ function validateAndFinalize(safetyCard: any): SafetyCard {
 }
 
 // ----------------------------------------------------------------
-// AGENT PROMPT BUILDERS (3-Agent Chain)
+// AGENT RESPONSE SCHEMAS & PROMPT BUILDERS (3-Agent Chain)
 // ----------------------------------------------------------------
+
+const analyzerResponseSchema: Schema = {
+    type: SchemaType.OBJECT,
+    properties: {
+        technical_findings: {
+            type: SchemaType.ARRAY,
+            items: {
+                type: SchemaType.OBJECT,
+                properties: {
+                    function_name: { type: SchemaType.STRING },
+                    technical_reason: { type: SchemaType.STRING },
+                    matched_pattern_id: { type: SchemaType.STRING },
+                    severity: { type: SchemaType.STRING },
+                    contextual_notes: {
+                        type: SchemaType.ARRAY,
+                        items: { type: SchemaType.STRING }
+                    },
+                    evidence_code_snippet: { type: SchemaType.STRING }
+                },
+                required: ['function_name', 'technical_reason', 'matched_pattern_id', 'severity']
+            }
+        }
+    },
+    required: ['technical_findings']
+};
+
+const scorerResponseSchema: Schema = {
+    type: SchemaType.OBJECT,
+    properties: {
+        risk_score: { type: SchemaType.NUMBER },
+        justification: { type: SchemaType.STRING },
+        confidence: { type: SchemaType.STRING }
+    },
+    required: ['risk_score', 'justification', 'confidence']
+};
+
+const reporterResponseSchema: Schema = {
+    type: SchemaType.OBJECT,
+    properties: {
+        summary: { type: SchemaType.STRING },
+        risky_functions: {
+            type: SchemaType.ARRAY,
+            items: {
+                type: SchemaType.OBJECT,
+                properties: {
+                    function_name: { type: SchemaType.STRING },
+                    reason: { type: SchemaType.STRING }
+                },
+                required: ['function_name', 'reason']
+            }
+        },
+        rug_pull_indicators: {
+            type: SchemaType.ARRAY,
+            items: {
+                type: SchemaType.OBJECT,
+                properties: {
+                    pattern_name: { type: SchemaType.STRING },
+                    evidence: { type: SchemaType.STRING }
+                },
+                required: ['pattern_name', 'evidence']
+            }
+        },
+        impact_on_user: { type: SchemaType.STRING },
+        why_risky_one_liner: { type: SchemaType.STRING }
+    },
+    required: ['summary', 'risky_functions', 'rug_pull_indicators', 'impact_on_user', 'why_risky_one_liner']
+};
 
 /**
  * Agent 1: Analyzer - Comprehensive technical analysis in single pass
@@ -589,7 +670,10 @@ export async function runFullAnalysisChain(packageId: string, network: string, s
     // ============================================================
     console.log('[4/6] Agent 1: Analyzer - Comprehensive technical analysis...');
     const analyzerPrompt = buildAnalyzerPrompt(publicFunctions, structDefinitions, disassembledCode);
-    const analyzerResult = await callGemini(analyzerPrompt, true);
+    const analyzerResult = await callGemini(analyzerPrompt, {
+        expectsJson: true,
+        responseSchema: analyzerResponseSchema
+    });
     
     // Validate response structure
     if (analyzerResult.fallback || !analyzerResult.technical_findings || !Array.isArray(analyzerResult.technical_findings)) {
@@ -650,7 +734,10 @@ export async function runFullAnalysisChain(packageId: string, network: string, s
     // ============================================================
     console.log('[5/6] Agent 2: Scorer - Calculating risk score...');
     const scorerPrompt = buildScorerPrompt(technicalFindings);
-    const scorerResult = await callGemini(scorerPrompt, true);
+    const scorerResult = await callGemini(scorerPrompt, {
+        expectsJson: true,
+        responseSchema: scorerResponseSchema
+    });
     
     // Validate scorer response
     if (scorerResult.fallback || typeof scorerResult !== 'object' || scorerResult.risk_score === undefined) {
@@ -675,7 +762,10 @@ export async function runFullAnalysisChain(packageId: string, network: string, s
     // ============================================================
     console.log('[6/6] Agent 3: Reporter - Generating user-friendly report...');
     const reporterPrompt = buildReporterPrompt(technicalFindings, scorerResult);
-    const reporterResult = await callGemini(reporterPrompt, true);
+    const reporterResult = await callGemini(reporterPrompt, {
+        expectsJson: true,
+        responseSchema: reporterResponseSchema
+    });
     
     // Validate reporter response
     if (reporterResult.fallback || typeof reporterResult !== 'object' || !reporterResult.summary) {
