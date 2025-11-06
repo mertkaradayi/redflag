@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { X, Search, Loader2, BarChart3, Filter, ShieldAlert, Timer, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, RefreshCcw } from 'lucide-react';
@@ -50,7 +50,7 @@ type PendingPackageStatus = Exclude<PackageStatusState['status'], 'analyzed'>;
 
 const buildRequestKey = (pkg: string, net?: 'mainnet' | 'testnet') => `${pkg.toLowerCase()}::${net ?? 'auto'}`;
 
-export default function Dashboard() {
+function DashboardContent() {
   const searchParams = useSearchParams();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1084,5 +1084,22 @@ export default function Dashboard() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function Dashboard() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <div className="flex flex-col items-center gap-4 text-center">
+            <div className="h-11 w-11 animate-spin rounded-full border-2 border-border dark:border-white/20 border-t-transparent transition-colors duration-200" />
+            <p className="text-sm text-muted-foreground">Loading dashboard...</p>
+          </div>
+        </div>
+      }
+    >
+      <DashboardContent />
+    </Suspense>
   );
 }
