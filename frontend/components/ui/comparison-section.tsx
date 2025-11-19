@@ -4,7 +4,7 @@ import { Check, X } from "lucide-react";
 
 export const ComparisonSection = () => {
     return (
-        <div className="w-full max-w-6xl mx-auto mt-32 mb-20 px-4">
+        <div className="w-full max-w-6xl mx-auto mt-32 mb-20 px-6">
             <div className="text-center mb-16 space-y-4">
                 <h2 className="text-3xl font-bold text-foreground dark:text-white md:text-5xl">
                     Stop waiting for audits

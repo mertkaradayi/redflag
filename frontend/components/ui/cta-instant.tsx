@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 
 export const CTAInstant = () => {
     return (
-        <div className="relative w-full max-w-6xl mx-auto mt-32 mb-32 px-4">
+        <div className="relative w-full max-w-6xl mx-auto mt-32 mb-32 px-6">
             <div className="relative overflow-hidden rounded-3xl bg-white dark:bg-neutral-950 border border-neutral-100 dark:border-neutral-800 p-8 md:p-16 text-center shadow-xl dark:shadow-2xl shadow-neutral-200/50 dark:shadow-black/50">
                 {/* Background Effects - Subtle */}
                 <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_0%,rgba(0,0,0,0.02),transparent_50%)] dark:bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.02),transparent_50%)]" />
