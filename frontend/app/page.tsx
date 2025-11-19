@@ -8,71 +8,16 @@ import { Button } from "@/components/ui/button";
 import { Spotlight } from "@/components/ui/spotlight";
 import { BentoGrid, BentoGridItem } from "@/components/ui/bento-grid";
 import { CodeScanner } from "@/components/ui/code-scanner";
-import { Timeline } from "@/components/ui/timeline";
 import { BackgroundBeams } from "@/components/ui/background-beams";
 import { WarRoom, Radar, Autopsy, InputScanner, ReportGen, Gauge } from "@/components/ui/bento-visuals";
 
+import { StatsPulse } from "@/components/ui/stats-pulse";
+import { CTAInstant } from "@/components/ui/cta-instant";
+import { ComparisonSection } from "@/components/ui/comparison-section";
+
+
 export default function Home() {
-  const timelineData = [
-    {
-      title: "Ingest",
-      content: (
-        <div>
-          <p className="text-neutral-800 dark:text-neutral-200 text-xs md:text-sm font-normal mb-8">
-            Pull bytecode, interfaces, and dependency graphs straight from Sui. Our crawler enriches package data with deployment history, upgrade authority, and known maintainer metadata.
-          </p>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="rounded-lg bg-neutral-100 dark:bg-neutral-800 p-4 flex items-center gap-3">
-              <Zap className="text-yellow-500 h-6 w-6" />
-              <span className="text-sm font-medium">Real-time Indexing</span>
-            </div>
-            <div className="rounded-lg bg-neutral-100 dark:bg-neutral-800 p-4 flex items-center gap-3">
-              <Code2 className="text-blue-500 h-6 w-6" />
-              <span className="text-sm font-medium">Bytecode Analysis</span>
-            </div>
-          </div>
-        </div>
-      ),
-    },
-    {
-      title: "Collaborate",
-      content: (
-        <div>
-          <p className="text-neutral-800 dark:text-neutral-200 text-xs md:text-sm font-normal mb-8">
-            Specialized agents propose risks, a scorer ranks them, and a critic challenges assumptions. The feedback loop ensures we capture privilege escalations, frozen funds, and rug pulls with minimal noise.
-          </p>
-          <div className="rounded-lg bg-neutral-100 dark:bg-neutral-800 p-4 border border-neutral-200 dark:border-neutral-700">
-            <div className="flex items-center gap-2 mb-2">
-              <ShieldCheck className="text-green-500 h-5 w-5" />
-              <span className="font-semibold text-sm">Multi-Agent Consensus</span>
-            </div>
-            <div className="space-y-2">
-              <div className="h-2 bg-neutral-200 dark:bg-neutral-700 rounded w-3/4" />
-              <div className="h-2 bg-neutral-200 dark:bg-neutral-700 rounded w-1/2" />
-            </div>
-          </div>
-        </div>
-      ),
-    },
-    {
-      title: "Deliver",
-      content: (
-        <div>
-          <p className="text-neutral-800 dark:text-neutral-200 text-xs md:text-sm font-normal mb-8">
-            Ship structured insights to your dashboards and alerting channels. Auto-refreshing dashboards, webhooks, and historical comparisons keep your reviewers in sync.
-          </p>
-          <div className="flex gap-4">
-            <Button variant="outline" size="sm" className="gap-2">
-              <BarChart3 className="h-4 w-4" /> Dashboard
-            </Button>
-            <Button variant="outline" size="sm" className="gap-2">
-              <Workflow className="h-4 w-4" /> Webhooks
-            </Button>
-          </div>
-        </div>
-      ),
-    },
-  ];
+
 
   return (
     <div className="relative w-full overflow-hidden bg-background dark:bg-black/[0.96] antialiased bg-grid-black/[0.02] dark:bg-grid-white/[0.02]">
@@ -125,26 +70,7 @@ export default function Home() {
         </div>
 
         {/* Stats Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.5 }}
-          viewport={{ once: true }}
-          className="mt-20 grid grid-cols-1 gap-6 sm:grid-cols-3 max-w-4xl mx-auto"
-        >
-          {[
-            { value: "2.4k+", label: "Contracts Analyzed", sub: "Mainnet & Testnet" },
-            { value: "< 90s", label: "Average Turnaround", sub: "LLM Pipeline" },
-            { value: "87%", label: "Critical Risk Recall", sub: "Vs Manual Audits" },
-          ].map((stat, i) => (
-            <div key={i} className="group relative overflow-hidden rounded-2xl border border-neutral-200 dark:border-white/10 bg-white/50 dark:bg-white/5 p-6 text-center backdrop-blur-sm transition-all hover:border-red-500/50 hover:bg-red-50/50 dark:hover:bg-white/10">
-              <div className="absolute inset-0 -z-10 bg-gradient-to-br from-red-500/5 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-              <h3 className="text-3xl font-bold text-foreground dark:text-white">{stat.value}</h3>
-              <p className="mt-1 text-sm font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">{stat.label}</p>
-              <p className="mt-2 text-xs text-neutral-400 dark:text-neutral-500">{stat.sub}</p>
-            </div>
-          ))}
-        </motion.div>
+        <StatsPulse />
 
         {/* Features Section (Bento Grid) */}
         <div className="mt-32">
@@ -206,29 +132,12 @@ export default function Home() {
           </BentoGrid>
         </div>
 
-        {/* How it works */}
-        <div className="mt-32 mb-20">
-          <h2 className="text-3xl font-bold text-foreground dark:text-white text-center md:text-5xl mb-16">From package to roadmap</h2>
-          <Timeline data={timelineData} />
-        </div>
+        {/* Comparison Section */}
+        <ComparisonSection />
+
 
         {/* CTA */}
-        <div className="mt-20 mb-20 relative rounded-3xl overflow-hidden border border-neutral-200 dark:border-white/10 bg-neutral-100 dark:bg-neutral-900 p-12 text-center">
-          <BackgroundBeams className="opacity-40" />
-          <div className="relative z-10 max-w-2xl mx-auto space-y-6">
-            <h2 className="text-3xl font-bold text-foreground dark:text-white md:text-4xl">Ready to accelerate?</h2>
-            <p className="text-neutral-600 dark:text-neutral-400">
-              Unlock proactive smart contract security across your entire portfolio. Your first ten contracts are on us.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-              <Link href="/analyze">
-                <Button className="bg-[#D12226] hover:bg-[#a8181b] text-white px-8 py-6 rounded-full text-lg w-full sm:w-auto shadow-[0_0_20px_rgba(209,34,38,0.5)] hover:shadow-[0_0_30px_rgba(209,34,38,0.7)] transition-shadow">
-                  Start Analysis
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
+        <CTAInstant />
 
         {/* Footer */}
         <footer className="border-t border-neutral-200 dark:border-white/10 py-8 text-center text-sm text-neutral-500">
