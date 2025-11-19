@@ -23,37 +23,42 @@ export default function Home() {
     <div className="relative w-full overflow-hidden bg-background dark:bg-black/[0.96] antialiased bg-grid-black/[0.02] dark:bg-grid-white/[0.02]">
       <Spotlight className="-top-40 left-0 md:left-60 md:-top-20 hidden dark:block" fill="white" />
 
-      <div className="relative z-10 mx-auto w-full max-w-7xl p-4 pt-20 md:pt-32">
+      <div className="relative z-10 mx-auto w-full max-w-7xl p-4 pt-12 md:pt-20">
         {/* Hero Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-24">
+        <div className="grid grid-cols-1 lg:grid-cols-[45%_55%] gap-12 items-center mb-24">
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5 }}
             className="flex flex-col items-start text-left"
           >
-            <div className="inline-flex items-center gap-2 rounded-full border border-neutral-200 dark:border-neutral-800 bg-white/50 dark:bg-neutral-900/50 px-3 py-1 text-sm text-neutral-600 dark:text-neutral-300 backdrop-blur-xl mb-8">
-              <span className="flex h-2 w-2 rounded-full bg-red-500 animate-pulse"></span>
-              AI Multi-Agent Risk Scanner for Sui
+            <div className="inline-flex items-center gap-2 mb-6">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+              </span>
+              <span className="text-sm font-medium text-neutral-600 dark:text-neutral-400 tracking-wide uppercase">
+                Live Mainnet Risk Monitor
+              </span>
             </div>
 
-            <h1 className="bg-opacity-50 bg-gradient-to-b from-neutral-900 to-neutral-600 dark:from-neutral-50 dark:to-neutral-400 bg-clip-text text-4xl font-bold text-transparent md:text-6xl lg:text-7xl leading-tight">
-              Ship Sui smart contracts with zero guesswork.
+            <h1 className="bg-opacity-50 bg-gradient-to-b from-neutral-900 to-neutral-600 dark:from-neutral-50 dark:to-neutral-400 bg-clip-text text-4xl font-bold text-transparent md:text-6xl lg:text-6xl leading-tight tracking-tight">
+              The Real-Time Risk Engine for Sui <span className="inline-block ml-2" style={{ textShadow: 'none', WebkitTextFillColor: 'initial', background: 'none' }}>💧</span>.
             </h1>
 
-            <p className="mt-6 max-w-lg text-base font-normal text-neutral-600 dark:text-neutral-300 md:text-lg">
-              RedFlag orchestrates a swarm of specialists that dissect every Move module, flag risky functions, and hand you a prioritized remediation plan.
+            <p className="mt-6 max-w-2xl text-xl font-normal text-neutral-600 dark:text-neutral-300 leading-relaxed">
+              Safeguarding the ecosystem. RedFlag's autonomous swarm analyzes every contract deployment in real-time, instantly identifying malicious patterns and critical risks before they impact users.
             </p>
 
-            <div className="mt-8 flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+            <div className="mt-10 flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
               <Link href="/analyze">
-                <Button className="bg-[#D12226] hover:bg-[#a8181b] text-white px-8 py-6 text-lg rounded-full transition-all hover:scale-105 w-full sm:w-auto">
-                  Start Analysis <ArrowRight className="ml-2 h-5 w-5" />
+                <Button className="bg-[#D12226] hover:bg-[#a8181b] text-white px-8 py-7 text-lg rounded-full transition-all hover:scale-105 w-full sm:w-auto shadow-xl shadow-red-500/20 hover:shadow-red-500/40">
+                  Analyze Contract <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
               <Link href="/dashboard">
-                <Button variant="outline" className="border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-foreground dark:hover:text-white px-8 py-6 text-lg rounded-full bg-transparent w-full sm:w-auto">
-                  View Dashboard
+                <Button variant="outline" className="border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-foreground dark:hover:text-white px-8 py-7 text-lg rounded-full bg-transparent w-full sm:w-auto">
+                  View Live Feed
                 </Button>
               </Link>
             </div>

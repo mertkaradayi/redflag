@@ -35,12 +35,12 @@ export const BentoGridItem = ({
     return (
         <div
             className={cn(
-                "row-span-1 rounded-2xl group/bento hover:shadow-2xl transition duration-300 shadow-sm p-8 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-white/10 justify-between flex flex-col space-y-4 relative overflow-hidden",
+                "row-span-1 rounded-2xl group/bento hover:scale-[1.01] hover:shadow-xl hover:shadow-red-500/10 hover:border-red-500/20 transition duration-300 shadow-none p-8 bg-transparent border border-neutral-200/50 dark:border-white/5 justify-between flex flex-col space-y-4 relative overflow-hidden",
                 className
             )}
         >
-            {/* Hover Effect Background */}
-            <div className="absolute inset-0 bg-gradient-to-br from-neutral-100 via-transparent to-transparent opacity-0 group-hover/bento:opacity-100 transition duration-500 z-0 pointer-events-none dark:from-neutral-800" />
+            {/* Gradient Background - Always Visible */}
+            <div className="absolute inset-0 bg-gradient-to-br from-neutral-100 via-transparent to-transparent dark:from-white/5 opacity-100 transition duration-500 z-0 pointer-events-none" />
 
             <div className="relative z-20 h-full flex flex-col justify-between">
                 <div className="flex-1 min-h-0">

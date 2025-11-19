@@ -42,7 +42,7 @@ export const CodeScanner = () => {
     }, []);
 
     return (
-        <div className="relative w-full max-w-xl mx-auto perspective-1000">
+        <div className="relative w-full max-w-2xl mx-auto perspective-1000">
             <motion.div
                 initial={{ rotateX: 10, rotateY: -10, opacity: 0, scale: 0.9 }}
                 animate={{ rotateX: 0, rotateY: 0, opacity: 1, scale: 1 }}
@@ -63,7 +63,7 @@ export const CodeScanner = () => {
                 </div>
 
                 {/* Code Content */}
-                <div className="relative p-4 font-mono text-xs sm:text-sm leading-relaxed text-neutral-600 dark:text-neutral-400">
+                <div className="relative p-4 font-mono text-sm leading-relaxed text-neutral-600 dark:text-neutral-400">
                     <pre className="overflow-x-auto">
                         <code>
                             {codeSnippet.split("\n").map((line, i) => (
