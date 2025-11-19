@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, BarChart3, CheckCircle2, Code2, Lock, Radar as RadarIcon, ShieldCheck, Sparkles, Workflow, Zap, AlertTriangle } from "lucide-react";
+import { ArrowRight, BarChart3, CheckCircle2, Code2, Lock, Radar as RadarIcon, ShieldCheck, Sparkles, Workflow, Zap, AlertTriangle, Search } from "lucide-react";
 import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { BentoGrid, BentoGridItem } from "@/components/ui/bento-grid";
 import { CodeScanner } from "@/components/ui/code-scanner";
 import { Timeline } from "@/components/ui/timeline";
 import { BackgroundBeams } from "@/components/ui/background-beams";
-import { WarRoom, Radar, Autopsy, Pipeline, ShieldVisual, Gauge } from "@/components/ui/bento-visuals";
+import { WarRoom, Radar, Autopsy, InputScanner, DependencyGraph, Gauge } from "@/components/ui/bento-visuals";
 
 export default function Home() {
   const timelineData = [
@@ -159,7 +159,7 @@ export default function Home() {
             {[
               {
                 title: "Agent-Driven Risk Reports",
-                description: "4-agent + 1-critic workflow cross-checks every finding.",
+                description: "3-agent + 1-critic workflow cross-checks every finding.",
                 header: <WarRoom />,
                 icon: <ShieldCheck className="h-4 w-4 text-red-500" />,
               },
@@ -176,16 +176,16 @@ export default function Home() {
                 icon: <Code2 className="h-4 w-4 text-red-500" />,
               },
               {
-                title: "Workflow Friendly",
-                description: "Seamless hand-offs into Jira, Linear, and custom pipelines.",
-                header: <Pipeline />,
-                icon: <Workflow className="h-4 w-4 text-neutral-500" />,
+                title: "On-Demand Analysis",
+                description: "Manually analyze any smart contract address from Mainnet and Testnet.",
+                header: <InputScanner />,
+                icon: <Search className="h-4 w-4 text-neutral-500" />,
               },
               {
-                title: "Secure By Default",
-                description: "Ephemeral infrastructure with encrypted storage.",
-                header: <ShieldVisual />,
-                icon: <Lock className="h-4 w-4 text-red-500" />,
+                title: "Deep Dependency Scan",
+                description: "We trace every external call to uncover risks in dependencies.",
+                header: <DependencyGraph />,
+                icon: <Workflow className="h-4 w-4 text-red-500" />,
               },
               {
                 title: "Adaptive Scoring",
@@ -200,7 +200,7 @@ export default function Home() {
                 description={item.description}
                 header={item.header}
                 icon={item.icon}
-                className={i === 3 || i === 6 ? "md:col-span-2" : ""}
+                className={i === 3 || i === 6 ? "" : ""}
               />
             ))}
           </BentoGrid>
