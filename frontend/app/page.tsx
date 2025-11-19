@@ -1,15 +1,79 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, BarChart3, CheckCircle2, Code2, Lock, Radar, ShieldCheck, Sparkles, Workflow, Zap, AlertTriangle } from "lucide-react";
+import { ArrowRight, BarChart3, CheckCircle2, Code2, Lock, Radar as RadarIcon, ShieldCheck, Sparkles, Workflow, Zap, AlertTriangle } from "lucide-react";
 import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { Spotlight } from "@/components/ui/spotlight";
 import { BentoGrid, BentoGridItem } from "@/components/ui/bento-grid";
 import { CodeScanner } from "@/components/ui/code-scanner";
+import { Timeline } from "@/components/ui/timeline";
+import { BackgroundBeams } from "@/components/ui/background-beams";
+import { WarRoom, Radar, Autopsy, Pipeline, ShieldVisual, Gauge } from "@/components/ui/bento-visuals";
 
 export default function Home() {
+  const timelineData = [
+    {
+      title: "Ingest",
+      content: (
+        <div>
+          <p className="text-neutral-800 dark:text-neutral-200 text-xs md:text-sm font-normal mb-8">
+            Pull bytecode, interfaces, and dependency graphs straight from Sui. Our crawler enriches package data with deployment history, upgrade authority, and known maintainer metadata.
+          </p>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="rounded-lg bg-neutral-100 dark:bg-neutral-800 p-4 flex items-center gap-3">
+              <Zap className="text-yellow-500 h-6 w-6" />
+              <span className="text-sm font-medium">Real-time Indexing</span>
+            </div>
+            <div className="rounded-lg bg-neutral-100 dark:bg-neutral-800 p-4 flex items-center gap-3">
+              <Code2 className="text-blue-500 h-6 w-6" />
+              <span className="text-sm font-medium">Bytecode Analysis</span>
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: "Collaborate",
+      content: (
+        <div>
+          <p className="text-neutral-800 dark:text-neutral-200 text-xs md:text-sm font-normal mb-8">
+            Specialized agents propose risks, a scorer ranks them, and a critic challenges assumptions. The feedback loop ensures we capture privilege escalations, frozen funds, and rug pulls with minimal noise.
+          </p>
+          <div className="rounded-lg bg-neutral-100 dark:bg-neutral-800 p-4 border border-neutral-200 dark:border-neutral-700">
+            <div className="flex items-center gap-2 mb-2">
+              <ShieldCheck className="text-green-500 h-5 w-5" />
+              <span className="font-semibold text-sm">Multi-Agent Consensus</span>
+            </div>
+            <div className="space-y-2">
+              <div className="h-2 bg-neutral-200 dark:bg-neutral-700 rounded w-3/4" />
+              <div className="h-2 bg-neutral-200 dark:bg-neutral-700 rounded w-1/2" />
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: "Deliver",
+      content: (
+        <div>
+          <p className="text-neutral-800 dark:text-neutral-200 text-xs md:text-sm font-normal mb-8">
+            Ship structured insights to your dashboards and alerting channels. Auto-refreshing dashboards, webhooks, and historical comparisons keep your reviewers in sync.
+          </p>
+          <div className="flex gap-4">
+            <Button variant="outline" size="sm" className="gap-2">
+              <BarChart3 className="h-4 w-4" /> Dashboard
+            </Button>
+            <Button variant="outline" size="sm" className="gap-2">
+              <Workflow className="h-4 w-4" /> Webhooks
+            </Button>
+          </div>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="relative w-full overflow-hidden bg-background dark:bg-black/[0.96] antialiased bg-grid-black/[0.02] dark:bg-grid-white/[0.02]">
       <Spotlight className="-top-40 left-0 md:left-60 md:-top-20 hidden dark:block" fill="white" />
@@ -96,106 +160,37 @@ export default function Home() {
               {
                 title: "Agent-Driven Risk Reports",
                 description: "4-agent + 1-critic workflow cross-checks every finding.",
-                header: (
-                  <div className="flex flex-col gap-2 p-4 rounded-xl bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-white/10 h-full min-h-[6rem]">
-                    <div className="flex items-center gap-2 text-xs text-neutral-500">
-                      <div className="h-2 w-2 rounded-full bg-green-500" />
-                      <span>Scanner Agent: Active</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-neutral-500">
-                      <div className="h-2 w-2 rounded-full bg-green-500" />
-                      <span>Critic Agent: Active</span>
-                    </div>
-                    <div className="mt-auto flex items-center gap-2 rounded bg-red-500/10 px-2 py-1 text-xs font-medium text-red-500">
-                      <AlertTriangle className="h-3 w-3" />
-                      <span>Critical Risk Detected</span>
-                    </div>
-                  </div>
-                ),
+                header: <WarRoom />,
                 icon: <ShieldCheck className="h-4 w-4 text-red-500" />,
               },
               {
                 title: "Live Deployment Monitoring",
                 description: "Track new Sui package drops in near real time.",
-                header: (
-                  <div className="relative flex h-full min-h-[6rem] w-full flex-col overflow-hidden rounded-xl bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-white/10">
-                    <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-white dark:from-neutral-900 to-transparent z-10" />
-                    <div className="flex flex-col gap-2 p-4 opacity-50">
-                      {[1, 2, 3].map((_, i) => (
-                        <div key={i} className="h-2 w-full rounded-full bg-neutral-200 dark:bg-neutral-800" />
-                      ))}
-                    </div>
-                    <div className="absolute bottom-4 left-4 right-4 z-20 flex items-center justify-between rounded-lg bg-white dark:bg-neutral-800 p-2 shadow-sm border border-neutral-200 dark:border-white/5">
-                      <span className="text-xs font-medium">New Package</span>
-                      <span className="text-[10px] text-neutral-500">Just now</span>
-                    </div>
-                  </div>
-                ),
-                icon: <Radar className="h-4 w-4 text-neutral-500" />,
+                header: <Radar />,
+                icon: <RadarIcon className="h-4 w-4 text-neutral-500" />,
               },
               {
                 title: "Explainable Findings",
                 description: "Human-readable reasoning and mitigations.",
-                header: (
-                  <div className="flex h-full min-h-[6rem] w-full flex-col rounded-xl bg-neutral-900 p-4 border border-white/10 font-mono text-[10px] text-neutral-400">
-                    <div className="flex gap-2">
-                      <span className="text-purple-400">public fun</span>
-                      <span className="text-blue-400">withdraw</span>
-                      <span>(...) &#123;</span>
-                    </div>
-                    <div className="pl-4 flex gap-2 bg-red-500/20 -mx-4 px-4 py-0.5 my-1 border-l-2 border-red-500">
-                      <span>assert!(amount &gt; 0, EZeroAmount);</span>
-                    </div>
-                    <div className="pl-4 text-neutral-500">// Missing capability check</div>
-                    <div>&#125;</div>
-                  </div>
-                ),
+                header: <Autopsy />,
                 icon: <Code2 className="h-4 w-4 text-red-500" />,
               },
               {
                 title: "Workflow Friendly",
                 description: "Seamless hand-offs into Jira, Linear, and custom pipelines.",
-                header: (
-                  <div className="flex h-full min-h-[6rem] w-full items-center justify-center gap-4 rounded-xl bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-white/10 p-4">
-                    <div className="h-8 w-8 rounded bg-blue-500/20 flex items-center justify-center text-blue-600 font-bold text-xs">Jira</div>
-                    <ArrowRight className="h-4 w-4 text-neutral-400" />
-                    <div className="h-8 w-8 rounded bg-purple-500/20 flex items-center justify-center text-purple-600 font-bold text-xs">Lin</div>
-                    <ArrowRight className="h-4 w-4 text-neutral-400" />
-                    <div className="h-8 w-8 rounded bg-green-500/20 flex items-center justify-center text-green-600 font-bold text-xs">Slack</div>
-                  </div>
-                ),
+                header: <Pipeline />,
                 icon: <Workflow className="h-4 w-4 text-neutral-500" />,
               },
               {
                 title: "Secure By Default",
                 description: "Ephemeral infrastructure with encrypted storage.",
-                header: (
-                  <div className="flex h-full min-h-[6rem] w-full items-center justify-center rounded-xl bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-white/10">
-                    <div className="relative">
-                      <div className="absolute -inset-4 rounded-full bg-green-500/20 animate-pulse" />
-                      <Lock className="relative h-8 w-8 text-green-600 dark:text-green-500" />
-                      <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-medium text-green-600 dark:text-green-500">
-                        AES-256 Encrypted
-                      </div>
-                    </div>
-                  </div>
-                ),
+                header: <ShieldVisual />,
                 icon: <Lock className="h-4 w-4 text-red-500" />,
               },
               {
                 title: "Adaptive Scoring",
                 description: "Gemini-powered scoring tunes itself with every incident.",
-                header: (
-                  <div className="flex h-full min-h-[6rem] w-full items-end justify-between gap-1 rounded-xl bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-white/10 p-4">
-                    {[40, 60, 45, 70, 85].map((h, i) => (
-                      <div
-                        key={i}
-                        className="w-full rounded-t bg-gradient-to-t from-red-500/50 to-red-500"
-                        style={{ height: `${h}%` }}
-                      />
-                    ))}
-                  </div>
-                ),
+                header: <Gauge />,
                 icon: <Sparkles className="h-4 w-4 text-neutral-500" />,
               },
             ].map((item, i) => (
@@ -214,27 +209,12 @@ export default function Home() {
         {/* How it works */}
         <div className="mt-32 mb-20">
           <h2 className="text-3xl font-bold text-foreground dark:text-white text-center md:text-5xl mb-16">From package to roadmap</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {[
-              { title: "Ingest", desc: "Pull bytecode & dependency graphs straight from Sui.", icon: Zap },
-              { title: "Collaborate", desc: "Agents propose risks, scorer ranks them, critic challenges.", icon: Workflow },
-              { title: "Deliver", desc: "Ship structured insights to your dashboards.", icon: BarChart3 },
-            ].map((step, i) => (
-              <div key={i} className="relative flex flex-col items-center text-center p-8 rounded-3xl border border-neutral-200 dark:border-white/10 bg-white/50 dark:bg-neutral-900/50 backdrop-blur-sm">
-                <div className="absolute -top-6 flex h-12 w-12 items-center justify-center rounded-full bg-[#D12226] text-white font-bold text-xl shadow-lg shadow-red-900/20">
-                  {i + 1}
-                </div>
-                <step.icon className="mt-6 h-10 w-10 text-neutral-500 dark:text-neutral-400 mb-4" />
-                <h3 className="text-xl font-bold text-foreground dark:text-white mb-2">{step.title}</h3>
-                <p className="text-neutral-600 dark:text-neutral-400">{step.desc}</p>
-              </div>
-            ))}
-          </div>
+          <Timeline data={timelineData} />
         </div>
 
         {/* CTA */}
-        <div className="mt-20 mb-20 relative rounded-3xl overflow-hidden border border-neutral-200 dark:border-white/10 bg-gradient-to-b from-neutral-100 to-white dark:from-neutral-900 dark:to-black p-12 text-center">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(209,34,38,0.15),transparent_70%)]" />
+        <div className="mt-20 mb-20 relative rounded-3xl overflow-hidden border border-neutral-200 dark:border-white/10 bg-neutral-100 dark:bg-neutral-900 p-12 text-center">
+          <BackgroundBeams className="opacity-40" />
           <div className="relative z-10 max-w-2xl mx-auto space-y-6">
             <h2 className="text-3xl font-bold text-foreground dark:text-white md:text-4xl">Ready to accelerate?</h2>
             <p className="text-neutral-600 dark:text-neutral-400">
@@ -242,7 +222,7 @@ export default function Home() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
               <Link href="/analyze">
-                <Button className="bg-[#D12226] hover:bg-[#a8181b] text-white px-8 py-6 rounded-full text-lg w-full sm:w-auto">
+                <Button className="bg-[#D12226] hover:bg-[#a8181b] text-white px-8 py-6 rounded-full text-lg w-full sm:w-auto shadow-[0_0_20px_rgba(209,34,38,0.5)] hover:shadow-[0_0_30px_rgba(209,34,38,0.7)] transition-shadow">
                   Start Analysis
                 </Button>
               </Link>
