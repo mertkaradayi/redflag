@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, BarChart3, CheckCircle2, Code2, Lock, Radar as RadarIcon, ShieldCheck, Sparkles, Workflow, Zap, AlertTriangle, Search } from "lucide-react";
+import { ArrowRight, BarChart3, CheckCircle2, Code2, Lock, Radar as RadarIcon, ShieldCheck, Sparkles, Workflow, Zap, AlertTriangle, Search, FileText } from "lucide-react";
 import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { BentoGrid, BentoGridItem } from "@/components/ui/bento-grid";
 import { CodeScanner } from "@/components/ui/code-scanner";
 import { Timeline } from "@/components/ui/timeline";
 import { BackgroundBeams } from "@/components/ui/background-beams";
-import { WarRoom, Radar, Autopsy, InputScanner, DependencyGraph, Gauge } from "@/components/ui/bento-visuals";
+import { WarRoom, Radar, Autopsy, InputScanner, ReportGen, Gauge } from "@/components/ui/bento-visuals";
 
 export default function Home() {
   const timelineData = [
@@ -182,10 +182,10 @@ export default function Home() {
                 icon: <Search className="h-4 w-4 text-neutral-500" />,
               },
               {
-                title: "Deep Dependency Scan",
-                description: "We trace every external call to uncover risks in dependencies.",
-                header: <DependencyGraph />,
-                icon: <Workflow className="h-4 w-4 text-red-500" />,
+                title: "Instant Audit Reports",
+                description: "Generate professional, auditor-grade PDF reports with a single click.",
+                header: <ReportGen />,
+                icon: <FileText className="h-4 w-4 text-red-500" />,
               },
               {
                 title: "Adaptive Scoring",

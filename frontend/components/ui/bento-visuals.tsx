@@ -192,54 +192,75 @@ export const InputScanner = () => {
     );
 };
 
-// --- 5. The Dependency Graph (Deep Scan) ---
-export const DependencyGraph = () => {
+// --- 5. The Report Generator (Instant Audit) ---
+export const ReportGen = () => {
     return (
         <div className="relative flex h-full w-full items-center justify-center bg-neutral-100 dark:bg-neutral-900 rounded-xl overflow-hidden">
-            {/* Central Node */}
-            <div className="relative z-10 h-8 w-8 rounded-full bg-white dark:bg-neutral-800 border-2 border-neutral-300 dark:border-neutral-600 flex items-center justify-center shadow-sm">
-                <div className="h-3 w-3 rounded-full bg-neutral-400" />
+            <div className="relative z-10 flex flex-col items-center">
+                {/* Document */}
+                <motion.div
+                    className="relative h-16 w-12 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-sm shadow-sm flex flex-col p-1.5 gap-1"
+                    initial={{ y: 10, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ duration: 0.5 }}
+                >
+                    <div className="h-1.5 w-1/2 bg-neutral-200 dark:bg-neutral-700 rounded-sm mb-1" />
+                    <div className="h-1 w-full bg-neutral-100 dark:bg-neutral-800 rounded-sm" />
+                    <div className="h-1 w-full bg-neutral-100 dark:bg-neutral-800 rounded-sm" />
+                    <div className="h-1 w-3/4 bg-neutral-100 dark:bg-neutral-800 rounded-sm" />
+                    <div className="h-1 w-full bg-neutral-100 dark:bg-neutral-800 rounded-sm mt-1" />
+                    <div className="h-1 w-5/6 bg-neutral-100 dark:bg-neutral-800 rounded-sm" />
+
+                    {/* Verified Stamp */}
+                    <motion.div
+                        className="absolute bottom-2 right-1 rotate-[-15deg] border-2 border-green-500 text-[6px] font-bold text-green-500 px-1 rounded-sm"
+                        initial={{ scale: 2, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ delay: 1.5, type: "spring", stiffness: 200 }}
+                    >
+                        VERIFIED
+                    </motion.div>
+                </motion.div>
+
+                {/* Download Arrow */}
+                <motion.div
+                    className="mt-2"
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 2, duration: 0.3 }}
+                >
+                    <div className="h-6 w-6 rounded-full bg-blue-500 flex items-center justify-center shadow-lg shadow-blue-500/30">
+                        <motion.svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="12"
+                            height="12"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="3"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="text-white"
+                            animate={{ y: [0, 2, 0] }}
+                            transition={{ repeat: Infinity, duration: 1.5 }}
+                        >
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="7 10 12 15 17 10" />
+                            <line x1="12" x2="12" y1="15" y2="3" />
+                        </motion.svg>
+                    </div>
+                </motion.div>
             </div>
 
-            {/* Child Nodes */}
-            {[0, 1, 2, 3].map((i) => (
-                <div
-                    key={i}
-                    className="absolute h-24 w-24"
-                    style={{
-                        transform: `rotate(${i * 90 + 45}deg)`,
-                        transformOrigin: "center"
-                    }}
-                >
-                    {/* Connection */}
-                    <div className="absolute top-1/2 left-1/2 h-[1px] w-1/2 bg-neutral-300 dark:bg-neutral-700 origin-left -translate-y-1/2" />
-
-                    {/* Node */}
-                    <motion.div
-                        className={`absolute right-0 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full border-2 flex items-center justify-center shadow-sm bg-white dark:bg-neutral-800 ${i === 1 ? 'border-red-500' : 'border-neutral-300 dark:border-neutral-600'}`}
-                        style={{ transform: `rotate(-${i * 90 + 45}deg)` }}
-                    >
-                        <div className={`h-2 w-2 rounded-full ${i === 1 ? 'bg-red-500' : 'bg-neutral-400'}`} />
-                    </motion.div>
-
-                    {/* Alert for Risk Node */}
-                    {i === 1 && (
-                        <motion.div
-                            className="absolute right-0 top-0 -translate-y-full -translate-x-1/2"
-                            style={{ transform: `rotate(-${i * 90 + 45}deg) translateY(-10px)` }}
-                            initial={{ opacity: 0, scale: 0 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ delay: 1, duration: 0.3 }}
-                        >
-                            <AlertTriangle className="h-3 w-3 text-red-500" />
-                        </motion.div>
-                    )}
-                </div>
-            ))}
+            {/* Scanning Beam */}
+            <motion.div
+                className="absolute top-0 left-0 w-full h-1 bg-blue-500/50 shadow-[0_0_15px_#3b82f6]"
+                animate={{ top: ["0%", "100%", "0%"] }}
+                transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+            />
         </div>
     );
 };
-
 // --- 6. The Gauge (Scoring) ---
 export const Gauge = () => {
     const [score, setScore] = useState(0);
