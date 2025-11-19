@@ -25,51 +25,67 @@ export default function Home() {
 
       <div className="relative z-10 mx-auto w-full max-w-6xl px-6 pt-6 md:pt-10">
         {/* Hero Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-[45%_55%] gap-8 items-center mb-12">
+        <div className="flex flex-col items-center text-center mb-24">
           <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="flex flex-col items-start text-left"
+            className="inline-flex items-center gap-2 mb-6 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20 backdrop-blur-sm"
           >
-            <div className="inline-flex items-center gap-2 mb-4">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-              </span>
-              <span className="text-sm font-medium text-neutral-600 dark:text-neutral-400 tracking-wide uppercase">
-                Live Mainnet Risk Monitor
-              </span>
-            </div>
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+            </span>
+            <span className="text-sm font-medium text-red-600 dark:text-red-400 tracking-wide uppercase">
+              Live Mainnet Risk Monitor
+            </span>
+          </motion.div>
 
-            <h1 className="bg-opacity-50 bg-gradient-to-b from-neutral-900 to-neutral-600 dark:from-neutral-50 dark:to-neutral-400 bg-clip-text text-4xl font-bold text-transparent md:text-6xl lg:text-6xl leading-tight tracking-tight">
-              The Real-Time Risk Engine for Sui <span className="inline-block ml-2" style={{ textShadow: 'none', WebkitTextFillColor: 'initial', background: 'none' }}>💧</span>.
-            </h1>
+          <motion.h1 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="max-w-4xl bg-opacity-50 bg-gradient-to-b from-neutral-900 to-neutral-600 dark:from-neutral-50 dark:to-neutral-400 bg-clip-text text-5xl font-bold text-transparent md:text-7xl leading-[1.1] tracking-tight mb-6"
+          >
+            The Real-Time Risk Engine for Sui <span className="inline-block ml-2" style={{ textShadow: 'none', WebkitTextFillColor: 'initial', background: 'none' }}>💧</span>.
+          </motion.h1>
 
-            <p className="mt-4 max-w-2xl text-xl font-normal text-neutral-600 dark:text-neutral-300 leading-relaxed">
-              Safeguarding the ecosystem. RedFlag's autonomous swarm analyzes every contract deployment in real-time, instantly identifying malicious patterns and critical risks before they impact users.
-            </p>
+          <motion.p 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="max-w-2xl text-xl font-normal text-neutral-600 dark:text-neutral-300 leading-relaxed mb-10"
+          >
+            Safeguarding the ecosystem. RedFlag's autonomous swarm analyzes every contract deployment in real-time, instantly identifying malicious patterns and critical risks before they impact users.
+          </motion.p>
 
-            <div className="mt-8 flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-              <Link href="/analyze">
-                <Button className="bg-[#D12226] hover:bg-[#a8181b] text-white h-12 px-6 text-base rounded-full transition-all hover:scale-105 w-full sm:w-auto shadow-xl shadow-red-500/20 hover:shadow-red-500/40">
-                  Analyze Contract <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
-              <Link href="/dashboard">
-                <Button variant="outline" className="border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-foreground dark:hover:text-white h-12 px-6 text-base rounded-full bg-transparent w-full sm:w-auto">
-                  View Live Feed
-                </Button>
-              </Link>
-            </div>
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto mb-16"
+          >
+            <Link href="/analyze">
+              <Button className="bg-[#D12226] hover:bg-[#a8181b] text-white h-12 px-8 text-base rounded-full transition-all hover:scale-105 w-full sm:w-auto shadow-xl shadow-red-500/20 hover:shadow-red-500/40">
+                Analyze Contract <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
+            <Link href="/dashboard">
+              <Button variant="outline" className="border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-foreground dark:hover:text-white h-12 px-8 text-base rounded-full bg-transparent w-full sm:w-auto">
+                View Live Feed
+              </Button>
+            </Link>
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="relative w-full"
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.4 }}
+            className="relative w-full max-w-5xl mx-auto"
           >
+             {/* Glow Effect behind scanner */}
+             <div className="absolute -inset-1 bg-gradient-to-r from-red-500/20 via-purple-500/20 to-blue-500/20 rounded-[2rem] blur-3xl opacity-30 dark:opacity-20" />
+             
             <CodeScanner />
           </motion.div>
         </div>
