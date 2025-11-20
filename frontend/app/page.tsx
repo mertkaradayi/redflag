@@ -13,7 +13,7 @@ import { WarRoom, Radar, Autopsy, InputScanner, ReportGen, Gauge } from "@/compo
 
 import { StatsPulse } from "@/components/ui/stats-pulse";
 import { CTAInstant } from "@/components/ui/cta-instant";
-import { ComparisonSection } from "@/components/ui/comparison-section";
+import { ClaritySection } from "@/components/ui/clarity-section";
 
 
 export default function Home() {
@@ -41,25 +41,25 @@ export default function Home() {
             </span>
           </motion.div>
 
-          <motion.h1 
+          <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
             className="max-w-4xl bg-opacity-50 bg-gradient-to-b from-neutral-900 to-neutral-600 dark:from-neutral-50 dark:to-neutral-400 bg-clip-text text-5xl font-bold text-transparent md:text-7xl leading-[1.1] tracking-tight mb-6"
           >
-            The Real-Time Risk Engine for Sui <span className="inline-block ml-2" style={{ textShadow: 'none', WebkitTextFillColor: 'initial', background: 'none' }}>💧</span>.
+            Continuous Audit & Risk Monitoring for Sui <span className="inline-block ml-2" style={{ textShadow: 'none', WebkitTextFillColor: 'initial', background: 'none' }}>💧</span>.
           </motion.h1>
 
-          <motion.p 
+          <motion.p
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
             className="max-w-2xl text-xl font-normal text-neutral-600 dark:text-neutral-300 leading-relaxed mb-10"
           >
-            Safeguarding the ecosystem. RedFlag's autonomous swarm analyzes every contract deployment in real-time, instantly identifying malicious patterns and critical risks before they impact users.
+            Automated, auditor-grade analysis for every smart contract. RedFlag analyzes every bytecode deployment in real-time, providing instant risk scores and actionable security insights.
           </motion.p>
 
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
@@ -83,9 +83,9 @@ export default function Home() {
             transition={{ duration: 0.7, delay: 0.4 }}
             className="relative w-full max-w-5xl mx-auto"
           >
-             {/* Glow Effect behind scanner */}
-             <div className="absolute -inset-1 bg-gradient-to-r from-red-500/20 via-purple-500/20 to-blue-500/20 rounded-[2rem] blur-3xl opacity-30 dark:opacity-20" />
-             
+            {/* Glow Effect behind scanner */}
+            <div className="absolute -inset-1 bg-gradient-to-r from-red-500/20 via-purple-500/20 to-blue-500/20 rounded-[2rem] blur-3xl opacity-30 dark:opacity-20" />
+
             <CodeScanner />
           </motion.div>
         </div>
@@ -155,8 +155,8 @@ export default function Home() {
           </BentoGrid>
         </div>
 
-        {/* Comparison Section */}
-        <ComparisonSection />
+        {/* Clarity Section */}
+        <ClaritySection />
 
 
         {/* CTA */}

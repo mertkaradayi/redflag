@@ -43,7 +43,7 @@ export const StatsPulse = () => {
                         Avg. Turnaround
                     </span>
                     <span className="text-xl font-mono font-bold text-foreground dark:text-white tabular-nums">
-                        &lt; 90ms
+                        {'<'} 90ms
                     </span>
                 </div>
 

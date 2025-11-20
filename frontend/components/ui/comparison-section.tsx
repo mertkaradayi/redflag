@@ -92,11 +92,11 @@ export const ComparisonSection = () => {
                     <div className="relative z-10 flex flex-col md:hidden space-y-2">
                         <span className="text-sm text-red-500 uppercase tracking-wider">Turnaround</span>
                         <div className="h-12 flex items-center text-lg font-bold text-foreground dark:text-white">
-                            &lt; 90 Seconds <Check className="ml-2 h-5 w-5 text-green-500" />
+                            {'<'} 90 Seconds <Check className="ml-2 h-5 w-5 text-green-500" />
                         </div>
                     </div>
                     <div className="relative z-10 hidden md:flex h-12 items-center text-lg font-bold text-foreground dark:text-white">
-                        &lt; 90 Seconds <Check className="ml-2 h-5 w-5 text-green-500" />
+                        {'<'} 90 Seconds <Check className="ml-2 h-5 w-5 text-green-500" />
                     </div>
 
                     <div className="relative z-10 flex flex-col md:hidden space-y-2">
