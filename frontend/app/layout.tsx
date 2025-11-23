@@ -7,6 +7,7 @@ import socialPreview from "@/images/Light mode horizontal.png";
 import "./globals.css";
 import Providers from "./providers";
 import Header from "./components/Header";
+import Footer from "./components/Footer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -111,6 +112,7 @@ export default function RootLayout({
             <main className="flex-1 overflow-x-hidden bg-[hsl(var(--background))] text-[hsl(var(--foreground))] pt-10 transition-colors duration-200 dark:bg-gradient-to-b dark:from-black dark:via-zinc-950 dark:to-black">
               {children}
             </main>
+            <Footer />
           </div>
         </Providers>
       </body>

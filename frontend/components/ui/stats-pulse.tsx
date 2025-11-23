@@ -5,7 +5,7 @@ import { Activity } from "lucide-react";
 export const StatsPulse = () => {
     return (
         <div className="relative w-full max-w-6xl mx-auto px-6">
-            <div className="relative rounded-full border border-neutral-200/50 dark:border-white/5 bg-transparent shadow-none flex flex-col md:flex-row items-center justify-between py-4 px-8 gap-6 md:gap-0 overflow-hidden">
+            <div className="relative rounded-full border border-neutral-200/50 dark:border-white/5 bg-transparent shadow-none flex flex-col md:flex-row items-center justify-between py-6 px-10 gap-6 md:gap-0 overflow-hidden">
 
                 {/* Gradient Background - Consistent with Bento */}
                 <div className="absolute inset-0 bg-gradient-to-r from-neutral-100/50 via-transparent to-transparent dark:from-white/5 pointer-events-none" />

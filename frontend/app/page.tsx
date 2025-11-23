@@ -12,8 +12,8 @@ import { BackgroundBeams } from "@/components/ui/background-beams";
 import { WarRoom, Radar, Autopsy, InputScanner, ReportGen, Gauge } from "@/components/ui/bento-visuals";
 
 import { StatsPulse } from "@/components/ui/stats-pulse";
-import { CTAInstant } from "@/components/ui/cta-instant";
-import { ClaritySection } from "@/components/ui/clarity-section";
+import { SingularitySection } from "@/components/ui/singularity-section";
+
 
 
 export default function Home() {
@@ -23,9 +23,9 @@ export default function Home() {
     <div className="relative w-full overflow-hidden bg-background dark:bg-black/[0.96] antialiased bg-grid-black/[0.02] dark:bg-grid-white/[0.02]">
       <Spotlight className="-top-40 left-0 md:left-60 md:-top-20 hidden dark:block" fill="white" />
 
-      <div className="relative z-10 mx-auto w-full max-w-6xl px-6 pt-6 md:pt-10">
+      <div className="relative z-10 mx-auto w-full max-w-6xl px-6 pt-12 md:pt-24">
         {/* Hero Section */}
-        <div className="flex flex-col items-center text-center mb-24">
+        <div className="flex flex-col items-center text-center pb-24 md:pb-32">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -45,9 +45,9 @@ export default function Home() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="max-w-4xl bg-opacity-50 bg-gradient-to-b from-neutral-900 to-neutral-600 dark:from-neutral-50 dark:to-neutral-400 bg-clip-text text-5xl font-bold text-transparent md:text-7xl leading-[1.1] tracking-tight mb-6"
+            className="max-w-4xl bg-opacity-50 bg-gradient-to-b from-neutral-600 to-neutral-900 dark:from-neutral-300 dark:to-neutral-200 bg-clip-text text-5xl font-bold text-transparent md:text-7xl leading-[1.1] tracking-tight mb-6"
           >
-            Continuous Audit & Risk Monitoring for Sui <span className="inline-block ml-2" style={{ textShadow: 'none', WebkitTextFillColor: 'initial', background: 'none' }}>💧</span>.
+            Continuous Audit & Risk Monitoring for Sui<span className="inline-block ml-2" style={{ backgroundClip: 'border-box', WebkitTextFillColor: 'initial', color: 'initial' }}>💧</span>
           </motion.h1>
 
           <motion.p
@@ -94,7 +94,7 @@ export default function Home() {
         <StatsPulse />
 
         {/* Features Section (Bento Grid) */}
-        <div className="mt-24 mb-32">
+        <div className="py-24 md:py-32">
           <div className="text-center mb-16 space-y-6">
             <h2 className="text-3xl font-bold text-foreground dark:text-white md:text-5xl tracking-tight">
               Security that keeps up
@@ -155,22 +155,12 @@ export default function Home() {
           </BentoGrid>
         </div>
 
-        {/* Clarity Section */}
-        <ClaritySection />
 
 
-        {/* CTA */}
-        <CTAInstant />
+        {/* Singularity Section */}
+        <SingularitySection />
 
-        {/* Footer */}
-        <footer className="border-t border-neutral-200 dark:border-white/10 py-8 text-center text-sm text-neutral-500">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <p>© 2025 RedFlag Labs. All rights reserved.</p>
-            <Link href="https://github.com/mertkaradayi/redflag" className="hover:text-foreground dark:hover:text-white transition-colors">
-              Follow on GitHub
-            </Link>
-          </div>
-        </footer>
+
       </div>
     </div>
   );

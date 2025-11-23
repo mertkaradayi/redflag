@@ -82,12 +82,7 @@ export default function LLMAnalysis({ packageId: initialPackageId, network: init
     <div className="space-y-6" data-llm-analysis>
       {/* Analysis Input */}
       <div className="space-y-6">
-        <div className="space-y-2">
-          <h2 className="text-2xl font-semibold text-foreground dark:text-white">Contract Security Analysis</h2>
-          <p className="text-sm text-muted-foreground">
-            Analyze Sui smart contracts for security risks using AI-powered analysis
-          </p>
-        </div>
+
         <div className="space-y-5">
           <div className="grid grid-cols-1 gap-5">
             <div className="space-y-2">
@@ -100,7 +95,7 @@ export default function LLMAnalysis({ packageId: initialPackageId, network: init
                 value={packageId}
                 onChange={(e) => setPackageId(e.target.value)}
                 placeholder="0x..."
-                className="w-full px-4 py-3 bg-background/40 dark:bg-black/40 border border-border dark:border-white/20 rounded-xl text-foreground dark:text-white placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[#D12226]/60 focus:border-[#D12226]/40 transition-all duration-200"
+                className="w-full h-14 px-5 bg-white dark:bg-black border-2 border-neutral-200 dark:border-neutral-800 rounded-xl text-lg text-black dark:text-white placeholder:text-neutral-400 focus:outline-none focus:border-[#D12226] dark:focus:border-[#D12226] transition-all duration-200 shadow-sm"
               />
             </div>
             <div className="space-y-2">
@@ -111,22 +106,22 @@ export default function LLMAnalysis({ packageId: initialPackageId, network: init
                 id="network"
                 value={network}
                 onChange={(e) => setNetwork(e.target.value as 'mainnet' | 'testnet')}
-                className="w-full px-4 py-3 bg-background/40 dark:bg-black/40 border border-border dark:border-white/20 rounded-xl text-foreground dark:text-white focus:outline-none focus:ring-2 focus:ring-[#D12226]/60 focus:border-[#D12226]/40 transition-all duration-200 cursor-pointer"
+                className="w-full h-14 px-5 bg-white dark:bg-black border-2 border-neutral-200 dark:border-neutral-800 rounded-xl text-lg text-black dark:text-white focus:outline-none focus:border-[#D12226] dark:focus:border-[#D12226] transition-all duration-200 cursor-pointer shadow-sm"
               >
                 <option value="mainnet" className="bg-background dark:bg-black text-foreground dark:text-white">Mainnet</option>
                 <option value="testnet" className="bg-background dark:bg-black text-foreground dark:text-white">Testnet</option>
               </select>
             </div>
           </div>
-          
-          <Button 
-            onClick={analyzeContract} 
+
+          <Button
+            onClick={analyzeContract}
             disabled={isAnalyzing || !packageId.trim()}
             className={cn(
               "w-full py-3 text-base font-semibold transition-all duration-200",
               isAnalyzing || !packageId.trim()
-                ? "bg-zinc-800 text-zinc-500 cursor-not-allowed"
-                : "bg-[#D12226] text-white hover:bg-[#a8181b] hover:shadow-lg hover:shadow-[#D12226]/30"
+                ? "bg-neutral-100 dark:bg-neutral-900 text-neutral-400 dark:text-neutral-600 cursor-not-allowed"
+                : "bg-[#D12226] text-white hover:bg-[#b91c1c] hover:shadow-lg hover:shadow-red-600/20 hover:scale-[1.02] active:scale-[0.98]"
             )}
           >
             {isAnalyzing ? (
@@ -152,7 +147,7 @@ export default function LLMAnalysis({ packageId: initialPackageId, network: init
       {analysisResult && (
         <div className="space-y-6 pt-6 border-t border-border dark:border-white/10">
           {/* Risk Summary */}
-          <div className="rounded-2xl border border-border dark:border-white/10 bg-background/40 dark:bg-black/40 p-6 backdrop-blur shadow-lg">
+          <div className="rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-black p-6 shadow-lg">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
               <h3 className="text-xl font-semibold text-foreground dark:text-white">Risk Assessment</h3>
               <div className="flex items-center gap-3">
@@ -174,12 +169,12 @@ export default function LLMAnalysis({ packageId: initialPackageId, network: init
                 <h4 className="font-semibold mb-2 text-foreground dark:text-white text-sm uppercase tracking-wide">Summary</h4>
                 <p className="text-muted-foreground leading-relaxed">{analysisResult.summary}</p>
               </div>
-              
+
               <div>
                 <h4 className="font-semibold mb-2 text-foreground dark:text-white text-sm uppercase tracking-wide">Main Risk</h4>
                 <p className="text-muted-foreground leading-relaxed">{analysisResult.why_risky_one_liner}</p>
               </div>
-              
+
               <div>
                 <h4 className="font-semibold mb-2 text-foreground dark:text-white text-sm uppercase tracking-wide">Impact on Users</h4>
                 <p className="text-muted-foreground leading-relaxed">{analysisResult.impact_on_user}</p>
@@ -189,7 +184,7 @@ export default function LLMAnalysis({ packageId: initialPackageId, network: init
 
           {/* Risky Functions */}
           {analysisResult.risky_functions.length > 0 && (
-            <div className="rounded-2xl border border-border dark:border-white/10 bg-background/40 dark:bg-black/40 p-6 backdrop-blur shadow-lg">
+            <div className="rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-black p-6 shadow-lg">
               <div className="mb-4">
                 <h3 className="text-lg font-semibold text-foreground dark:text-white mb-1">Risky Functions</h3>
                 <p className="text-sm text-muted-foreground">
@@ -212,7 +207,7 @@ export default function LLMAnalysis({ packageId: initialPackageId, network: init
 
           {/* Rug Pull Indicators */}
           {analysisResult.rug_pull_indicators.length > 0 && (
-            <div className="rounded-2xl border border-border dark:border-white/10 bg-background/40 dark:bg-black/40 p-6 backdrop-blur shadow-lg">
+            <div className="rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-black p-6 shadow-lg">
               <div className="mb-4">
                 <h3 className="text-lg font-semibold text-foreground dark:text-white mb-1">Rug Pull Indicators</h3>
                 <p className="text-sm text-muted-foreground">

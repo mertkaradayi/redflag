@@ -4,7 +4,7 @@ import { ArrowRight, AlertTriangle, CheckCircle2, FileCode, ShieldAlert } from "
 
 export const ClaritySection = () => {
     return (
-        <div className="w-full max-w-6xl mx-auto mt-32 mb-32 px-6">
+        <div className="w-full max-w-6xl mx-auto py-24 md:py-32 px-6">
             <div className="text-center mb-16 space-y-4">
                 <h2 className="text-3xl font-bold text-foreground dark:text-white md:text-5xl tracking-tight">
                     Clarity in Chaos
@@ -18,7 +18,7 @@ export const ClaritySection = () => {
                 {/* Left: Opaque Bytecode */}
                 <div className="w-full md:w-1/3 relative group">
                     <div className="absolute -inset-0.5 bg-gradient-to-r from-neutral-200 to-neutral-300 dark:from-neutral-800 dark:to-neutral-700 rounded-2xl blur opacity-30 group-hover:opacity-50 transition duration-500"></div>
-                    <div className="relative h-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-6 shadow-sm overflow-hidden">
+                    <div className="relative h-full bg-white dark:bg-black border border-neutral-200 dark:border-white/10 rounded-2xl p-6 shadow-sm overflow-hidden">
                         <div className="flex items-center gap-2 mb-4 border-b border-neutral-100 dark:border-neutral-800 pb-3">
                             <FileCode className="h-5 w-5 text-neutral-400" />
                             <span className="text-sm font-mono text-neutral-500">contract.bytecode</span>
@@ -50,7 +50,7 @@ export const ClaritySection = () => {
                 {/* Right: Obvious Insight */}
                 <div className="w-full md:w-1/3 relative">
                     <div className="absolute -inset-0.5 bg-gradient-to-r from-red-500 to-orange-500 rounded-2xl blur opacity-20 animate-pulse"></div>
-                    <div className="relative h-full bg-white dark:bg-neutral-900 border border-red-500/20 dark:border-red-500/30 rounded-2xl p-6 shadow-xl shadow-red-500/5">
+                    <div className="relative h-full bg-white dark:bg-black border border-red-500/20 dark:border-red-500/30 rounded-2xl p-6 shadow-xl shadow-red-500/5">
                         <div className="flex items-center justify-between mb-6 border-b border-neutral-100 dark:border-neutral-800 pb-4">
                             <div className="flex items-center gap-2">
                                 <ShieldAlert className="h-5 w-5 text-red-500" />
