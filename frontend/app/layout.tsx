@@ -109,7 +109,7 @@ export default function RootLayout({
         <Providers>
           <div className="relative flex min-h-screen flex-col">
             <Header />
-            <main className="flex-1 overflow-x-hidden bg-[hsl(var(--background))] text-[hsl(var(--foreground))] pt-10 transition-colors duration-200 dark:bg-gradient-to-b dark:from-black dark:via-zinc-950 dark:to-black">
+            <main className="flex-1 overflow-x-hidden bg-background text-foreground pt-10 transition-colors duration-200">
               {children}
             </main>
             <Footer />
