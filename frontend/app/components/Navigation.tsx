@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { ExternalLink, Github, Menu, X } from "lucide-react";
+import { ExternalLink, Github, Menu, X, ArrowRight } from "lucide-react";
+import { motion } from "framer-motion";
 
 import { cn } from "@/lib/utils";
 import {
@@ -14,15 +15,15 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import BrandLogo from "./BrandLogo";
+import { Button } from "@/components/ui/button";
 
-type NavLink = 
+type NavLink =
   | { label: string; href: string; external?: never }
   | { label: string; href: string; external: true };
 
 const NAV_LINKS: NavLink[] = [
   { label: "Home", href: "/" },
   { label: "Analyze", href: "/analyze" },
-  { label: "Dashboard", href: "/dashboard" },
   { label: "Deployments", href: "/deployments" },
   {
     label: "GitHub",
@@ -35,118 +36,160 @@ interface NavigationProps {
   className?: string;
 }
 
-export default function Navigation({ className }: NavigationProps) {
+export function DesktopNavigation({ className }: NavigationProps) {
   const pathname = usePathname();
-  const [isOpen, setIsOpen] = useState(false);
+  const [hoveredPath, setHoveredPath] = useState<string | null>(null);
 
-  const NavLinks = ({ isMobile = false }: { isMobile?: boolean }) => (
-    <>
+  return (
+    <nav
+      className={cn(
+        "hidden items-center gap-1 text-sm font-medium lg:flex",
+        className,
+      )}
+      onMouseLeave={() => setHoveredPath(null)}
+    >
       {NAV_LINKS.map((link) => {
-        const isExternal = 'external' in link && link.external === true;
+        const isExternal = "external" in link && link.external === true;
         const isActive = !isExternal && isLinkActive(pathname, link.href);
 
-        const linkContent = (
+        return (
           <Link
             key={link.href}
             href={link.href}
             target={isExternal ? "_blank" : undefined}
             rel={isExternal ? "noopener noreferrer" : undefined}
-            prefetch={isExternal ? false : undefined}
-            aria-current={isActive ? "page" : undefined}
             className={cn(
-              "flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors duration-200 sm:px-4 sm:text-sm",
-              "hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D12226]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-              isMobile && "w-full justify-between rounded-2xl px-4 py-3 text-base",
-              isActive
-                ? "bg-[#D12226] text-white shadow-[0_0_25px_rgba(209,34,38,0.45)]"
-                : isMobile
-                  ? "text-foreground/80 dark:text-white/70"
-                  : "text-muted-foreground",
-              !isActive && isMobile && "border border-border/60 bg-white/80 backdrop-blur-sm dark:border-white/10 dark:bg-white/10",
+              "relative px-4 py-2 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+              isActive ? "text-white" : "text-muted-foreground hover:text-foreground",
             )}
+            onMouseEnter={() => setHoveredPath(link.href)}
           >
-            <span className="flex items-center gap-2 truncate">
-              {link.label === "GitHub" ? <Github className="h-4 w-4 shrink-0" aria-hidden /> : null}
-              <span className="truncate">{link.label}</span>
+            <span className="relative z-10 flex items-center gap-2">
+              {link.label === "GitHub" && <Github className="h-4 w-4" />}
+              {link.label}
             </span>
-            {isMobile && isExternal ? (
-              <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-            ) : null}
+            {isActive && (
+              <motion.div
+                layoutId="nav-pill"
+                className="absolute inset-0 rounded-full bg-[#D12226] shadow-[0_0_20px_rgba(209,34,38,0.3)]"
+                transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+              />
+            )}
+            {hoveredPath === link.href && !isActive && (
+              <motion.div
+                layoutId="nav-hover"
+                className="absolute inset-0 rounded-full bg-red-500/10 dark:bg-red-500/20"
+                transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+              />
+            )}
           </Link>
         );
-
-        return isMobile ? (
-          <SheetClose asChild key={link.href}>
-            {linkContent}
-          </SheetClose>
-        ) : (
-          linkContent
-        );
       })}
-    </>
+    </nav>
   );
+}
+
+export function MobileNavigation() {
+  const pathname = usePathname();
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <>
-      {/* Desktop Navigation */}
-      <nav
-        className={cn(
-          "hidden flex-wrap items-center justify-end gap-x-3 gap-y-2 text-sm text-muted-foreground sm:flex sm:gap-x-4",
-          className,
-        )}
-        aria-label="Primary"
-      >
-        <NavLinks />
-      </nav>
-
-      {/* Mobile Navigation */}
-      <Sheet open={isOpen} onOpenChange={setIsOpen}>
-        <SheetTrigger asChild>
-          <button
-            className="flex items-center justify-center rounded-full p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D12226]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:hidden"
-            aria-label="Toggle menu"
-            aria-haspopup="dialog"
-            aria-expanded={isOpen}
-            aria-controls="mobile-primary-navigation"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
-        </SheetTrigger>
-        <SheetContent
-          side="right"
-          hideClose
-          id="mobile-primary-navigation"
-          className="flex h-full w-[min(90vw,320px)] flex-col gap-0 border-l border-border/60 bg-white/95 px-0 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-[calc(env(safe-area-inset-top)+1.5rem)] text-foreground backdrop-blur-xl dark:border-zinc-800/60 dark:bg-zinc-950/95 dark:text-white sm:hidden"
+    <Sheet open={isOpen} onOpenChange={setIsOpen}>
+      <SheetTrigger asChild>
+        <button
+          className="flex items-center justify-center rounded-full p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D12226]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background lg:hidden"
+          aria-label="Toggle menu"
         >
-          <SheetTitle className="sr-only">Navigation menu</SheetTitle>
-          <div className="flex items-center justify-between gap-4 border-b border-border/60 px-5 pb-4">
-            <BrandLogo className="h-8" wrapperClassName="flex-shrink-0" priority />
-            <SheetClose asChild>
-              <button
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-white/80 text-foreground/70 backdrop-blur-sm transition-colors hover:text-foreground dark:border-white/20 dark:bg-white/10 dark:text-white/70 dark:hover:text-white"
-                aria-label="Close menu"
+          <Menu className="h-5 w-5" />
+        </button>
+      </SheetTrigger>
+      <SheetContent
+        side="right"
+        hideClose
+        className="flex h-full w-full flex-col gap-0 border-l border-border/60 bg-background/95 px-0 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-[calc(env(safe-area-inset-top)+1.5rem)] text-foreground backdrop-blur-2xl dark:border-white/10 dark:bg-black/90 sm:max-w-sm"
+      >
+        <SheetTitle className="sr-only">Navigation menu</SheetTitle>
+        <div className="flex items-center justify-between border-b border-border/40 px-6 pb-6">
+          <BrandLogo className="h-8" wrapperClassName="flex-shrink-0" priority />
+          <SheetClose asChild>
+            <button
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/50 bg-muted/30 text-muted-foreground backdrop-blur-sm transition-colors hover:bg-muted hover:text-foreground dark:border-white/10 dark:bg-white/5 dark:text-white/70 dark:hover:bg-white/10 dark:hover:text-white"
+              aria-label="Close menu"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </SheetClose>
+        </div>
+        <nav className="flex flex-1 flex-col gap-2 overflow-y-auto px-6 py-8">
+          {NAV_LINKS.map((link, idx) => {
+            const isExternal = "external" in link && link.external === true;
+            const isActive = !isExternal && isLinkActive(pathname, link.href);
+
+            return (
+              <motion.div
+                key={link.href}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.1 + idx * 0.05, duration: 0.3 }}
               >
-                <X className="h-4 w-4" />
-              </button>
+                <SheetClose asChild>
+                  <Link
+                    href={link.href}
+                    target={isExternal ? "_blank" : undefined}
+                    rel={isExternal ? "noopener noreferrer" : undefined}
+                    className={cn(
+                      "group flex w-full items-center justify-between rounded-xl px-5 py-4 text-lg font-medium transition-all active:scale-95",
+                      isActive
+                        ? "bg-[#D12226] text-white shadow-lg shadow-[#D12226]/25"
+                        : "bg-muted/30 text-foreground/80 hover:bg-muted/50 hover:text-foreground dark:bg-white/5 dark:text-white/70 dark:hover:bg-white/10 dark:hover:text-white",
+                    )}
+                  >
+                    <span className="flex items-center gap-3">
+                      {link.label === "GitHub" && <Github className="h-5 w-5" />}
+                      {link.label}
+                    </span>
+                    {isExternal && <ExternalLink className="h-4 w-4 opacity-50" />}
+                  </Link>
+                </SheetClose>
+              </motion.div>
+            );
+          })}
+
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.1 + NAV_LINKS.length * 0.05, duration: 0.3 }}
+            className="mt-4"
+          >
+            <SheetClose asChild>
+              <Button
+                asChild
+                variant="default"
+                size="lg"
+                className="w-full rounded-xl bg-[#D12226] px-5 py-6 text-lg font-medium text-white shadow-lg shadow-[#D12226]/20 transition-all hover:bg-[#D12226]/90 hover:shadow-[#D12226]/40 hover:scale-[1.02] active:scale-95 dark:bg-[#D12226] dark:text-white"
+              >
+                <Link href="/dashboard">
+                  Dashboard <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
+              </Button>
             </SheetClose>
-          </div>
-          <nav className="flex flex-1 flex-col gap-2 overflow-y-auto px-5 py-6" aria-label="Primary mobile">
-            <NavLinks isMobile={true} />
-          </nav>
-        </SheetContent>
-      </Sheet>
-    </>
+          </motion.div>
+        </nav>
+      </SheetContent>
+    </Sheet>
   );
 }
 
 function isLinkActive(pathname: string | null, href: string) {
-  if (!pathname) {
-    return false;
-  }
-
-  if (href === "/") {
-    return pathname === "/";
-  }
-
+  if (!pathname) return false;
+  if (href === "/") return pathname === "/";
   return pathname === href || pathname.startsWith(`${href}/`);
 }
+
+// Keep default export for backward compatibility if needed, 
+// but ideally we use named exports now. 
+// Since Header.tsx uses default import, we'll export a composite 
+// or we can update Header.tsx to use named imports.
+// Let's just default export DesktopNavigation to minimize impact 
+// if anything else imports it, but we will change Header.tsx to use DesktopNavigation.
+export default DesktopNavigation;
