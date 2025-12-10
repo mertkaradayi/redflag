@@ -126,8 +126,7 @@ async function callGemini(prompt, isJson = false) {
     
     try {
         const model = genAI.getGenerativeModel({
-            // Switched to gemini-2.5-flash-live for unlimited quota
-            model: "gemini-2.5-flash-live"
+            model: "gemma-3-27b"
         });
 
         const generationConfig = isJson 
