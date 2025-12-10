@@ -229,7 +229,7 @@ async function callGemini(
     
     try {
         const model = getGenAI().getGenerativeModel({
-            model: "gemma-3-27b"
+            model: "gemini-2.5-flash-lite"
         });
 
         const generationConfig = expectsJson

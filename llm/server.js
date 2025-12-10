@@ -126,7 +126,7 @@ async function callGemini(prompt, isJson = false) {
     
     try {
         const model = genAI.getGenerativeModel({
-            model: "gemma-3-27b"
+            model: "gemini-2.5-flash-lite"
         });
 
         const generationConfig = isJson 
