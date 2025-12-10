@@ -229,8 +229,7 @@ async function callGemini(
     
     try {
         const model = getGenAI().getGenerativeModel({
-            // Switched to gemini-2.5-flash-live for unlimited quota (vs 20 RPD limit on lite)
-            model: "gemini-2.5-flash-live"
+            model: "gemma-3-27b"
         });
 
         const generationConfig = expectsJson
