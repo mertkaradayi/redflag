@@ -125,8 +125,9 @@ async function callGemini(prompt, isJson = false) {
     console.log(' > [Gemini Call] Firing agent...');
     
     try {
-        const model = genAI.getGenerativeModel({ 
-            model: "gemini-2.5-flash"
+        const model = genAI.getGenerativeModel({
+            // Switched to gemini-2.5-flash-live for unlimited quota
+            model: "gemini-2.5-flash-live"
         });
 
         const generationConfig = isJson 

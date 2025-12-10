@@ -228,9 +228,9 @@ async function callGemini(
     const { expectsJson = false, responseSchema, retryWithFallback = true } = options;
     
     try {
-        const model = getGenAI().getGenerativeModel({ 
-            // model: "gemini-2.5-flash"
-            model: "gemini-2.5-flash-lite"
+        const model = getGenAI().getGenerativeModel({
+            // Switched to gemini-2.5-flash-live for unlimited quota (vs 20 RPD limit on lite)
+            model: "gemini-2.5-flash-live"
         });
 
         const generationConfig = expectsJson
