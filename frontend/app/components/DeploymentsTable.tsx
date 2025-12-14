@@ -1,13 +1,18 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
-import { RefreshCcw, Search, X, TrendingUp, TrendingDown } from 'lucide-react';
+import { RefreshCcw, Search, X, TrendingUp, TrendingDown, WifiOff } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { useRealtimeDeployments, type ConnectionStatus } from '@/lib/useRealtimeDeployments';
+import { useDebouncedValue } from '@/lib/useDebouncedValue';
+import { useTimeTick } from '@/lib/useTimeTick';
 import { formatAddress, isSuiHash, parseSearchQuery } from '@/lib/deployments';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import DeploymentCard from './DeploymentCard';
+import ErrorBoundary from './ErrorBoundary';
 import {
   calculateStats,
   fetchDeployments,
@@ -22,9 +27,19 @@ interface DeploymentsTableProps {
 }
 
 const ITEMS_PER_PAGE = 20;
+const MAX_DEPLOYMENTS = 500; // Cap to prevent unbounded growth
+const STATS_DEBOUNCE_MS = 2000; // Debounce stats refresh
+
 const SORT_LABELS: Record<'timestamp' | 'checkpoint', string> = {
   timestamp: 'By time',
   checkpoint: 'By checkpoint',
+};
+
+const CONNECTION_STATUS_CONFIG: Record<ConnectionStatus, { label: string; color: string; showPing: boolean }> = {
+  connected: { label: 'Live', color: 'text-green-600 dark:text-green-400 bg-green-500/10', showPing: true },
+  connecting: { label: 'Connecting', color: 'text-yellow-600 dark:text-yellow-400 bg-yellow-500/10', showPing: false },
+  disconnected: { label: 'Offline', color: 'text-zinc-500 dark:text-zinc-400 bg-zinc-500/10', showPing: false },
+  error: { label: 'Error', color: 'text-red-600 dark:text-red-400 bg-red-500/10', showPing: false },
 };
 
 export default function DeploymentsTable({
@@ -37,15 +52,27 @@ export default function DeploymentsTable({
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebouncedValue(searchTerm, 300);
   const [sortBy, setSortBy] = useState<'timestamp' | 'checkpoint'>('timestamp');
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [showTypeahead, setShowTypeahead] = useState(false);
   const [network, setNetwork] = useState<'mainnet' | 'testnet' | undefined>(undefined);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  
+
+  // Single time tick for all cards (prevents N intervals)
+  const tick = useTimeTick(60000);
+
+  // Track IDs of newly arrived deployments for animation
+  const [newDeploymentIds, setNewDeploymentIds] = useState<Set<string>>(new Set());
+
+  // Refs for cleanup
+  const animationTimeoutsRef = useRef<Set<NodeJS.Timeout>>(new Set());
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const statsRefreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingStatsRefreshRef = useRef(false);
+
   // Filter states for KPI tiles
   const [activeFilter, setActiveFilter] = useState<'all' | 'last24h' | 'checkpoint' | null>(null);
-  
 
   // Stats from database (accurate counts, not just paginated results)
   const [dbStats, setDbStats] = useState<{
@@ -55,6 +82,23 @@ export default function DeploymentsTable({
     last24hDelta: number;
     latestCheckpoint: number | null;
   } | null>(null);
+
+  // Cleanup all timeouts on unmount
+  useEffect(() => {
+    return () => {
+      // Clear all animation timeouts
+      animationTimeoutsRef.current.forEach((timeout) => clearTimeout(timeout));
+      animationTimeoutsRef.current.clear();
+      // Clear stats refresh timeout
+      if (statsRefreshTimeoutRef.current) {
+        clearTimeout(statsRefreshTimeoutRef.current);
+      }
+      // Abort any pending fetch
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   const loadDeploymentStats = useCallback(async () => {
     try {
@@ -71,21 +115,46 @@ export default function DeploymentsTable({
     } catch (err) {
       console.error('Error fetching deployment stats:', err);
       // Don't set error state here - stats are non-critical
+    } finally {
+      pendingStatsRefreshRef.current = false;
     }
   }, []);
 
-  const loadDeployments = useCallback(async (offset: number = 0, append = false) => {
+  // Debounced stats refresh to prevent spam when multiple deployments arrive quickly
+  const debouncedStatsRefresh = useCallback(() => {
+    // If already pending, don't schedule another
+    if (pendingStatsRefreshRef.current) return;
+
+    // Clear any existing timeout
+    if (statsRefreshTimeoutRef.current) {
+      clearTimeout(statsRefreshTimeoutRef.current);
+    }
+
+    pendingStatsRefreshRef.current = true;
+    statsRefreshTimeoutRef.current = setTimeout(() => {
+      loadDeploymentStats();
+    }, STATS_DEBOUNCE_MS);
+  }, [loadDeploymentStats]);
+
+  const loadDeployments = useCallback(async (offset: number = 0, append = false, isAutoRefresh = false) => {
+    // Abort any pending request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new abort controller for this request
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
-      if (offset === 0) {
+      if (offset === 0 && !isAutoRefresh) {
         setLoading(true);
         setError(null);
-        // Load stats when refreshing the list
-        loadDeploymentStats();
-      } else {
+      } else if (offset > 0) {
         setLoadingMore(true);
       }
 
-      const response: DeploymentsResponse = await fetchDeployments(ITEMS_PER_PAGE, offset);
+      const response: DeploymentsResponse = await fetchDeployments(ITEMS_PER_PAGE, offset, controller.signal);
 
       if (!response.success) {
         throw new Error(response.message || 'Failed to fetch deployments');
@@ -93,48 +162,109 @@ export default function DeploymentsTable({
 
       const newDeployments = response.deployments;
       setDeployments((prev) => {
-        const updated = append ? [...prev, ...newDeployments] : newDeployments;
-        return updated;
+        if (append) {
+          const updated = [...prev, ...newDeployments];
+          // Cap the array
+          return updated.length > MAX_DEPLOYMENTS ? updated.slice(0, MAX_DEPLOYMENTS) : updated;
+        }
+        if (isAutoRefresh && prev.length > 0) {
+          // Merge new items: prepend truly new ones, keep existing loaded data
+          const existingIds = new Set(prev.map(d => d.package_id + d.tx_digest));
+          const trulyNew = newDeployments.filter(d => !existingIds.has(d.package_id + d.tx_digest));
+          const updated = [...trulyNew, ...prev];
+          // Cap the array
+          return updated.length > MAX_DEPLOYMENTS ? updated.slice(0, MAX_DEPLOYMENTS) : updated;
+        }
+        return newDeployments;
       });
-      setHasMore(newDeployments.length === ITEMS_PER_PAGE);
+      if (!isAutoRefresh) {
+        setHasMore(newDeployments.length === ITEMS_PER_PAGE);
+      }
       setLastUpdate(new Date());
       if (response.network) {
         setNetwork(response.network);
       }
     } catch (err) {
+      // Ignore abort errors
+      if (err instanceof Error && err.name === 'AbortError') {
+        return;
+      }
       const message = err instanceof Error ? err.message : 'Unknown error occurred';
-      setError(message);
+      if (!isAutoRefresh) {
+        setError(message);
+      }
       console.error('Error fetching deployments:', err);
     } finally {
-      setLoading(false);
-      setLoadingMore(false);
+      // Only update loading state if this is still the active request
+      if (abortControllerRef.current === controller) {
+        setLoading(false);
+        setLoadingMore(false);
+      }
     }
-  }, [loadDeploymentStats]);
+  }, []);
 
+  // Handle new deployment from realtime subscription
+  const handleNewDeployment = useCallback((deployment: Deployment) => {
+    const deploymentKey = deployment.package_id + deployment.tx_digest;
+
+    // Add to deployments list (prepend) with cap
+    setDeployments((prev) => {
+      // Check if already exists
+      const exists = prev.some(d => d.package_id + d.tx_digest === deploymentKey);
+      if (exists) return prev;
+
+      const updated = [deployment, ...prev];
+      // Cap the array to prevent unbounded growth
+      if (updated.length > MAX_DEPLOYMENTS) {
+        return updated.slice(0, MAX_DEPLOYMENTS);
+      }
+      return updated;
+    });
+
+    // Mark as new for animation
+    setNewDeploymentIds((prev) => new Set(prev).add(deploymentKey));
+
+    // Remove "new" status after animation completes (with cleanup tracking)
+    const timeout = setTimeout(() => {
+      setNewDeploymentIds((prev) => {
+        const next = new Set(prev);
+        next.delete(deploymentKey);
+        return next;
+      });
+      // Remove from tracking set
+      animationTimeoutsRef.current.delete(timeout);
+    }, 3000);
+
+    // Track timeout for cleanup on unmount
+    animationTimeoutsRef.current.add(timeout);
+
+    // Update last update time
+    setLastUpdate(new Date());
+
+    // Refresh stats (debounced to prevent spam)
+    debouncedStatsRefresh();
+  }, [debouncedStatsRefresh]);
+
+  // Subscribe to realtime deployments
+  const { status: connectionStatus, reconnect } = useRealtimeDeployments({
+    enabled: autoRefresh,
+    onNewDeployment: handleNewDeployment,
+  });
+
+  // Initial load and stats refresh (no more deployment polling - realtime handles it)
   useEffect(() => {
     loadDeployments(0, false);
-
-    if (!autoRefresh) return;
-
-    const interval = setInterval(() => {
-      loadDeployments(0, false);
-    }, refreshInterval);
-
-    return () => clearInterval(interval);
-  }, [autoRefresh, loadDeployments, refreshInterval]);
-
-  // Load stats on mount and when auto-refresh is enabled
-  useEffect(() => {
     loadDeploymentStats();
 
     if (!autoRefresh) return;
 
+    // Only refresh stats periodically, not deployments (realtime handles those)
     const statsInterval = setInterval(() => {
       loadDeploymentStats();
     }, refreshInterval);
 
     return () => clearInterval(statsInterval);
-  }, [autoRefresh, loadDeploymentStats, refreshInterval]);
+  }, [autoRefresh, loadDeployments, loadDeploymentStats, refreshInterval]);
 
   // Use database stats if available, otherwise fall back to calculated stats from paginated data
   const stats = useMemo(() => {
@@ -170,9 +300,9 @@ export default function DeploymentsTable({
       );
     }
 
-    // Apply search filter
-    if (searchTerm.trim()) {
-      const { type, value } = parseSearchQuery(searchTerm);
+    // Apply search filter (uses debounced value for performance)
+    if (debouncedSearchTerm.trim()) {
+      const { type, value } = parseSearchQuery(debouncedSearchTerm);
       const term = value.toLowerCase();
 
       if (type === 'deployer') {
@@ -193,7 +323,7 @@ export default function DeploymentsTable({
     }
 
     return filtered;
-  }, [deployments, searchTerm, activeFilter, stats.latestCheckpoint]);
+  }, [deployments, debouncedSearchTerm, activeFilter, stats.latestCheckpoint]);
 
   const handleSearchChange = useCallback((value: string) => {
     setSearchTerm(value);
@@ -245,7 +375,6 @@ export default function DeploymentsTable({
         : b.checkpoint - a.checkpoint,
     );
   }, [filteredDeployments, sortBy]);
-
 
   // Filter handlers for KPI tiles
   const handleFilterByLast24h = useCallback(() => {
@@ -327,7 +456,36 @@ export default function DeploymentsTable({
       <CardHeader className="space-y-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <CardTitle className="text-2xl font-semibold leading-none tracking-tight text-foreground dark:text-white">Smart contract deployments</CardTitle>
+              <CardTitle className="text-2xl font-semibold leading-none tracking-tight text-foreground dark:text-white flex items-center gap-3">
+                Smart contract deployments
+                {autoRefresh && (
+                  <button
+                    onClick={connectionStatus === 'error' || connectionStatus === 'disconnected' ? reconnect : undefined}
+                    className={cn(
+                      'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors',
+                      CONNECTION_STATUS_CONFIG[connectionStatus].color,
+                      (connectionStatus === 'error' || connectionStatus === 'disconnected') && 'cursor-pointer hover:opacity-80'
+                    )}
+                    title={connectionStatus === 'error' || connectionStatus === 'disconnected' ? 'Click to reconnect' : undefined}
+                  >
+                    {connectionStatus === 'error' || connectionStatus === 'disconnected' ? (
+                      <WifiOff className="h-3 w-3" />
+                    ) : (
+                      <span className="relative flex h-2 w-2">
+                        {CONNECTION_STATUS_CONFIG[connectionStatus].showPing && (
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+                        )}
+                        <span className={cn(
+                          'relative inline-flex h-2 w-2 rounded-full',
+                          connectionStatus === 'connected' && 'bg-green-500',
+                          connectionStatus === 'connecting' && 'bg-yellow-500 animate-pulse'
+                        )} />
+                      </span>
+                    )}
+                    {CONNECTION_STATUS_CONFIG[connectionStatus].label}
+                  </button>
+                )}
+              </CardTitle>
               <CardDescription className="mt-2 text-sm text-muted-foreground dark:text-zinc-400">
                 {deployments.length > 0 ? (
                   <>
@@ -585,9 +743,40 @@ export default function DeploymentsTable({
         ) : (
           <div className="space-y-6">
             <div className="grid gap-4">
-              {sortedDeployments.map((deployment) => (
-                <DeploymentCard key={`${deployment.package_id}-${deployment.timestamp}`} deployment={deployment} network={network} />
-              ))}
+              <AnimatePresence initial={false}>
+                {sortedDeployments.map((deployment) => {
+                  const deploymentKey = deployment.package_id + deployment.tx_digest;
+                  const isNew = newDeploymentIds.has(deploymentKey);
+
+                  return (
+                    <motion.div
+                      key={deploymentKey}
+                      initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                      animate={{
+                        opacity: 1,
+                        y: 0,
+                        scale: 1,
+                        boxShadow: isNew
+                          ? '0 0 20px 4px rgba(209, 34, 38, 0.4)'
+                          : '0 0 0px 0px rgba(209, 34, 38, 0)'
+                      }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{
+                        duration: 0.3,
+                        boxShadow: { duration: isNew ? 0.5 : 1.5 }
+                      }}
+                      className={cn(
+                        'rounded-xl transition-shadow',
+                        isNew && 'ring-2 ring-[#D12226]/60'
+                      )}
+                    >
+                      <ErrorBoundary>
+                        <DeploymentCard deployment={deployment} network={network} tick={tick} />
+                      </ErrorBoundary>
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
             </div>
 
             {hasMore && (

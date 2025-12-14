@@ -1,6 +1,6 @@
 'use client';
 
-import { cloneElement, isValidElement, useMemo, useState } from 'react';
+import { cloneElement, isValidElement, memo, useCallback, useMemo, useState } from 'react';
 import type { MouseEvent, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { Check, Copy, ExternalLink, Sparkles } from 'lucide-react';
@@ -23,7 +23,12 @@ import {
 interface DeploymentCardProps {
   deployment: Deployment;
   network?: 'mainnet' | 'testnet';
+  /** Time tick from parent to trigger relative timestamp updates */
+  tick?: number;
 }
+
+// Extracted className constants for repeated styles
+const ICON_BUTTON_CLASS = 'inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-zinc-100 dark:hover:bg-white/10 h-7 w-7 rounded-md text-zinc-600 dark:text-white/70 hover:text-zinc-900 dark:hover:text-white shrink-0';
 
 const AGE_STYLES: Record<
   ReturnType<typeof getDeploymentAgeColor>,
@@ -51,7 +56,7 @@ const AGE_STYLES: Record<
   },
 };
 
-export default function DeploymentCard({ deployment, network }: DeploymentCardProps) {
+const DeploymentCard = memo(function DeploymentCard({ deployment, network, tick = 0 }: DeploymentCardProps) {
   const router = useRouter();
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [showFullAddress, setShowFullAddress] = useState(false);
@@ -59,12 +64,14 @@ export default function DeploymentCard({ deployment, network }: DeploymentCardPr
   const [showFullTxDigest, setShowFullTxDigest] = useState(false);
   const { showToast } = useToast();
 
-  const suiExplorerUrl = useMemo(() => getSuiExplorerUrl(deployment.tx_digest), [deployment.tx_digest]);
-  const packageExplorerUrl = useMemo(() => getSuiPackageExplorerUrl(deployment.package_id), [deployment.package_id]);
-  const deployerExplorerUrl = useMemo(() => getSuiAddressExplorerUrl(deployment.deployer_address), [deployment.deployer_address]);
-  const ageBucket = useMemo(() => getDeploymentAgeColor(deployment.timestamp), [deployment.timestamp]);
+  const suiExplorerUrl = useMemo(() => getSuiExplorerUrl(deployment.tx_digest, network), [deployment.tx_digest, network]);
+  const packageExplorerUrl = useMemo(() => getSuiPackageExplorerUrl(deployment.package_id, network), [deployment.package_id, network]);
+  const deployerExplorerUrl = useMemo(() => getSuiAddressExplorerUrl(deployment.deployer_address, network), [deployment.deployer_address, network]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const ageBucket = useMemo(() => getDeploymentAgeColor(deployment.timestamp), [deployment.timestamp, tick]);
   const ageStyle = AGE_STYLES[ageBucket];
-  const { relative, absolute } = useMemo(() => formatTimestamp(deployment.timestamp), [deployment.timestamp]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const { relative, absolute } = useMemo(() => formatTimestamp(deployment.timestamp), [deployment.timestamp, tick]);
   const firstSeenAt = useMemo(() => {
     const timestamp = new Date(deployment.timestamp).getTime();
     const firstSeen = new Date(deployment.first_seen_at).getTime();
@@ -72,25 +79,46 @@ export default function DeploymentCard({ deployment, network }: DeploymentCardPr
     return Math.abs(timestamp - firstSeen) > 60000 ? deployment.first_seen_at : null;
   }, [deployment.timestamp, deployment.first_seen_at]);
 
-  const handleCopy = async (value: string, field: string, label: string) => {
+  const handleCopy = useCallback(async (value: string, field: string, label: string) => {
     const success = await copyToClipboard(value);
     if (!success) return;
     setCopiedField(field);
     showToast(`${label} copied to clipboard`, 'success');
     setTimeout(() => setCopiedField(null), 2000);
-  };
+  }, [showToast]);
 
-  const toggleAddressView = () => {
+  const toggleAddressView = useCallback(() => {
     setShowFullAddress((prev) => !prev);
-  };
+  }, []);
 
-  const togglePackageIdView = () => {
+  const togglePackageIdView = useCallback(() => {
     setShowFullPackageId((prev) => !prev);
-  };
+  }, []);
 
-  const toggleTxDigestView = () => {
+  const toggleTxDigestView = useCallback(() => {
     setShowFullTxDigest((prev) => !prev);
-  };
+  }, []);
+
+  // Memoized click handlers for external links
+  const openPackageExplorer = useCallback(() => {
+    window.open(packageExplorerUrl, '_blank', 'noopener,noreferrer');
+  }, [packageExplorerUrl]);
+
+  const openTxExplorer = useCallback(() => {
+    window.open(suiExplorerUrl, '_blank', 'noopener,noreferrer');
+  }, [suiExplorerUrl]);
+
+  const openDeployerExplorer = useCallback(() => {
+    window.open(deployerExplorerUrl, '_blank', 'noopener,noreferrer');
+  }, [deployerExplorerUrl]);
+
+  const navigateToDashboard = useCallback(() => {
+    const params = new URLSearchParams({ packageId: deployment.package_id });
+    if (network) {
+      params.set('network', network);
+    }
+    router.push(`/dashboard?${params.toString()}`);
+  }, [deployment.package_id, network, router]);
 
   return (
     <Card className={cn('text-card-foreground relative overflow-hidden rounded-3xl border bg-transparent p-0 shadow-sm dark:shadow-lg', ageStyle.border)}>
@@ -125,8 +153,8 @@ export default function DeploymentCard({ deployment, network }: DeploymentCardPr
               <Button
                 variant="ghost"
                 size="icon"
-                className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-zinc-100 dark:hover:bg-accent h-7 w-7 rounded-md text-zinc-600 dark:text-white/70 hover:text-zinc-900 dark:hover:text-white shrink-0"
-                onClick={() => window.open(packageExplorerUrl, '_blank', 'noopener,noreferrer')}
+                className={ICON_BUTTON_CLASS}
+                onClick={openPackageExplorer}
                 aria-label="View package on Sui Explorer"
               >
                 <ExternalLink className="h-3.5 w-3.5 shrink-0" />
@@ -145,8 +173,8 @@ export default function DeploymentCard({ deployment, network }: DeploymentCardPr
               <Button
                 variant="ghost"
                 size="icon"
-                className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-zinc-100 dark:hover:bg-accent h-7 w-7 rounded-md text-zinc-600 dark:text-white/70 hover:text-zinc-900 dark:hover:text-white shrink-0"
-                onClick={() => window.open(suiExplorerUrl, '_blank', 'noopener,noreferrer')}
+                className={ICON_BUTTON_CLASS}
+                onClick={openTxExplorer}
                 aria-label="View transaction on Sui Explorer"
               >
                 <ExternalLink className="h-3.5 w-3.5 shrink-0" />
@@ -165,8 +193,8 @@ export default function DeploymentCard({ deployment, network }: DeploymentCardPr
               <Button
                 variant="ghost"
                 size="icon"
-                className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-zinc-100 dark:hover:bg-accent h-7 w-7 rounded-md text-zinc-600 dark:text-white/70 hover:text-zinc-900 dark:hover:text-white shrink-0"
-                onClick={() => window.open(deployerExplorerUrl, '_blank', 'noopener,noreferrer')}
+                className={ICON_BUTTON_CLASS}
+                onClick={openDeployerExplorer}
                 aria-label="View deployer address on Sui Explorer"
               >
                 <ExternalLink className="h-3.5 w-3.5 shrink-0" />
@@ -195,13 +223,7 @@ export default function DeploymentCard({ deployment, network }: DeploymentCardPr
             variant="outline"
             size="sm"
             className="w-full sm:w-auto inline-flex items-center justify-center whitespace-nowrap text-xs sm:text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border bg-background hover:text-accent-foreground h-8 sm:h-9 px-3 rounded-full border-[#D12226]/40 text-[#D12226] hover:bg-[#D12226]/10"
-            onClick={() => {
-              const params = new URLSearchParams({ packageId: deployment.package_id });
-              if (network) {
-                params.set('network', network);
-              }
-              router.push(`/dashboard?${params.toString()}`);
-            }}
+            onClick={navigateToDashboard}
           >
             View in Dashboard
           </Button>
@@ -209,7 +231,9 @@ export default function DeploymentCard({ deployment, network }: DeploymentCardPr
       </CardContent>
     </Card>
   );
-}
+});
+
+export default DeploymentCard;
 
 interface FieldBlockProps {
   label: string;
@@ -273,7 +297,7 @@ function FieldBlock({
           <Button
             variant="ghost"
             size="icon"
-            className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-zinc-100 dark:hover:bg-accent h-7 w-7 rounded-md text-zinc-600 dark:text-white/70 hover:text-zinc-900 dark:hover:text-white shrink-0"
+            className={ICON_BUTTON_CLASS}
             onClick={handleCopyClick}
             aria-label={`Copy ${label.toLowerCase()}`}
           >
