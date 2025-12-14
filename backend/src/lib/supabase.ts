@@ -462,13 +462,17 @@ export interface SafetyCard {
   technical_findings?: any;
 }
 
+export type AnalysisStatus = 'completed' | 'failed' | 'pending';
+
 /**
  * Save or update contract analysis result in database
  */
 export async function saveAnalysisResult(
   packageId: string,
   network: string,
-  safetyCard: SafetyCard
+  safetyCard: SafetyCard,
+  status: AnalysisStatus = 'completed',
+  errorMessage?: string
 ): Promise<{
   success: boolean;
   message: string;
@@ -496,6 +500,8 @@ export async function saveAnalysisResult(
         rug_pull_indicators: safetyCard.rug_pull_indicators,
         impact_on_user: safetyCard.impact_on_user,
         technical_findings: safetyCard.technical_findings || null,
+        analysis_status: status,
+        error_message: errorMessage || null,
         analyzed_at: new Date().toISOString()
       }, {
         onConflict: 'package_id,network'
@@ -511,7 +517,7 @@ export async function saveAnalysisResult(
       };
     }
 
-    console.log(`Successfully saved analysis for ${packageId} on ${network}`);
+    console.log(`Successfully saved analysis for ${packageId} on ${network} (status: ${status})`);
     return {
       success: true,
       message: 'Analysis result saved successfully'
@@ -530,15 +536,18 @@ export async function saveAnalysisResult(
 
 /**
  * Get contract analysis result from database
+ * Optional maxAgeHours parameter to ignore stale results
  */
 export async function getAnalysisResult(
   packageId: string,
-  network: string
+  network: string,
+  maxAgeHours?: number
 ): Promise<{
   success: boolean;
   analysis: SafetyCard | null;
   analyzedAt: string | null;
   error?: string;
+  stale?: boolean;
 }> {
   try {
     if (!supabase) {
@@ -566,7 +575,7 @@ export async function getAnalysisResult(
           analyzedAt: null
         };
       }
-      
+
       console.error('Failed to get analysis result:', error);
       return {
         success: false,
@@ -584,6 +593,25 @@ export async function getAnalysisResult(
       };
     }
 
+    // Check if result is stale (if maxAgeHours specified)
+    let isStale = false;
+    if (maxAgeHours && data.analyzed_at) {
+      const analyzedTime = new Date(data.analyzed_at).getTime();
+      const now = Date.now();
+      const ageHours = (now - analyzedTime) / (1000 * 60 * 60);
+
+      if (ageHours > maxAgeHours) {
+        isStale = true;
+        console.log(`[DATABASE] Analysis is ${ageHours.toFixed(1)}h old (max: ${maxAgeHours}h) - considered stale`);
+        return {
+          success: true,
+          analysis: null, // Return null for stale results
+          analyzedAt: data.analyzed_at,
+          stale: true
+        };
+      }
+    }
+
     // Transform database row to SafetyCard format
     const safetyCard: SafetyCard = {
       summary: data.summary,
@@ -599,7 +627,8 @@ export async function getAnalysisResult(
     return {
       success: true,
       analysis: safetyCard,
-      analyzedAt: data.analyzed_at ?? null
+      analyzedAt: data.analyzed_at ?? null,
+      stale: isStale
     };
 
   } catch (error) {
@@ -616,12 +645,14 @@ export async function getAnalysisResult(
 
 /**
  * Get recent contract analyses with pagination
+ * Excludes failed analyses by default
  */
 export async function getRecentAnalyses(options: {
   limit?: number;
   offset?: number;
   packageId?: string | null;
   riskLevels?: RiskLevel[] | null;
+  includeFailed?: boolean;
 } = {}): Promise<{
   success: boolean;
   analyses: any[];
@@ -638,13 +669,18 @@ export async function getRecentAnalyses(options: {
       };
     }
 
-    const { limit = 50, offset = 0, packageId = null, riskLevels = null } = options;
+    const { limit = 50, offset = 0, packageId = null, riskLevels = null, includeFailed = false } = options;
 
     // Build base query
     let query = supabase
       .from('contract_analyses')
       .select('*', { count: 'exact', head: false })
       .order('analyzed_at', { ascending: false });
+
+    // Exclude failed analyses by default
+    if (!includeFailed) {
+      query = query.eq('analysis_status', 'completed');
+    }
 
     // Apply packageId filter if provided (exact match, case-sensitive)
     if (packageId) {
@@ -688,6 +724,7 @@ export async function getRecentAnalyses(options: {
 
 /**
  * Get aggregated risk-level counts matching the provided filter
+ * Excludes failed analyses
  */
 export async function getRiskLevelCounts(options: {
   packageId?: string | null;
@@ -724,7 +761,8 @@ export async function getRiskLevelCounts(options: {
         let query = supabase
           .from('contract_analyses')
           .select('id', { count: 'exact', head: true })
-          .eq('risk_level', level);
+          .eq('risk_level', level)
+          .eq('analysis_status', 'completed'); // Exclude failed analyses
 
         if (packageId) {
           query = query.eq('package_id', packageId);

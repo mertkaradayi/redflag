@@ -1,0 +1,83 @@
+{
+  "timestamp": "2025-12-13T21:23:51.864Z",
+  "summaries": [
+    {
+      "model": "x-ai/grok-code-fast-1",
+      "totalCost": 0,
+      "totalDuration": 27324,
+      "totalTokens": 0,
+      "avgCostPerAgent": 0,
+      "agentCount": 3
+    },
+    {
+      "model": "anthropic/claude-sonnet-4.5",
+      "totalCost": 0,
+      "totalDuration": 9981,
+      "totalTokens": 0,
+      "avgCostPerAgent": 0,
+      "agentCount": 3
+    }
+  ],
+  "detailedResults": [
+    {
+      "model": "x-ai/grok-code-fast-1",
+      "agentName": "Analyzer",
+      "promptTokens": 0,
+      "completionTokens": 0,
+      "totalTokens": 0,
+      "estimatedCost": 0,
+      "duration": 19463,
+      "responseLength": 478
+    },
+    {
+      "model": "x-ai/grok-code-fast-1",
+      "agentName": "Scorer",
+      "promptTokens": 0,
+      "completionTokens": 0,
+      "totalTokens": 0,
+      "estimatedCost": 0,
+      "duration": 2618,
+      "responseLength": 3
+    },
+    {
+      "model": "x-ai/grok-code-fast-1",
+      "agentName": "Reporter",
+      "promptTokens": 0,
+      "completionTokens": 0,
+      "totalTokens": 0,
+      "estimatedCost": 0,
+      "duration": 5243,
+      "responseLength": 364
+    },
+    {
+      "model": "anthropic/claude-sonnet-4.5",
+      "agentName": "Analyzer",
+      "promptTokens": 0,
+      "completionTokens": 0,
+      "totalTokens": 0,
+      "estimatedCost": 0,
+      "duration": 4723,
+      "responseLength": 457
+    },
+    {
+      "model": "anthropic/claude-sonnet-4.5",
+      "agentName": "Scorer",
+      "promptTokens": 0,
+      "completionTokens": 0,
+      "totalTokens": 0,
+      "estimatedCost": 0,
+      "duration": 1863,
+      "responseLength": 2
+    },
+    {
+      "model": "anthropic/claude-sonnet-4.5",
+      "agentName": "Reporter",
+      "promptTokens": 0,
+      "completionTokens": 0,
+      "totalTokens": 0,
+      "estimatedCost": 0,
+      "duration": 3395,
+      "responseLength": 358
+    }
+  ]
+}

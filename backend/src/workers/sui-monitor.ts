@@ -141,8 +141,8 @@ async function analyzeNewDeployments(deployments: any[]): Promise<void> {
     return;
   }
 
-  if (!process.env.GOOGLE_API_KEY) {
-    console.log('⚠️  GOOGLE_API_KEY not configured, skipping LLM analysis');
+  if (!process.env.OPEN_ROUTER_KEY) {
+    console.log('⚠️  OPEN_ROUTER_KEY not configured, skipping LLM analysis');
     return;
   }
 
@@ -172,24 +172,32 @@ async function analyzeNewDeployments(deployments: any[]): Promise<void> {
       }
       
       console.log(`🔍 Analyzing package ${packageId}...`);
-      
-      // Run LLM analysis (will save to database)
-      const analysisResult = await runFullAnalysisChain(packageId, network, suiClient);
-      
-      // Log risk level
-      const riskLevel = analysisResult.risk_level;
-      const riskScore = analysisResult.risk_score;
-      
-      if (riskLevel === 'critical' || riskLevel === 'high') {
-        console.log(`🚨 HIGH RISK DETECTED: Package ${packageId} - Risk Level: ${riskLevel} (Score: ${riskScore})`);
-        console.log(`   Summary: ${analysisResult.summary}`);
-        console.log(`   Risk: ${analysisResult.why_risky_one_liner}`);
-      } else {
-        console.log(`✅ Package ${packageId} analyzed - Risk Level: ${riskLevel} (Score: ${riskScore})`);
+
+      try {
+        // Run LLM analysis (will save to database or save as failed)
+        const analysisResult = await runFullAnalysisChain(packageId, network, suiClient);
+
+        // Log risk level (only if successful)
+        const riskLevel = analysisResult.risk_level;
+        const riskScore = analysisResult.risk_score;
+
+        if (riskLevel === 'critical' || riskLevel === 'high') {
+          console.log(`🚨 HIGH RISK DETECTED: Package ${packageId} - Risk Level: ${riskLevel} (Score: ${riskScore})`);
+          console.log(`   Summary: ${analysisResult.summary}`);
+          console.log(`   Risk: ${analysisResult.why_risky_one_liner}`);
+        } else {
+          console.log(`✅ Package ${packageId} analyzed - Risk Level: ${riskLevel} (Score: ${riskScore})`);
+        }
+
+      } catch (analysisError) {
+        // Analysis failed but was saved as 'failed' status - just log and continue
+        const errorMsg = analysisError instanceof Error ? analysisError.message : String(analysisError);
+        console.error(`⚠️  Package ${packageId} analysis failed (saved as failed): ${errorMsg}`);
       }
-      
+
     } catch (error) {
-      console.error(`❌ Failed to analyze package ${deployment.packageId}:`, error);
+      // Unexpected error
+      console.error(`❌ Unexpected error analyzing package ${deployment.packageId}:`, error);
     }
   }
   

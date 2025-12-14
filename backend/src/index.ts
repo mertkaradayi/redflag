@@ -464,41 +464,75 @@ app.post('/api/llm/analyze', async (req, res) => {
     
     // Create Sui client for this request
     const suiClient = new SuiClient({ url: rpcUrl });
-    
-    // Check database first
-    const dbResult = await getAnalysisResult(package_id, validatedNetwork);
-    if (dbResult.success && dbResult.analysis) {
-      console.log(`[LLM] Database hit! Returning stored result for ${package_id}`);
+
+    // Check for force parameter to bypass cache
+    const force = req.body.force === true || req.body.force === 'true';
+
+    if (!force) {
+      // Check database first with 24-hour TTL (only if not forcing fresh analysis)
+      const dbResult = await getAnalysisResult(package_id, validatedNetwork, 24);
+      if (dbResult.success && dbResult.analysis) {
+        console.log(`[LLM] Database hit! Returning stored result for ${package_id}`);
+        return res.status(200).json({
+          success: true,
+          message: `Analysis successful (from cache - ${validatedNetwork})`,
+          timestamp: new Date().toISOString(),
+          package_id,
+          network: validatedNetwork,
+          safetyCard: dbResult.analysis,
+          cached: true,
+          analyzedAt: dbResult.analyzedAt
+        });
+      } else if (dbResult.stale) {
+        console.log(`[LLM] Cached result is stale (>24h old) - running fresh analysis`);
+      }
+    } else {
+      console.log(`[LLM] Force parameter set - bypassing cache for ${package_id}`);
+    }
+
+    // Run full analysis chain (will save to database or save as failed)
+    console.log(`[LLM] Running full analysis chain for ${package_id}...`);
+
+    try {
+      const finalSafetyCard = await runFullAnalysisChain(package_id, validatedNetwork, suiClient, force);
+
       return res.status(200).json({
         success: true,
-        message: `Analysis successful (from database - ${validatedNetwork})`,
+        message: `Analysis successful (${validatedNetwork})`,
         timestamp: new Date().toISOString(),
         package_id,
         network: validatedNetwork,
-        safetyCard: dbResult.analysis
+        safetyCard: finalSafetyCard,
+        cached: false
+      });
+
+    } catch (analysisError) {
+      // Analysis failed and was saved as 'failed' status in DB
+      const errorMsg = analysisError instanceof Error ? analysisError.message : 'Unknown error';
+
+      console.error('[LLM] Analysis failed and saved as failed status');
+
+      return res.status(400).json({
+        success: false,
+        message: `Analysis failed: ${errorMsg}`,
+        timestamp: new Date().toISOString(),
+        package_id,
+        network: validatedNetwork,
+        error: errorMsg,
+        failureType: 'analysis_error',
+        statusSaved: 'failed' // Indicates we saved it as failed in DB
       });
     }
-    
-    // Run full analysis chain (will save to database)
-    console.log(`[LLM] Running full analysis chain for ${package_id}...`);
-    const finalSafetyCard = await runFullAnalysisChain(package_id, validatedNetwork, suiClient);
-    
-    return res.status(200).json({
-      success: true,
-      message: `Analysis successful (${validatedNetwork})`,
-      timestamp: new Date().toISOString(),
-      package_id,
-      network: validatedNetwork,
-      safetyCard: finalSafetyCard
-    });
-    
+
   } catch (error) {
-    console.error('[LLM] Analysis error:', error);
+    // System error (not analysis error)
+    console.error('[LLM] System error:', error);
     return res.status(500).json({
       success: false,
-      message: 'Contract analysis failed',
+      message: 'System error occurred',
       error: error instanceof Error ? error.message : 'Unknown error',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      failureType: 'system_error'
     });
   }
 });

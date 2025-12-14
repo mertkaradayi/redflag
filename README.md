@@ -1,6 +1,6 @@
 # RedFlag
 
-RedFlag monitors new Sui smart-contract deployments, persists on-chain metadata to Supabase, runs Gemini-powered risk analysis, and presents the results in a React 19 dashboard.
+RedFlag monitors new Sui smart-contract deployments, persists on-chain metadata to Supabase, runs AI-powered risk analysis via OpenRouter, and presents the results in a React 19 dashboard.
 
 ## Monorepo Layout
 
@@ -28,7 +28,8 @@ The frontend uses the `@/` alias (rooted at `frontend/`) for cross-module import
 
 - Configurable CORS-protected Express API served from `backend/src/index.ts`.
 - Background worker (`startMonitoring`) polls the Sui RPC (`POLL_INTERVAL_MS`, default 15s), stores new deployments in Supabase, and triggers LLM analysis for unseen packages.
-- Gemini 2.5 Flash chain (Analyzer → Scorer → Reporter) with automatic fallback API key rotation and retry/backoff logic.
+- **3-Agent LLM Chain** (Analyzer → Scorer → Reporter) via OpenRouter with retry/backoff logic.
+- **Map-Reduce Chunked Analysis**: Large contracts with multiple modules are analyzed in parallel, then findings are aggregated. This enables analysis of contracts of any size without token limit issues.
 - Supabase persistence for both raw deployment metadata (`sui_package_deployments`) and generated safety cards (`contract_analyses`).
 - JSON REST endpoints for health checks, Sui telemetry, LLM analysis, and monitor status.
 
@@ -44,7 +45,7 @@ The frontend uses the `@/` alias (rooted at `frontend/`) for cross-module import
 - Node.js 20.x (Next.js 16 and React 19 require ≥18.18; we target 20 LTS).
 - Yarn Classic (1.22+) with workspaces enabled.
 - A Supabase project (PostgreSQL) for storing deployments and analyses.
-- Google Generative AI API key(s) for Gemini (`GOOGLE_API_KEY`, optional fallback `GOOGLE_API_KEY_FALLBACK`).
+- OpenRouter API key (`OPEN_ROUTER_KEY`) - get one at https://openrouter.ai/keys.
 - Sui RPC endpoint (defaults to `https://fullnode.testnet.sui.io:443`).
 - Privy application ID when enabling authentication flows.
 
@@ -96,9 +97,11 @@ The frontend uses the `@/` alias (rooted at `frontend/`) for cross-module import
 | `SUPABASE_URL` | Yes | Supabase project URL. | – |
 | `SUPABASE_SERVICE_KEY` | Yes | Supabase service role key for privileged queries. | – |
 | `SUPABASE_ANON_KEY` | No | Optional anon key; retained for future read-only client use. | – |
-| `GOOGLE_API_KEY` | Yes (for analysis) | Primary Gemini 2.5 Flash key. Required to run the analyzer and background worker. | – |
-| `GOOGLE_API_KEY_FALLBACK` | No | Secondary Gemini key used automatically when the primary hits quota. | – |
-| `ENABLE_AUTO_ANALYSIS` | No | Enables the background Sui monitor + automatic Gemini analysis. Flip to `false` while developing UI without hitting external services. | `true` |
+| `OPEN_ROUTER_KEY` | Yes (for analysis) | OpenRouter API key for LLM analysis. Get one at https://openrouter.ai/keys. | – |
+| `LLM_MODEL_ANALYZER` | No | Override the analyzer model (default: `openai/gpt-oss-120b`). | – |
+| `LLM_MODEL_SCORER` | No | Override the scorer model. | – |
+| `LLM_MODEL_REPORTER` | No | Override the reporter model. | – |
+| `ENABLE_AUTO_ANALYSIS` | No | Enables the background Sui monitor + automatic LLM analysis. Flip to `false` while developing UI without hitting external services. | `true` |
 | `ENABLE_SUI_RPC` | No | Master kill switch for all Sui RPC calls (health checks, monitor, manual analysis). Set to `false` to avoid network calls locally. | `true` |
 | `SUI_RPC_URL` | No | Sui RPC endpoint (testnet by default). | `https://fullnode.testnet.sui.io:443` |
 | `POLL_INTERVAL_MS` | No | Worker polling interval in milliseconds. | `15000` |
@@ -138,9 +141,10 @@ The frontend uses the `@/` alias (rooted at `frontend/`) for cross-module import
 
 1. `startMonitoring()` (bootstrapped in `src/index.ts`) loads the last processed checkpoint from Supabase.
 2. The worker polls the Sui RPC with adaptive filters, deduplicates deployments, and upserts them into `sui_package_deployments`.
-3. For each new package the worker requests a Gemini safety card via `runFullAnalysisChain`.
-4. Results are persisted in `contract_analyses` (idempotent upsert) and exposed through `/api/llm/*` endpoints.
-5. High-risk packages are logged with elevated console output for operational awareness.
+3. For each new package the worker requests an LLM safety card via `runFullAnalysisChain`.
+4. **Map-Reduce for Large Contracts**: Contracts with multiple modules are chunked and analyzed in parallel, then findings are aggregated. This ensures contracts of any size can be fully analyzed without token limit truncation.
+5. Results are persisted in `contract_analyses` (idempotent upsert) and exposed through `/api/llm/*` endpoints.
+6. High-risk packages are logged with elevated console output for operational awareness.
 
 Set `ENABLE_AUTO_ANALYSIS=false` to skip this worker entirely, or `ENABLE_SUI_RPC=false` to short-circuit every Sui RPC call while working offline.
 
@@ -202,10 +206,11 @@ Adjust column types as needed for your Supabase project (e.g., replace `gen_rand
 ## Troubleshooting
 
 - **CORS errors**: ensure `FRONTEND_URL` matches the requesting origin exactly (protocol + host + port).
-- **LLM analysis skipped**: check that `GOOGLE_API_KEY` is set; the worker logs `⚠️  GOOGLE_API_KEY not configured` otherwise.
+- **LLM analysis skipped**: check that `OPEN_ROUTER_KEY` is set; the worker logs `⚠️  OPEN_ROUTER_KEY not configured` otherwise.
 - **No deployments stored**: verify Supabase tables exist and the service role key has `insert`/`upsert` permissions.
 - **Monitor idle**: inspect `/api/sui/monitor-status` and server logs; adjust `POLL_INTERVAL_MS` if rate-limited.
 - **Frontend 500s**: confirm `NEXT_PUBLIC_BACKEND_URL` is reachable and HTTPS when deployed to Vercel.
+- **Large contract analysis**: Contracts with multiple modules are automatically chunked and analyzed in parallel. Check logs for `[MapReduce]` messages to monitor progress.
 
 ## Contributing
 

@@ -9,13 +9,17 @@
     "test": "tsx --test src/**/*.test.ts"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.24.1",
+    "@langchain/core": "^1.1.5",
+    "@langchain/openai": "^1.2.0",
     "@mysten/sui": "^1.43.1",
     "@privy-io/node": "^0.3.0",
     "@supabase/supabase-js": "^2.39.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
-    "express": "^4.18.2"
+    "express": "^4.18.2",
+    "langchain": "^1.2.0",
+    "openai": "^6.10.0",
+    "zod": "^4.1.13"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
