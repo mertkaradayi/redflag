@@ -51,3 +51,7 @@ yarn-error.log*
 next-env.d.ts
 
 .cursor/
+
+# Claude Code
+CLAUDE.md
+AGENTS.md
