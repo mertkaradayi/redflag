@@ -27,14 +27,15 @@ const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001
  */
 export async function fetchDeployments(
   limit: number = 50,
-  offset: number = 0
+  offset: number = 0,
+  signal?: AbortSignal
 ): Promise<DeploymentsResponse> {
   const params = new URLSearchParams({
     limit: limit.toString(),
     offset: offset.toString(),
   });
 
-  const response = await fetch(`${backendUrl}/api/sui/deployments?${params}`);
+  const response = await fetch(`${backendUrl}/api/sui/deployments?${params}`, { signal });
 
   if (!response.ok) {
     throw new Error(`Failed to fetch deployments: ${response.status} ${response.statusText}`);
@@ -117,8 +118,31 @@ export function formatTimestamp(timestamp: string): {
   absolute: string;
 } {
   const date = new Date(timestamp);
+
+  // Validate the date
+  if (isNaN(date.getTime())) {
+    return { relative: 'Unknown', absolute: 'Invalid date' };
+  }
+
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
+
+  // Handle future dates (clock skew)
+  if (diffMs < 0) {
+    return {
+      relative: 'Just now',
+      absolute: date.toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        timeZoneName: 'short',
+      })
+    };
+  }
+
   const diffSeconds = Math.floor(diffMs / 1000);
   const diffMinutes = Math.floor(diffSeconds / 60);
   const diffHours = Math.floor(diffMinutes / 60);
@@ -159,9 +183,8 @@ export function formatTimestamp(timestamp: string): {
 /**
  * Generate Sui explorer URL for transaction digest
  */
-export function getSuiExplorerUrl(txDigest: string): string {
-  // Sui testnet explorer URL
-  return `https://suiexplorer.com/txblock/${txDigest}?network=testnet`;
+export function getSuiExplorerUrl(txDigest: string, network: 'mainnet' | 'testnet' = 'testnet'): string {
+  return `https://suiexplorer.com/txblock/${txDigest}?network=${network}`;
 }
 
 /**
