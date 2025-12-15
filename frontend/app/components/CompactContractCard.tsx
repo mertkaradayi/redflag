@@ -1,17 +1,13 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Copy, Check, ExternalLink, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { AnalyzedContract } from '@/app/dashboard/types';
 import { getSuiPackageExplorerUrl } from '@/lib/deployments';
-import {
-  getRiskLevelBadge,
-  getRiskLevelIcon,
-  getRiskLevelName,
-} from '@/app/dashboard/risk-utils';
-import { RiskScoreGauge } from './RiskScoreGauge';
+import { getRiskBarColor } from '@/app/dashboard/risk-utils';
+import { RiskScoreCircle } from './RiskScoreCircle';
 
 interface CompactContractCardProps {
   contract: AnalyzedContract;
@@ -36,8 +32,52 @@ function formatRelativeTime(timestamp: string): string {
 }
 
 function truncatePackageId(id: string): string {
-  if (id.length <= 16) return id;
-  return `${id.slice(0, 8)}...${id.slice(-6)}`;
+  // Format: 0x515...02b (show 0x + 3 chars + ... + 3 chars)
+  if (id.length <= 12) return id;
+  const prefix = id.startsWith('0x') ? id.slice(0, 5) : id.slice(0, 3);
+  const suffix = id.slice(-3);
+  return `${prefix}...${suffix}`;
+}
+
+function getRiskLevelLabel(level: string): string {
+  const labels: Record<string, string> = {
+    critical: 'Red Flag',
+    high: 'High Risk',
+    moderate: 'Moderate',
+    low: 'Green Flag',
+  };
+  return labels[level] || level;
+}
+
+function getRiskLevelColor(level: string) {
+  // Saturated colors matching the filter badges
+  const colors: Record<string, { bg: string; text: string; border: string; icon: string }> = {
+    critical: {
+      bg: 'bg-[#D12226]/10 dark:bg-[#D12226]/20',
+      text: 'text-[#D12226] dark:text-[#ff6b6e]',
+      border: 'border-[#D12226]/30',
+      icon: '🚩',
+    },
+    high: {
+      bg: 'bg-orange-500/10 dark:bg-orange-500/20',
+      text: 'text-orange-600 dark:text-orange-400',
+      border: 'border-orange-500/30',
+      icon: '⚠️',
+    },
+    moderate: {
+      bg: 'bg-yellow-400/10 dark:bg-yellow-400/20',
+      text: 'text-yellow-600 dark:text-yellow-400',
+      border: 'border-yellow-400/30',
+      icon: '⚡',
+    },
+    low: {
+      bg: 'bg-emerald-500/10 dark:bg-emerald-500/20',
+      text: 'text-emerald-600 dark:text-emerald-400',
+      border: 'border-emerald-500/30',
+      icon: '✓',
+    },
+  };
+  return colors[level] || { bg: 'bg-zinc-500/10', text: 'text-zinc-500', border: 'border-zinc-500/30', icon: '?' };
 }
 
 export function CompactContractCard({
@@ -66,91 +106,202 @@ export function CompactContractCard({
   }, [contract.package_id, contract.network]);
 
   const relativeTime = formatRelativeTime(contract.analyzed_at);
+  const riskLevel = contract.analysis.risk_level;
+  const riskScore = contract.analysis.risk_score;
+  const riskColors = getRiskLevelColor(riskLevel);
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.15, delay: index * 0.02 }}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2, delay: index * 0.03 }}
       onClick={onExpand}
       className={cn(
-        'group',
-        'px-3 py-2.5 sm:px-4 sm:py-3',
-        'cursor-pointer transition-colors duration-100',
+        'group relative',
+        'cursor-pointer transition-all duration-200',
+        // Expanded state - highlighted with subtle glow
         isExpanded
-          ? 'bg-zinc-100/80 dark:bg-zinc-800/50'
-          : 'hover:bg-zinc-50 dark:hover:bg-zinc-900/50'
+          ? cn(
+              'bg-gradient-to-r from-[hsl(var(--surface-muted))] to-transparent',
+              'dark:from-white/[0.04] dark:to-transparent',
+            )
+          : 'hover:bg-[hsl(var(--surface-muted))]/40 dark:hover:bg-white/[0.02]'
       )}
     >
-      <div className="flex items-center gap-3">
-        {/* Risk badge - fixed width */}
-        <div
-          className={cn(
-            'w-[90px] shrink-0 inline-flex items-center justify-center gap-1 rounded-md px-2 py-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wider',
-            getRiskLevelBadge(contract.analysis.risk_level)
-          )}
-        >
-          <span className="leading-none">{getRiskLevelIcon(contract.analysis.risk_level)}</span>
-          <span className="leading-tight">
-            {getRiskLevelName(contract.analysis.risk_level).split(' ')[0]}
-          </span>
+      {/* Left color bar - thicker when expanded */}
+      <motion.div
+        className={cn(
+          'absolute left-0 top-0 bottom-0 rounded-l',
+          getRiskBarColor(riskLevel)
+        )}
+        initial={false}
+        animate={{
+          width: isExpanded ? 4 : 3,
+          boxShadow: isExpanded
+            ? `0 0 12px ${riskLevel === 'critical' ? 'rgba(209,34,38,0.5)' : riskLevel === 'high' ? 'rgba(249,115,22,0.5)' : riskLevel === 'moderate' ? 'rgba(234,179,8,0.4)' : 'rgba(16,185,129,0.4)'}`
+            : 'none',
+        }}
+        transition={{ duration: 0.2 }}
+      />
+
+      {/* Desktop row */}
+      <div className="hidden md:flex items-center gap-4 pl-6 pr-4 py-4">
+        {/* Score circle - fixed width */}
+        <div className="w-11 shrink-0 flex justify-center">
+          <RiskScoreCircle score={riskScore} size={44} animate={index < 10} />
         </div>
 
-        {/* Package ID - fixed width */}
-        <div className="w-[160px] shrink-0 flex items-center gap-1">
+        {/* Risk level pill - fixed width */}
+        <div className="w-[100px] shrink-0">
+          <div
+            className={cn(
+              'inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide border',
+              riskColors.bg,
+              riskColors.text,
+              riskColors.border
+            )}
+          >
+            <span className="text-[10px] leading-none">{riskColors.icon}</span>
+            <span>{getRiskLevelLabel(riskLevel)}</span>
+          </div>
+        </div>
+
+        {/* Package ID - fixed width with icons inside */}
+        <div className="w-[140px] shrink-0 flex items-center">
           <span
-            className="font-mono text-xs text-foreground dark:text-white cursor-pointer hover:text-[#D12226] transition-colors"
+            className="font-mono text-sm text-foreground/80 dark:text-white/80 cursor-pointer hover:text-[#D12226] dark:hover:text-[#ff6b6e] transition-colors"
             onClick={handleCopy}
             title={contract.package_id}
           >
             {truncatePackageId(contract.package_id)}
           </span>
-          <button
-            onClick={handleCopy}
-            className="shrink-0 p-0.5 rounded text-muted-foreground hover:text-foreground dark:hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
-          >
-            {copied ? (
-              <Check className="h-3 w-3 text-emerald-500" />
-            ) : (
-              <Copy className="h-3 w-3" />
+          <div className="flex items-center gap-0.5 ml-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={handleCopy}
+              className="p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 text-muted-foreground hover:text-foreground dark:hover:text-white transition-colors"
+              title="Copy package ID"
+            >
+              {copied ? (
+                <Check className="h-3 w-3 text-emerald-500" />
+              ) : (
+                <Copy className="h-3 w-3" />
+              )}
+            </button>
+            <button
+              onClick={handleOpenExplorer}
+              className="p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 text-muted-foreground hover:text-foreground dark:hover:text-white transition-colors"
+              title="View on explorer"
+            >
+              <ExternalLink className="h-3 w-3" />
+            </button>
+          </div>
+        </div>
+
+        {/* Summary - flex to fill remaining */}
+        <div className="flex-1 min-w-0">
+          <p className="text-sm text-foreground/90 dark:text-white/90 truncate leading-relaxed">
+            {contract.analysis.why_risky_one_liner}
+          </p>
+        </div>
+
+        {/* Network badge - fixed width */}
+        <div className="w-12 shrink-0 flex justify-center">
+          <div
+            className={cn(
+              'px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wide',
+              contract.network === 'mainnet'
+                ? 'bg-emerald-500/8 text-emerald-400'
+                : 'bg-sky-500/8 text-sky-400'
             )}
-          </button>
-          <button
-            onClick={handleOpenExplorer}
-            className="shrink-0 p-0.5 rounded text-muted-foreground hover:text-foreground dark:hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
           >
-            <ExternalLink className="h-3 w-3" />
-          </button>
+            {contract.network === 'mainnet' ? 'Main' : 'Test'}
+          </div>
         </div>
 
-        {/* Risk score gauge - fixed width */}
-        <div className="w-[36px] shrink-0 flex justify-center">
-          <RiskScoreGauge score={contract.analysis.risk_score} size="sm" animated={false} />
-        </div>
-
-        {/* One-liner summary - flex to fill remaining space */}
-        <p className="hidden md:block flex-1 text-xs text-muted-foreground dark:text-zinc-400 truncate">
-          {contract.analysis.why_risky_one_liner}
-        </p>
-
-        {/* Timestamp - fixed width */}
-        <span className="w-[40px] shrink-0 text-[10px] text-muted-foreground dark:text-zinc-500 tabular-nums text-right">
+        {/* Time - fixed width */}
+        <span className="w-10 shrink-0 text-xs text-muted-foreground/70 dark:text-zinc-500 tabular-nums text-right">
           {relativeTime}
         </span>
 
-        {/* Expand indicator - fixed width */}
-        <ChevronRight
-          className={cn(
-            'w-[16px] shrink-0 h-4 w-4 text-muted-foreground transition-all duration-200',
-            isExpanded ? 'rotate-90 opacity-100' : 'opacity-0 group-hover:opacity-100'
-          )}
-        />
+        {/* Chevron - fixed width */}
+        <motion.div
+          className="w-4 shrink-0"
+          initial={false}
+          animate={{ rotate: isExpanded ? 90 : 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          <ChevronRight
+            className={cn(
+              'w-4 h-4 text-muted-foreground/50 transition-opacity duration-200',
+              isExpanded ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+            )}
+          />
+        </motion.div>
       </div>
 
-      {/* Mobile: Show one-liner below */}
-      <p className="md:hidden mt-2 text-xs text-muted-foreground dark:text-zinc-400 line-clamp-1">
-        {contract.analysis.why_risky_one_liner}
-      </p>
+      {/* Mobile row */}
+      <div className="md:hidden pl-5 pr-3 py-4">
+        <div className="flex items-center gap-3">
+          {/* Score circle - smaller on mobile */}
+          <div className="shrink-0">
+            <RiskScoreCircle score={riskScore} size={38} animate={index < 10} />
+          </div>
+
+          {/* Main content */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              {/* Risk level pill */}
+              <div
+                className={cn(
+                  'inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wide border',
+                  riskColors.bg,
+                  riskColors.text,
+                  riskColors.border
+                )}
+              >
+                <span className="text-[9px] leading-none">{riskColors.icon}</span>
+                <span>{getRiskLevelLabel(riskLevel)}</span>
+              </div>
+              {/* Network */}
+              <span
+                className={cn(
+                  'text-[9px] font-medium uppercase',
+                  contract.network === 'mainnet'
+                    ? 'text-emerald-400'
+                    : 'text-sky-400'
+                )}
+              >
+                {contract.network === 'mainnet' ? 'main' : 'test'}
+              </span>
+              {/* Time */}
+              <span className="text-[10px] text-muted-foreground/60 tabular-nums ml-auto">
+                {relativeTime}
+              </span>
+            </div>
+            {/* Package ID */}
+            <span
+              className="font-mono text-xs text-foreground/70 dark:text-white/70"
+              onClick={handleCopy}
+              title={contract.package_id}
+            >
+              {truncatePackageId(contract.package_id)}
+            </span>
+          </div>
+
+          {/* Chevron */}
+          <ChevronRight
+            className={cn(
+              'w-4 h-4 shrink-0 text-muted-foreground/40 transition-transform duration-200',
+              isExpanded && 'rotate-90'
+            )}
+          />
+        </div>
+
+        {/* Summary below on mobile */}
+        <p className="mt-2 text-xs text-muted-foreground dark:text-zinc-400 line-clamp-2 leading-relaxed">
+          {contract.analysis.why_risky_one_liner}
+        </p>
+      </div>
     </motion.div>
   );
 }
