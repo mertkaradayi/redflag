@@ -857,8 +857,8 @@ function DashboardContent() {
 
                     {/* Expanded details - inline below the row */}
                     {isExpanded && (
-                      <div className="bg-[hsl(var(--surface-muted))]/50 dark:bg-white/[0.02]">
-                        <div className="px-4 py-5 sm:px-6">
+                      <div className="bg-[hsl(var(--surface-muted))]/50 dark:bg-white/[0.02] w-full overflow-x-hidden">
+                        <div className="px-4 py-5 sm:px-6 w-full max-w-full overflow-x-hidden">
                           <AnalyzedContractCard
                             contract={contract}
                             index={index}

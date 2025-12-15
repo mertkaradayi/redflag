@@ -12,9 +12,9 @@ export function DependencySummaryCard({ summary }: DependencySummaryCardProps) {
   const hasRisk = summary.unaudited_count > 0 || summary.high_risk_count > 0;
 
   return (
-    <div className="rounded-lg border border-zinc-200 dark:border-white/10 bg-[hsl(var(--surface-muted))]/50 dark:bg-black/20 p-4 sm:p-5 transition-colors duration-200">
+    <div className="rounded-lg border border-zinc-200 dark:border-white/10 bg-[hsl(var(--surface-muted))]/50 dark:bg-black/20 p-4 sm:p-5 transition-colors duration-200 w-full max-w-full overflow-x-hidden">
       <div className="mb-3 flex items-center gap-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[hsl(var(--surface-muted))] dark:bg-black/40">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[hsl(var(--surface-muted))] dark:bg-black/40 shrink-0">
           <Package className="h-4 w-4 text-muted-foreground dark:text-zinc-400" />
         </div>
         <h6 className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.3em] text-foreground dark:text-white">
