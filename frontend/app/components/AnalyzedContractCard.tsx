@@ -23,6 +23,7 @@ import { ConfidenceBadge } from './ConfidenceBadge';
 import { AnalysisQualityCard } from './AnalysisQualityCard';
 import { DependencySummaryCard } from './DependencySummaryCard';
 import { TechnicalFindingsSection } from './TechnicalFindingsSection';
+import { EvidenceBlock } from './EvidenceBlock';
 
 interface AnalyzedContractCardProps {
   contract: AnalyzedContract;
@@ -365,9 +366,9 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
                           </span>
                         </button>
                         {isExpanded && (
-                          <p className="mt-2 text-sm leading-5 text-foreground/80 dark:text-white/80">
-                            {func.reason}
-                          </p>
+                          <div className="mt-3">
+                            <EvidenceBlock text={func.reason} />
+                          </div>
                         )}
                       </div>
                     );
@@ -405,10 +406,10 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
                       key={`${indicator.pattern_name}-${index}`}
                       className="space-y-1.5 rounded-lg border border-[#D12226]/30 dark:border-[#D12226]/40 bg-[#D12226]/5 dark:bg-[#D12226]/10 px-3 py-2 text-sm"
                     >
-                      <div className="font-semibold text-[#D12226] dark:text-[#ff6b6e]">
+                      <div className="font-semibold text-[#D12226] dark:text-[#ff6b6e] mb-2">
                         {indicator.pattern_name}
                       </div>
-                      <p className="text-sm leading-5 text-foreground/80 dark:text-white/80">{indicator.evidence}</p>
+                      <EvidenceBlock text={indicator.evidence} />
                     </div>
                   ))}
                 </div>

@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import type { TechnicalFinding } from '@/app/dashboard/types';
 import { getSeverityBadge, getSeverityBg } from '@/app/dashboard/risk-utils';
+import { CodeSnippet } from './CodeSnippet';
 
 interface TechnicalFindingsSectionProps {
   findings: TechnicalFinding[];
@@ -146,9 +147,7 @@ export function TechnicalFindingsSection({
                       <div className="text-[10px] uppercase tracking-wide text-muted-foreground dark:text-zinc-500 mb-1">
                         Evidence
                       </div>
-                      <pre className="rounded-md bg-black/5 dark:bg-black/30 px-2 py-1.5 text-xs font-mono text-foreground/90 dark:text-white/90 overflow-x-auto">
-                        {finding.evidence_code_snippet}
-                      </pre>
+                      <CodeSnippet code={finding.evidence_code_snippet} />
                     </div>
                   )}
 
