@@ -3,12 +3,12 @@ import { StructuredOutputParser } from "@langchain/core/output_parsers";
 
 // Agent 1: Analyzer Schema
 export const analyzerFindingSchema = z.object({
-  function_name: z.string(),
-  technical_reason: z.string(),
-  matched_pattern_id: z.string(),
+  function_name: z.string().describe("Name of the function being analyzed"),
+  technical_reason: z.string().describe("Technical explanation of the security risk"),
+  matched_pattern_id: z.string().describe("Pattern ID from knowledge base (e.g., CRITICAL-01, HIGH-02)"),
   severity: z.enum(['Critical', 'High', 'Medium', 'Low']),
-  contextual_notes: z.array(z.string()).optional(),
-  evidence_code_snippet: z.string().optional(),
+  contextual_notes: z.array(z.string()).optional().describe("Additional context about mitigations or aggravations"),
+  evidence_code_snippet: z.string().optional().describe("Actual bytecode evidence with line numbers. Format: 'LINE_NUM: INSTRUCTION ... LINE_NUM: INSTRUCTION'. Example: '15: MoveLoc[0](Arg0: &mut Balance) ... 19: Call coin::take_all<SUI>'. Do NOT use descriptions like 'code shows...' - include actual bytecode."),
 });
 
 export const analyzerResponseSchema = z.object({
@@ -31,11 +31,11 @@ export const reporterResponseSchema = z.object({
   summary: z.string().describe("A clear summary of the contract's purpose and overall risk assessment"),
   risky_functions: z.array(z.object({
     function_name: z.string().describe("Name of the risky function"),
-    reason: z.string().describe("Plain-language explanation of why this function is risky"),
+    reason: z.string().describe("Plain-language explanation followed by actual bytecode evidence. Format: 'Explanation. Evidence: LINE_NUM: INSTRUCTION ... LINE_NUM: INSTRUCTION'. Example: 'Anyone can drain funds because there are no access checks. Evidence: 15: MoveLoc[0](Arg0: &mut Balance) ... 19: Call coin::take_all<SUI>'"),
   })),
   rug_pull_indicators: z.array(z.object({
     pattern_name: z.string().describe("A short, human-readable title describing the risk (e.g., 'Unrestricted Fund Withdrawal', 'Missing Access Control', 'No Event Logging'). Do NOT use pattern IDs like 'HIGH-01' or 'SUI-CRITICAL-01'."),
-    evidence: z.string().describe("Plain-language explanation with code evidence"),
+    evidence: z.string().describe("Plain-language explanation followed by actual bytecode evidence. Format: 'Explanation. Evidence: LINE_NUM: INSTRUCTION ... LINE_NUM: INSTRUCTION'. Example: 'Admin can mint unlimited tokens without restrictions. Evidence: 12: Call treasury_cap::mint ... 18: Call transfer::transfer<Coin<T>>'"),
   })),
   impact_on_user: z.string().describe("How this contract could affect users who interact with it"),
   why_risky_one_liner: z.string().describe("One sentence summary of the main risk"),

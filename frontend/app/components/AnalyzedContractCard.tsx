@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, Copy, ExternalLink, Check, Package, Network, Clock, Users, FileText, AlertTriangle, Gauge } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronDown, ChevronRight, Copy, ExternalLink, Check, Package, Network, Clock, Users, FileText, AlertTriangle } from 'lucide-react';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,7 +17,6 @@ import {
   getRiskLevelSubtle,
   getRiskLevelSubtleText,
   getRiskScoreBarColor,
-  getRiskScoreTextColor,
 } from '@/app/dashboard/risk-utils';
 import { cn } from '@/lib/utils';
 import { ConfidenceBadge } from './ConfidenceBadge';
@@ -24,10 +24,13 @@ import { AnalysisQualityCard } from './AnalysisQualityCard';
 import { DependencySummaryCard } from './DependencySummaryCard';
 import { TechnicalFindingsSection } from './TechnicalFindingsSection';
 import { EvidenceBlock } from './EvidenceBlock';
+import { RiskScoreGauge } from './RiskScoreGauge';
 
 interface AnalyzedContractCardProps {
   contract: AnalyzedContract;
+  index?: number;
   onAutoRefreshPause?: () => void;
+  isInline?: boolean;  // When true, removes outer card styling for inline use
 }
 
 const DEFAULT_VISIBLE_FUNCTIONS = 3;
@@ -72,7 +75,7 @@ function formatRelativeTime(timestamp: string) {
   return rtf.format(roundedDuration, unit);
 }
 
-export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedContractCardProps) {
+export function AnalyzedContractCard({ contract, index = 0, onAutoRefreshPause, isInline = false }: AnalyzedContractCardProps) {
   const [showAllFunctions, setShowAllFunctions] = useState(false);
   const [showAllIndicators, setShowAllIndicators] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -172,86 +175,98 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
   }, [allFunctionsExpanded, contract.analysis.risky_functions, onAutoRefreshPause]);
 
   return (
-    <Card className="relative overflow-hidden rounded-3xl border border-zinc-200/50 dark:border-zinc-800/50 bg-transparent p-0 shadow-sm dark:shadow-lg">
-      <CardContent className="relative space-y-3 p-4 sm:space-y-4 sm:p-6 bg-white/80 backdrop-blur-xl supports-backdrop-filter:bg-white/80 dark:bg-zinc-950/80 dark:supports-backdrop-filter:bg-zinc-950/80">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex-1 min-w-0 space-y-2.5 sm:space-y-3">
-            <div className="flex items-center gap-2 min-w-0 flex-wrap">
-              <span
-                className={cn(
-                  'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.3em] shrink-0',
-                  getRiskLevelBadge(contract.analysis.risk_level),
+    <motion.div
+      initial={{ opacity: 0, y: isInline ? 0 : 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: isInline ? 0.15 : 0.3, delay: isInline ? 0 : index * 0.05 }}
+    >
+    <Card className={cn(
+      "relative overflow-hidden p-0",
+      isInline
+        ? "rounded-xl border-0 bg-transparent shadow-none"
+        : "rounded-3xl border border-zinc-200/50 dark:border-zinc-800/50 bg-transparent shadow-sm dark:shadow-lg"
+    )}>
+      <CardContent className={cn(
+        "relative space-y-3 sm:space-y-4",
+        isInline
+          ? "p-0 bg-transparent"
+          : "p-4 sm:p-6 bg-white/80 backdrop-blur-xl supports-backdrop-filter:bg-white/80 dark:bg-zinc-950/80 dark:supports-backdrop-filter:bg-zinc-950/80"
+      )}>
+        {/* Header section - hidden when inline since compact row already shows this info */}
+        {!isInline && (
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex-1 min-w-0 space-y-2.5 sm:space-y-3">
+              <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.3em] shrink-0',
+                    getRiskLevelBadge(contract.analysis.risk_level),
+                  )}
+                >
+                  <span className="text-xs leading-none">{getRiskLevelIcon(contract.analysis.risk_level)}</span>
+                  <span className="leading-tight">{getRiskLevelName(contract.analysis.risk_level)}</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-[hsl(var(--surface-muted))] dark:bg-black/40 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground dark:text-zinc-400 shrink-0">
+                  <Network className="h-3 w-3 shrink-0" />
+                  <span>{contract.network}</span>
+                </span>
+                <RiskScoreGauge score={contract.analysis.risk_score} size="sm" />
+                {contract.analysis.confidence_level && (
+                  <ConfidenceBadge
+                    level={contract.analysis.confidence_level}
+                    interval={contract.analysis.confidence_interval}
+                  />
                 )}
-              >
-                <span className="text-xs leading-none">{getRiskLevelIcon(contract.analysis.risk_level)}</span>
-                <span className="leading-tight">{getRiskLevelName(contract.analysis.risk_level)}</span>
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded-md bg-[hsl(var(--surface-muted))] dark:bg-black/40 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground dark:text-zinc-400 shrink-0">
-                <Network className="h-3 w-3 shrink-0" />
-                <span>{contract.network}</span>
-              </span>
-              <div className="inline-flex items-center gap-1.5 rounded-md bg-[hsl(var(--surface-muted))] dark:bg-black/40 px-2.5 py-1 shrink-0">
-                <Gauge className={cn('h-3 w-3 shrink-0', getRiskScoreTextColor(contract.analysis.risk_score))} />
-                <span className={cn('text-xs font-bold leading-tight tabular-nums', getRiskScoreTextColor(contract.analysis.risk_score))}>
-                  {contract.analysis.risk_score}
-                </span>
-                <span className="text-[10px] font-medium text-muted-foreground leading-tight">/ 100</span>
               </div>
-              {contract.analysis.confidence_level && (
-                <ConfidenceBadge
-                  level={contract.analysis.confidence_level}
-                  interval={contract.analysis.confidence_interval}
-                />
-              )}
-            </div>
-            
-            {/* Package ID Field Block */}
-            <div className="min-w-0 space-y-1.5">
-              <label className="text-[10px] font-semibold uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-500">
-                Package ID
-              </label>
-              <div className="flex min-w-0 items-center gap-2 rounded-xl border border-zinc-200 dark:border-white/10 bg-white/60 dark:bg-black/40 h-10 px-3 transition">
-                <span className="min-w-0 flex-1 truncate font-mono text-sm text-zinc-900 dark:text-white/90">
-                  {contract.package_id}
-                </span>
-                <div className="flex items-center gap-2 shrink-0">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-zinc-100 dark:hover:bg-accent h-7 w-7 rounded-md text-zinc-600 dark:text-white/70 hover:text-zinc-900 dark:hover:text-white shrink-0"
-                    onClick={handleCopyPackageId}
-                    aria-label="Copy package ID"
-                  >
-                    {copied ? <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-300" /> : <Copy className="h-3.5 w-3.5" />}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-zinc-100 dark:hover:bg-accent h-7 w-7 rounded-md text-zinc-600 dark:text-white/70 hover:text-zinc-900 dark:hover:text-white shrink-0"
-                    onClick={() => window.open(explorerUrl, '_blank', 'noopener,noreferrer')}
-                    aria-label="View package on Sui Explorer"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5 shrink-0" />
-                  </Button>
+
+              {/* Package ID Field Block */}
+              <div className="min-w-0 space-y-1.5">
+                <label className="text-[10px] font-semibold uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-500">
+                  Package ID
+                </label>
+                <div className="flex min-w-0 items-center gap-2 rounded-xl border border-zinc-200 dark:border-white/10 bg-white/60 dark:bg-black/40 h-10 px-3 transition">
+                  <span className="min-w-0 flex-1 truncate font-mono text-sm text-zinc-900 dark:text-white/90">
+                    {contract.package_id}
+                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-zinc-100 dark:hover:bg-accent h-7 w-7 rounded-md text-zinc-600 dark:text-white/70 hover:text-zinc-900 dark:hover:text-white shrink-0"
+                      onClick={handleCopyPackageId}
+                      aria-label="Copy package ID"
+                    >
+                      {copied ? <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-300" /> : <Copy className="h-3.5 w-3.5" />}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-zinc-100 dark:hover:bg-accent h-7 w-7 rounded-md text-zinc-600 dark:text-white/70 hover:text-zinc-900 dark:hover:text-white shrink-0"
+                      onClick={() => window.open(explorerUrl, '_blank', 'noopener,noreferrer')}
+                      aria-label="View package on Sui Explorer"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="text-[10px] text-muted-foreground dark:text-zinc-400 flex items-center gap-1.5">
+                  <Clock className="h-3 w-3" />
+                  Analyzed {relativeAnalyzedAt}
+                </div>
+                <div className="h-1.5 w-full max-w-[100px] overflow-hidden rounded-full bg-foreground/10 dark:bg-white/10">
+                  <div
+                    className={cn('h-full rounded-full transition-all', getRiskScoreBarColor(contract.analysis.risk_score))}
+                    style={{ width: `${contract.analysis.risk_score}%` }}
+                  />
                 </div>
               </div>
             </div>
-            
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="text-[10px] text-muted-foreground dark:text-zinc-400 flex items-center gap-1.5">
-                <Clock className="h-3 w-3" />
-                Analyzed {relativeAnalyzedAt}
-              </div>
-              <div className="h-1.5 w-full max-w-[100px] overflow-hidden rounded-full bg-foreground/10 dark:bg-white/10">
-                <div
-                  className={cn('h-full rounded-full transition-all', getRiskScoreBarColor(contract.analysis.risk_score))}
-                  style={{ width: `${contract.analysis.risk_score}%` }}
-                />
-              </div>
-            </div>
           </div>
-        </div>
-        
+        )}
+
         {/* Toast notification for copy */}
         <div
           className={cn(
@@ -292,8 +307,11 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
             {hasRiskyFunctions && (
               <div className="space-y-2">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <h5 className="text-sm font-semibold text-foreground dark:text-white flex items-center gap-1.5">
-                    <AlertTriangle className="h-4 w-4 text-[#D12226] dark:text-[#ff6b6e]" />
+                  <h5 className={cn(
+                    'text-sm font-semibold flex items-center gap-1.5',
+                    getRiskLevelEmphasis(contract.analysis.risk_level)
+                  )}>
+                    <AlertTriangle className="h-4 w-4" />
                     Risky Functions ({contract.analysis.risky_functions.length})
                   </h5>
                   <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto sm:justify-end">
@@ -346,7 +364,7 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
                           <span className="flex min-w-0 flex-1 items-start gap-2">
                             <ChevronRight
                               className={cn(
-                                'mt-0.5 h-4 w-4 shrink-0 text-[#D12226] dark:text-[#ff6b6e] transition-transform duration-150 sm:mt-0',
+                                'mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-150 sm:mt-0',
                                 isExpanded && 'rotate-90',
                               )}
                             />
@@ -380,8 +398,11 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
             {hasRugPullIndicators && (
               <div className="space-y-2">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <h5 className="text-sm font-semibold text-[#D12226] dark:text-[#ff6b6e] flex items-center gap-1.5">
-                    <span>⚠️</span>
+                  <h5 className={cn(
+                    'text-sm font-semibold flex items-center gap-1.5',
+                    getRiskLevelEmphasis(contract.analysis.risk_level)
+                  )}>
+                    <span>{getRiskLevelIcon(contract.analysis.risk_level)}</span>
                     <span>Rug Pull Indicators ({contract.analysis.rug_pull_indicators.length})</span>
                   </h5>
                   {contract.analysis.rug_pull_indicators.length > DEFAULT_VISIBLE_INDICATORS && (
@@ -404,9 +425,15 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
                   {rugPullIndicators.map((indicator, index) => (
                     <div
                       key={`${indicator.pattern_name}-${index}`}
-                      className="space-y-1.5 rounded-lg border border-[#D12226]/30 dark:border-[#D12226]/40 bg-[#D12226]/5 dark:bg-[#D12226]/10 px-3 py-2 text-sm"
+                      className={cn(
+                        'space-y-1.5 rounded-lg border px-3 py-2.5 text-sm',
+                        getRiskLevelSubtle(contract.analysis.risk_level)
+                      )}
                     >
-                      <div className="font-semibold text-[#D12226] dark:text-[#ff6b6e] mb-2">
+                      <div className={cn(
+                        'font-semibold mb-2',
+                        getRiskLevelEmphasis(contract.analysis.risk_level)
+                      )}>
                         {indicator.pattern_name}
                       </div>
                       <EvidenceBlock text={indicator.evidence} />
@@ -537,6 +564,7 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
         </section>
       </CardContent>
     </Card>
+    </motion.div>
   );
 }
 

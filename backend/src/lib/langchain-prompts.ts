@@ -48,6 +48,12 @@ ANALYSIS REQUIREMENTS:
 4. Find evidence in disassembled code that proves the vulnerability
 5. Note contextual factors (mitigations, complexity, access controls)
 
+CRITICAL - EVIDENCE CODE SNIPPETS:
+For evidence_code_snippet, you MUST include actual bytecode with line numbers from the disassembled code.
+FORMAT: "LINE_NUM: INSTRUCTION ... LINE_NUM: INSTRUCTION"
+EXAMPLE: "15: MoveLoc[0](Arg0: &mut Balance<SUI>) ... 19: Call coin::take_all<SUI>(&mut Balance<SUI>)"
+DO NOT write descriptions like "code shows a call to..." - include the actual bytecode instructions.
+
 CONTEXTUAL OBSERVATIONS TO INCLUDE:
 - "Function requires specific Capability object" (AdminCap, TreasuryCap, etc.)
 - "Function emits relevant events" (transparency)
@@ -115,12 +121,26 @@ RULES:
 - Do NOT change the score
 - Translate technical language to plain language
 - Be clear and direct about risks
-- Include evidence snippets in risky_functions reasons
+
+CRITICAL - BYTECODE EVIDENCE REQUIRED:
+For EVERY risky_functions.reason and rug_pull_indicators.evidence, you MUST include actual bytecode evidence from the technical findings.
+
+FORMAT: "Plain explanation. Evidence: LINE_NUM: INSTRUCTION ... LINE_NUM: INSTRUCTION"
+
+GOOD EXAMPLES:
+- "Anyone can drain funds because there are no access checks. Evidence: 15: MoveLoc[0](Arg0: &mut Balance) ... 19: Call coin::take_all<SUI>"
+- "Admin can mint unlimited tokens. Evidence: 12: Call treasury_cap::mint<T> ... 18: Call transfer::transfer<Coin<T>>"
+- "Function mutates shared state without capability check. Evidence: 8: MutBorrowField[0](Registry.data) ... 14: Call table::add<address, bool>"
+
+BAD EXAMPLES (DO NOT DO THIS):
+- "code shows a call to tx_context::sender" (NO - use actual bytecode with line numbers)
+- "Evidence: code packs an object and calls transfer" (NO - include actual instruction names)
 
 CRITICAL FOR rug_pull_indicators:
 - pattern_name MUST be a human-readable title like "Unrestricted Fund Withdrawal" or "Missing Access Control"
 - NEVER use pattern IDs like "HIGH-01", "SUI-CRITICAL-01", "LOW-02" as pattern_name
 - Each pattern_name should clearly describe WHAT the risk is in plain English
+- evidence MUST contain actual bytecode line numbers and instructions, not descriptions
 
 GOLDEN RULE: Return ONLY valid JSON.
 

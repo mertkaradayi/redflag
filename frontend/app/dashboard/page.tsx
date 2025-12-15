@@ -3,13 +3,17 @@
 import { useCallback, useEffect, useMemo, useState, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { X, Search, Loader2, BarChart3, Filter, ShieldAlert, Timer, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, RefreshCcw } from 'lucide-react';
+import { X, Search, Loader2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import AnalyzedContractCard from '@/app/components/AnalyzedContractCard';
 import { UnanalyzedPackageCard } from '@/app/components/UnanalyzedPackageCard';
+import { SkeletonCard } from '@/app/components/SkeletonCard';
+import { QuickStatsBar } from '@/app/components/QuickStatsBar';
+import { ViewModeToggle, type ViewMode } from '@/app/components/ViewModeToggle';
+import { CompactContractCard } from '@/app/components/CompactContractCard';
 import type { AnalyzedContract, DashboardData } from '@/app/dashboard/types';
 import type { Deployment } from '@/lib/deployments';
 import {
@@ -67,7 +71,25 @@ function DashboardContent() {
   const [pauseReason, setPauseReason] = useState<'toolbar' | 'details' | null>(null);
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
   const [selectedPackageNetwork, setSelectedPackageNetwork] = useState<'mainnet' | 'testnet' | null>(null);
-  
+  const [viewMode, setViewMode] = useState<ViewMode>('compact');
+  const [expandedCompactCard, setExpandedCompactCard] = useState<string | null>(null);
+
+  // Load viewMode from localStorage on mount
+  useEffect(() => {
+    const savedMode = localStorage.getItem('dashboard-view-mode');
+    if (savedMode === 'full' || savedMode === 'compact') {
+      setViewMode(savedMode);
+    }
+  }, []);
+
+  // Save viewMode to localStorage when it changes
+  const handleViewModeChange = useCallback((mode: ViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem('dashboard-view-mode', mode);
+    setExpandedCompactCard(null);
+  }, []);
+
+
   // Package status state (for URL-based package lookup)
   const [packageStatus, setPackageStatus] = useState<PackageStatusState | null>(null);
   const [packageStatusLoading, setPackageStatusLoading] = useState(false);
@@ -421,72 +443,6 @@ function DashboardContent() {
     return riskCounts.critical + riskCounts.high + riskCounts.moderate + riskCounts.low;
   }, [data?.total, riskCounts]);
 
-  const formattedLastUpdated = useMemo(() => {
-    if (!lastUpdated) {
-      return null;
-    }
-    return lastUpdated.toLocaleString();
-  }, [lastUpdated]);
-
-  const heroStats = useMemo(() => {
-    if (!data && !riskStats) {
-      return [];
-    }
-
-    const visible = displayedContracts.length + (hasSelectedAnalyzedPackage ? 1 : 0);
-    const visiblePercent = totalAnalyzed > 0 ? Math.round((visible / totalAnalyzed) * 100) : null;
-    const criticalAndHigh = riskCounts.critical + riskCounts.high;
-
-    return [
-      {
-        key: 'total',
-        label: 'Analyzed packages',
-        value: totalAnalyzed,
-        meta: 'All time',
-        icon: BarChart3,
-        span: 'double' as const,
-      },
-      {
-        key: 'highRisk',
-        label: 'High risk detected',
-        value: criticalAndHigh,
-        meta: `${riskCounts.critical.toLocaleString()} critical • ${riskCounts.high.toLocaleString()} high`,
-        icon: ShieldAlert,
-      },
-      {
-        key: 'visible',
-        label: 'In current view',
-        value: visible,
-        meta: visiblePercent !== null ? `${visiblePercent}% of total` : null,
-        icon: Filter,
-      },
-      {
-        key: 'refresh',
-        label: autoRefresh ? 'Auto-refresh' : 'Refresh paused',
-        value: autoRefresh ? `${refreshCountdown}s` : 'Manual',
-        meta: autoRefresh
-          ? formattedLastUpdated
-            ? `Updated ${formattedLastUpdated}`
-            : 'Until next sync'
-          : pauseReason === 'details'
-            ? 'Paused while exploring details'
-            : 'Use toolbar controls to resume',
-        icon: Timer,
-      },
-    ];
-  }, [
-    autoRefresh,
-    data,
-    displayedContracts,
-    formattedLastUpdated,
-    hasSelectedAnalyzedPackage,
-    pauseReason,
-    refreshCountdown,
-    riskCounts,
-    riskStats,
-    totalAnalyzed,
-  ]);
-
   // Handle search input Enter key (instant submit)
   const handleSearchKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -536,10 +492,11 @@ function DashboardContent() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="flex flex-col items-center gap-4 text-center">
-          <div className="h-11 w-11 animate-spin rounded-full border-2 border-border dark:border-white/20 border-t-transparent transition-colors duration-200" />
-          <p className="text-sm text-muted-foreground">Loading analyzed contracts...</p>
+      <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 pb-24 transition-colors duration-200 sm:px-8 lg:gap-6 lg:px-16">
+        <div className="space-y-4">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <SkeletonCard key={i} variant={viewMode} />
+          ))}
         </div>
       </div>
     );
@@ -547,78 +504,6 @@ function DashboardContent() {
 
   return (
     <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 pb-24 transition-colors duration-200 sm:px-8 lg:gap-6 lg:px-16">
-      {/* Header: Title + Key Stats */}
-      <section className="-mx-4 py-4 px-4 sm:-mx-8 sm:px-8 lg:-mx-16 lg:px-16">
-        <Card className="border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-elevated))] dark:bg-black/40 text-foreground dark:text-white shadow-lg backdrop-blur">
-          <CardHeader className="space-y-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <CardTitle className="text-2xl font-semibold leading-none tracking-tight text-foreground dark:text-white">
-                  Dashboard
-                </CardTitle>
-                <CardDescription className="mt-2 text-sm text-muted-foreground dark:text-zinc-400">
-                  Monitor and analyze your Sui smart contracts
-                </CardDescription>
-              </div>
-              <Button
-                onClick={() => fetchAnalyzedContracts()}
-                variant="outline"
-                size="sm"
-                className={cn(
-                  'justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border bg-background hover:text-accent-foreground h-9 rounded-md px-3 inline-flex items-center gap-2 border-[#D12226]/40 text-[#D12226] hover:bg-[#D12226]/10',
-                  (isRefreshing || loading) && 'pointer-events-none opacity-60',
-                )}
-              >
-                <RefreshCcw className={cn('h-4 w-4', (isRefreshing || loading) && 'animate-spin')} />
-                Refresh
-              </Button>
-            </div>
-
-            {/* Key Stats */}
-            {heroStats.length > 0 && (
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {heroStats.map(({ key, label, value, meta, icon: Icon, span }) => {
-                  const displayValue = typeof value === 'number' ? value.toLocaleString() : value;
-                  
-                  return (
-                    <div
-                      key={key}
-                      className={cn(
-                        'group relative rounded-xl border p-3.5 text-left transition-all',
-                        span === 'double' && 'sm:col-span-2 lg:col-span-1',
-                        'border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-muted))] dark:bg-black/40',
-                      )}
-                    >
-                      <div className="mb-2">
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground dark:text-zinc-400">
-                          {label}
-                        </div>
-                      </div>
-                      <div className="flex items-baseline gap-2">
-                        {Icon ? (
-                          <Icon className="h-4 w-4 flex-shrink-0 text-muted-foreground dark:text-zinc-400" aria-hidden="true" />
-                        ) : null}
-                        <div className={cn(
-                          'text-2xl font-bold tabular-nums',
-                          key === 'highRisk' ? 'text-[#D12226]' : 'text-foreground dark:text-white'
-                        )}>
-                          {displayValue}
-                        </div>
-                      </div>
-                      {meta && (
-                        <p className="mt-1 text-[10px] text-muted-foreground dark:text-zinc-500">
-                          {meta}
-                        </p>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardHeader>
-        </Card>
-      </section>
-
       {error && (
         <Alert className="rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 text-foreground dark:text-white/90 shadow-sm shadow-black/5 dark:shadow-white/5 transition-colors duration-200">
           <AlertDescription>{error}</AlertDescription>
@@ -630,7 +515,8 @@ function DashboardContent() {
         <CardContent className="p-6 pt-0 space-y-6">
           {/* Search and Filters Row */}
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="relative w-full md:max-w-sm">
+            <div className="flex items-center gap-3">
+              <div className="relative w-full md:w-72">
               <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground dark:text-zinc-500" />
               <input
                 type="text"
@@ -651,125 +537,21 @@ function DashboardContent() {
                   </button>
                 )}
               </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-1.5">
-              <button
-                type="button"
-                onClick={handleResetFilters}
-                className={cn(
-                  'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-medium transition-all duration-200',
-                  'border-zinc-200/50 dark:border-zinc-800/50',
-                  'bg-white/80 backdrop-blur-xl supports-backdrop-filter:bg-white/80 dark:bg-zinc-950/80 dark:supports-backdrop-filter:bg-zinc-950/80',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D12226]/40 focus-visible:ring-offset-2',
-                  areAllFiltersSelected
-                    ? 'text-zinc-900 dark:text-white/90 border-zinc-300 dark:border-zinc-700 shadow-sm'
-                    : 'text-zinc-600 dark:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-700 hover:bg-white/90 dark:hover:bg-zinc-950/90 hover:shadow-sm hover:scale-[1.02] active:scale-[0.98]'
-                )}
-              >
-                <span>All</span>
-                {(data || riskStats) && (
-                  <span className={cn(
-                    'ml-0.5 rounded px-1.5 py-0.5 text-[10px] font-semibold transition-colors',
-                    areAllFiltersSelected
-                      ? 'bg-zinc-100 dark:bg-black/40 text-zinc-700 dark:text-zinc-200'
-                      : 'bg-zinc-50 dark:bg-black/60 text-zinc-500 dark:text-zinc-400'
-                  )}>
-                    {totalAnalyzed.toLocaleString()}
-                  </span>
-                )}
-              </button>
-              {RISK_LEVELS.map((level) => {
-                const isActive = selectedFilters.has(level);
-                const label = getRiskLevelName(level);
-                const count = riskCounts[level] ?? 0;
-                const styles = getRiskFilterStyles(level);
-
-                return (
-                  <button
-                    key={level}
-                    type="button"
-                    onClick={() => handleToggleRiskFilter(level)}
-                    className={cn(
-                      'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-medium transition-all duration-200',
-                      'bg-white/80 backdrop-blur-xl supports-backdrop-filter:bg-white/80 dark:bg-zinc-950/80 dark:supports-backdrop-filter:bg-zinc-950/80',
-                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
-                      isActive && styles
-                        ? cn(
-                            styles.borderActive,
-                            styles.text,
-                            'bg-white/90 dark:bg-zinc-950/90 shadow-sm',
-                            styles.ring && 'focus-visible:ring-[#D12226]/40'
-                          )
-                        : cn(
-                            'border-zinc-200/50 dark:border-zinc-800/50',
-                            'text-zinc-600 dark:text-zinc-300',
-                            'hover:border-zinc-300 dark:hover:border-zinc-700 hover:bg-white/90 dark:hover:bg-zinc-950/90 hover:shadow-sm hover:scale-[1.02] active:scale-[0.98]',
-                            'focus-visible:ring-zinc-400/40'
-                          )
-                    )}
-                  >
-                    <span className={cn(
-                      'h-1.5 w-1.5 rounded-full shrink-0 transition-all duration-200',
-                      getRiskLevelDot(level),
-                      isActive && 'ring-2 ring-offset-1 ring-offset-transparent ring-current/20'
-                    )} />
-                    <span className="font-medium">{label}</span>
-                    {(data || riskStats) && (
-                      <span className={cn(
-                        'ml-0.5 rounded px-1.5 py-0.5 text-[10px] font-semibold transition-all duration-200',
-                        isActive
-                          ? 'bg-zinc-100 dark:bg-black/40 text-zinc-700 dark:text-zinc-200 shadow-sm'
-                          : 'bg-zinc-50 dark:bg-black/60 text-zinc-500 dark:text-zinc-400'
-                      )}>
-                        {count.toLocaleString()}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
+              </div>
+              <ViewModeToggle mode={viewMode} onChange={handleViewModeChange} />
             </div>
           </div>
 
-          {/* Active Filters */}
-          {(debouncedSearchQuery || isRiskFiltered) && (
+          {/* Active Search */}
+          {debouncedSearchQuery && (
             <div className="flex flex-wrap items-center gap-2 text-sm">
-              {debouncedSearchQuery && (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-muted))] dark:bg-black/40 px-2.5 py-1 text-[10px] font-medium text-foreground dark:text-white/80">
-                  <Search className="h-3 w-3 text-muted-foreground dark:text-zinc-400" />
-                  <span>&apos;{debouncedSearchQuery}&apos;</span>
-                  <button onClick={clearSearch} className="p-0.5 hover:text-foreground dark:hover:text-white transition-colors" aria-label="Clear search">
-                    <X className="h-3 w-3" />
-                  </button>
-                </span>
-              )}
-              {isRiskFiltered && activeFilters.length > 0 && (
-                <>
-                  {activeFilters.map((level) => {
-                    const label = getRiskLevelName(level);
-                    const styles = getRiskFilterStyles(level);
-                    return (
-                      <span key={level} className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-muted))] dark:bg-black/40 px-2.5 py-1 text-[10px] font-medium text-foreground dark:text-white/80">
-                        <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', styles.dot)} />
-                        <span>{label}</span>
-                        <button 
-                          onClick={() => handleToggleRiskFilter(level)} 
-                          className="p-0.5 hover:text-foreground dark:hover:text-white transition-colors" 
-                          aria-label={`Remove ${label} filter`}
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </span>
-                    );
-                  })}
-                  <button 
-                    onClick={handleResetFilters} 
-                    className="text-sm text-muted-foreground dark:text-zinc-400 hover:text-foreground dark:hover:text-white/90 underline transition-colors"
-                    aria-label="Show all filters"
-                  >
-                    Clear filters
-                  </button>
-                </>
-              )}
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-muted))] dark:bg-black/40 px-2.5 py-1 text-[10px] font-medium text-foreground dark:text-white/80">
+                <Search className="h-3 w-3 text-muted-foreground dark:text-zinc-400" />
+                <span>&apos;{debouncedSearchQuery}&apos;</span>
+                <button onClick={clearSearch} className="p-0.5 hover:text-foreground dark:hover:text-white transition-colors" aria-label="Clear search">
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
             </div>
           )}
 
@@ -896,6 +678,16 @@ function DashboardContent() {
         </Alert>
       )}
 
+      {/* Quick Stats Bar */}
+      <QuickStatsBar
+        counts={riskCounts}
+        activeFilters={Array.from(selectedFilters)}
+        onFilterToggle={(level) => handleToggleRiskFilter(level as RiskLevel)}
+        isLoading={isRefreshing}
+        onRefresh={() => fetchAnalyzedContracts()}
+        lastUpdated={lastUpdated}
+      />
+
       {/* Contract List */}
       <section className="space-y-4">
         {/* Show package status card if packageId is in URL */}
@@ -922,6 +714,7 @@ function DashboardContent() {
                   analysis: packageStatus.analysis,
                   analyzed_at: packageStatus.analyzedAt || new Date().toISOString(),
                 }}
+                index={0}
                 onAutoRefreshPause={pauseAutoRefreshFromDetails}
               />
             ) : packageStatus ? (
@@ -960,11 +753,58 @@ function DashboardContent() {
               </Link>
             </div>
           </div>
+        ) : viewMode === 'compact' ? (
+          <div className="rounded-xl border border-zinc-200/50 dark:border-zinc-800/50 bg-white/60 dark:bg-zinc-950/60 backdrop-blur-sm overflow-hidden">
+            {/* Table Header */}
+            <div className="hidden md:flex items-center gap-3 px-3 py-2.5 sm:px-4 text-[10px] uppercase tracking-wider font-medium text-muted-foreground dark:text-zinc-500 border-b border-zinc-200/50 dark:border-zinc-800/50 bg-zinc-50/50 dark:bg-zinc-900/50">
+              <div className="w-[90px] shrink-0">Risk</div>
+              <div className="w-[160px] shrink-0">Package ID</div>
+              <div className="w-[36px] shrink-0 text-center">Score</div>
+              <div className="flex-1">Summary</div>
+              <div className="w-[40px] shrink-0 text-right">Time</div>
+              <div className="w-[16px] shrink-0" />
+            </div>
+
+            {/* Table Body */}
+            <div className="divide-y divide-zinc-100 dark:divide-zinc-800/50">
+              {displayedContracts.map((contract, index) => {
+                const cardKey = `${contract.package_id}-${contract.network}`;
+                const isExpanded = expandedCompactCard === cardKey;
+
+                return (
+                  <div key={cardKey}>
+                    {/* Compact row - always visible, click to toggle */}
+                    <CompactContractCard
+                      contract={contract}
+                      index={index}
+                      isExpanded={isExpanded}
+                      onExpand={() => setExpandedCompactCard(isExpanded ? null : cardKey)}
+                    />
+
+                    {/* Expanded details - inline below the row */}
+                    {isExpanded && (
+                      <div className="border-t border-zinc-200/50 dark:border-zinc-800/50 bg-zinc-50/50 dark:bg-zinc-900/30">
+                        <div className="p-4">
+                          <AnalyzedContractCard
+                            contract={contract}
+                            index={index}
+                            onAutoRefreshPause={pauseAutoRefreshFromDetails}
+                            isInline
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         ) : (
-          displayedContracts.map((contract) => (
+          displayedContracts.map((contract, index) => (
             <AnalyzedContractCard
               key={`${contract.package_id}-${contract.network}-${contract.analyzed_at}`}
               contract={contract}
+              index={index}
               onAutoRefreshPause={pauseAutoRefreshFromDetails}
             />
           ))
