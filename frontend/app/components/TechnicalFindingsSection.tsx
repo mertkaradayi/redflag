@@ -5,7 +5,6 @@ import { ChevronDown, ChevronRight, Microscope } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import type { TechnicalFinding } from '@/app/dashboard/types';
-import { getSeverityBadge, getSeverityBg } from '@/app/dashboard/risk-utils';
 import { CodeSnippet } from './CodeSnippet';
 
 interface TechnicalFindingsSectionProps {
@@ -63,8 +62,8 @@ export function TechnicalFindingsSection({
   return (
     <div className="space-y-2">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <h5 className="text-sm font-semibold text-foreground dark:text-white flex items-center gap-1.5">
-          <Microscope className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+        <h5 className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-500 flex items-center gap-1.5">
+          <Microscope className="h-3 w-3" />
           Technical Findings ({findings.length})
         </h5>
         <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto sm:justify-end">
@@ -99,9 +98,8 @@ export function TechnicalFindingsSection({
             <div
               key={`${finding.function_name}-${finding.matched_pattern_id}-${index}`}
               className={cn(
-                'rounded-lg px-3 py-2 text-sm transition-colors duration-150',
-                getSeverityBg(finding.severity),
-                isExpanded && 'border border-zinc-200/50 dark:border-zinc-800/50',
+                'rounded-lg bg-[hsl(var(--surface-muted))] dark:bg-black/40 px-3 py-2 text-sm transition-colors duration-150',
+                isExpanded && 'border border-border dark:border-white/10',
               )}
             >
               <button
@@ -117,12 +115,12 @@ export function TechnicalFindingsSection({
                       isExpanded && 'rotate-90',
                     )}
                   />
-                  <span className="font-mono text-sm font-semibold leading-5 text-foreground dark:text-white">
+                  <span className="font-mono text-sm font-medium leading-5 text-foreground dark:text-white">
                     {finding.function_name}
                   </span>
                 </span>
                 <span className="flex items-center gap-2 shrink-0">
-                  <span className={cn('px-1.5 py-0.5 rounded text-[10px] font-bold uppercase', getSeverityBadge(finding.severity))}>
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase text-muted-foreground dark:text-zinc-400 bg-[hsl(var(--surface-muted))] dark:bg-black/60">
                     {finding.severity}
                   </span>
                   <span className="text-[10px] font-mono text-muted-foreground dark:text-zinc-500">

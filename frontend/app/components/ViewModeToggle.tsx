@@ -1,6 +1,5 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import { LayoutList, LayoutGrid } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -14,50 +13,31 @@ interface ViewModeToggleProps {
 
 export function ViewModeToggle({ mode, onChange, className }: ViewModeToggleProps) {
   return (
-    <div
-      className={cn(
-        'inline-flex items-center rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900 p-1',
-        className
-      )}
-    >
+    <div className={cn('inline-flex items-center gap-2', className)}>
       <button
         onClick={() => onChange('full')}
         className={cn(
-          'relative inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
+          'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-all',
           mode === 'full'
-            ? 'text-foreground dark:text-white'
-            : 'text-muted-foreground hover:text-foreground dark:hover:text-white'
+            ? 'border-[#D12226] bg-[#D12226] text-white hover:bg-[#a8181b]'
+            : 'border-[#D12226]/40 text-[#D12226] hover:bg-[#D12226]/10'
         )}
       >
-        {mode === 'full' && (
-          <motion.div
-            layoutId="viewmode-indicator"
-            className="absolute inset-0 rounded-md bg-white dark:bg-zinc-800 shadow-sm"
-            transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-          />
-        )}
-        <LayoutList className="relative h-3.5 w-3.5" />
-        <span className="relative hidden sm:inline">Full</span>
+        <LayoutList className="h-3.5 w-3.5" />
+        <span className="hidden sm:inline">Full</span>
       </button>
 
       <button
         onClick={() => onChange('compact')}
         className={cn(
-          'relative inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
+          'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-all',
           mode === 'compact'
-            ? 'text-foreground dark:text-white'
-            : 'text-muted-foreground hover:text-foreground dark:hover:text-white'
+            ? 'border-[#D12226] bg-[#D12226] text-white hover:bg-[#a8181b]'
+            : 'border-[#D12226]/40 text-[#D12226] hover:bg-[#D12226]/10'
         )}
       >
-        {mode === 'compact' && (
-          <motion.div
-            layoutId="viewmode-indicator"
-            className="absolute inset-0 rounded-md bg-white dark:bg-zinc-800 shadow-sm"
-            transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-          />
-        )}
-        <LayoutGrid className="relative h-3.5 w-3.5" />
-        <span className="relative hidden sm:inline">Compact</span>
+        <LayoutGrid className="h-3.5 w-3.5" />
+        <span className="hidden sm:inline">Compact</span>
       </button>
     </div>
   );

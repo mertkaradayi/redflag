@@ -754,9 +754,9 @@ function DashboardContent() {
             </div>
           </div>
         ) : viewMode === 'compact' ? (
-          <div className="rounded-xl border border-zinc-200/50 dark:border-zinc-800/50 bg-white/60 dark:bg-zinc-950/60 backdrop-blur-sm overflow-hidden">
+          <div className="rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-black/40 backdrop-blur overflow-hidden">
             {/* Table Header */}
-            <div className="hidden md:flex items-center gap-3 px-3 py-2.5 sm:px-4 text-[10px] uppercase tracking-wider font-medium text-muted-foreground dark:text-zinc-500 border-b border-zinc-200/50 dark:border-zinc-800/50 bg-zinc-50/50 dark:bg-zinc-900/50">
+            <div className="hidden md:flex items-center gap-3 px-3 py-2.5 sm:px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground dark:text-zinc-400 border-b border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-black/60">
               <div className="w-[90px] shrink-0">Risk</div>
               <div className="w-[160px] shrink-0">Package ID</div>
               <div className="w-[36px] shrink-0 text-center">Score</div>
@@ -766,7 +766,7 @@ function DashboardContent() {
             </div>
 
             {/* Table Body */}
-            <div className="divide-y divide-zinc-100 dark:divide-zinc-800/50">
+            <div className="divide-y divide-border dark:divide-white/5">
               {displayedContracts.map((contract, index) => {
                 const cardKey = `${contract.package_id}-${contract.network}`;
                 const isExpanded = expandedCompactCard === cardKey;
@@ -783,8 +783,8 @@ function DashboardContent() {
 
                     {/* Expanded details - inline below the row */}
                     {isExpanded && (
-                      <div className="border-t border-zinc-200/50 dark:border-zinc-800/50 bg-zinc-50/50 dark:bg-zinc-900/30">
-                        <div className="p-4">
+                      <div className="bg-[hsl(var(--surface-muted))]/50 dark:bg-white/[0.02]">
+                        <div className="px-4 py-5 sm:px-6">
                           <AnalyzedContractCard
                             contract={contract}
                             index={index}

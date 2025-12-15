@@ -11,11 +11,8 @@ import type { AnalyzedContract } from '@/app/dashboard/types';
 import { getSuiPackageExplorerUrl } from '@/lib/deployments';
 import {
   getRiskLevelBadge,
-  getRiskLevelEmphasis,
   getRiskLevelIcon,
   getRiskLevelName,
-  getRiskLevelSubtle,
-  getRiskLevelSubtleText,
   getRiskScoreBarColor,
 } from '@/app/dashboard/risk-utils';
 import { cn } from '@/lib/utils';
@@ -291,13 +288,7 @@ export function AnalyzedContractCard({ contract, index = 0, onAutoRefreshPause, 
           <p className="text-sm leading-5 text-foreground/80 dark:text-white/80">
             {contract.analysis.summary}
           </p>
-          <div
-            className={cn(
-              'rounded-lg px-3 py-2 text-sm font-medium',
-              getRiskLevelSubtle(contract.analysis.risk_level),
-              getRiskLevelSubtleText(contract.analysis.risk_level),
-            )}
-          >
+          <div className="rounded-lg border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))]/50 dark:bg-black/20 px-3 py-2 text-sm text-foreground/90 dark:text-white/90">
             {contract.analysis.why_risky_one_liner}
           </div>
         </section>
@@ -307,11 +298,8 @@ export function AnalyzedContractCard({ contract, index = 0, onAutoRefreshPause, 
             {hasRiskyFunctions && (
               <div className="space-y-2">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <h5 className={cn(
-                    'text-sm font-semibold flex items-center gap-1.5',
-                    getRiskLevelEmphasis(contract.analysis.risk_level)
-                  )}>
-                    <AlertTriangle className="h-4 w-4" />
+                  <h5 className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-500 flex items-center gap-1.5">
+                    <AlertTriangle className="h-3 w-3" />
                     Risky Functions ({contract.analysis.risky_functions.length})
                   </h5>
                   <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto sm:justify-end">
@@ -368,19 +356,9 @@ export function AnalyzedContractCard({ contract, index = 0, onAutoRefreshPause, 
                                 isExpanded && 'rotate-90',
                               )}
                             />
-                            <span className={cn(
-                              'whitespace-pre-wrap wrap-break-word font-mono text-sm font-semibold leading-5',
-                              getRiskLevelEmphasis(contract.analysis.risk_level),
-                            )}>
+                            <span className="whitespace-pre-wrap wrap-break-word font-mono text-sm font-medium leading-5 text-foreground dark:text-white">
                               {func.function_name}
                             </span>
-                          </span>
-                          <span className={cn(
-                            'mt-1 flex w-full items-center gap-1 text-xs font-medium uppercase tracking-wide text-left sm:mt-0 sm:w-auto sm:justify-end sm:text-right sm:whitespace-nowrap',
-                            getRiskLevelEmphasis(contract.analysis.risk_level),
-                          )}>
-                            {getRiskLevelIcon(contract.analysis.risk_level)}
-                            <span className="font-semibold">{getRiskLevelName(contract.analysis.risk_level)}</span>
                           </span>
                         </button>
                         {isExpanded && (
@@ -398,12 +376,9 @@ export function AnalyzedContractCard({ contract, index = 0, onAutoRefreshPause, 
             {hasRugPullIndicators && (
               <div className="space-y-2">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <h5 className={cn(
-                    'text-sm font-semibold flex items-center gap-1.5',
-                    getRiskLevelEmphasis(contract.analysis.risk_level)
-                  )}>
-                    <span>{getRiskLevelIcon(contract.analysis.risk_level)}</span>
-                    <span>Rug Pull Indicators ({contract.analysis.rug_pull_indicators.length})</span>
+                  <h5 className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-500 flex items-center gap-1.5">
+                    <AlertTriangle className="h-3 w-3" />
+                    Rug Pull Indicators ({contract.analysis.rug_pull_indicators.length})
                   </h5>
                   {contract.analysis.rug_pull_indicators.length > DEFAULT_VISIBLE_INDICATORS && (
                     <Button
@@ -425,15 +400,9 @@ export function AnalyzedContractCard({ contract, index = 0, onAutoRefreshPause, 
                   {rugPullIndicators.map((indicator, index) => (
                     <div
                       key={`${indicator.pattern_name}-${index}`}
-                      className={cn(
-                        'space-y-1.5 rounded-lg border px-3 py-2.5 text-sm',
-                        getRiskLevelSubtle(contract.analysis.risk_level)
-                      )}
+                      className="space-y-1.5 rounded-lg border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))]/50 dark:bg-black/20 px-3 py-2.5 text-sm"
                     >
-                      <div className={cn(
-                        'font-semibold mb-2',
-                        getRiskLevelEmphasis(contract.analysis.risk_level)
-                      )}>
+                      <div className="font-medium text-foreground dark:text-white mb-2">
                         {indicator.pattern_name}
                       </div>
                       <EvidenceBlock text={indicator.evidence} />
@@ -480,21 +449,21 @@ export function AnalyzedContractCard({ contract, index = 0, onAutoRefreshPause, 
                   <DependencySummaryCard summary={contract.analysis.dependency_summary} />
                 )}
 
-                {/* Limitations Card (NEW) */}
+                {/* Limitations Card */}
                 {contract.analysis.limitations && contract.analysis.limitations.length > 0 && (
-                  <div className="rounded-lg border border-orange-200 dark:border-orange-500/30 bg-orange-50/50 dark:bg-orange-500/10 p-4 sm:p-5 transition-colors duration-200">
+                  <div className="rounded-lg border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))]/50 dark:bg-black/20 p-4 sm:p-5 transition-colors duration-200">
                     <div className="mb-3 flex items-center gap-2">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-500/20">
-                        <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[hsl(var(--surface-muted))] dark:bg-black/40">
+                        <AlertTriangle className="h-4 w-4 text-muted-foreground dark:text-zinc-400" />
                       </div>
-                      <h6 className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.3em] text-orange-800 dark:text-orange-300">
+                      <h6 className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.3em] text-foreground dark:text-white">
                         Limitations
                       </h6>
                     </div>
                     <ul className="space-y-1.5">
                       {contract.analysis.limitations.map((limitation, index) => (
-                        <li key={index} className="text-xs text-orange-700 dark:text-orange-200/80 flex items-start gap-1.5">
-                          <span className="shrink-0">-</span>
+                        <li key={index} className="text-xs text-muted-foreground dark:text-zinc-400 flex items-start gap-1.5">
+                          <span className="shrink-0">•</span>
                           <span>{limitation}</span>
                         </li>
                       ))}

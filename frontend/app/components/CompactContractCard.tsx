@@ -76,10 +76,10 @@ export function CompactContractCard({
       className={cn(
         'group',
         'px-3 py-2.5 sm:px-4 sm:py-3',
-        'cursor-pointer transition-colors duration-100',
+        'cursor-pointer transition-all duration-150',
         isExpanded
-          ? 'bg-zinc-100/80 dark:bg-zinc-800/50'
-          : 'hover:bg-zinc-50 dark:hover:bg-zinc-900/50'
+          ? 'bg-[hsl(var(--surface-muted))] dark:bg-white/5'
+          : 'hover:bg-[hsl(var(--surface-muted))]/50 dark:hover:bg-white/[0.02]'
       )}
     >
       <div className="flex items-center gap-3">
@@ -134,7 +134,7 @@ export function CompactContractCard({
         </p>
 
         {/* Timestamp - fixed width */}
-        <span className="w-[40px] shrink-0 text-[10px] text-muted-foreground dark:text-zinc-500 tabular-nums text-right">
+        <span className="w-[40px] shrink-0 text-[10px] text-muted-foreground dark:text-zinc-500 tabular-nums text-right font-medium">
           {relativeTime}
         </span>
 
