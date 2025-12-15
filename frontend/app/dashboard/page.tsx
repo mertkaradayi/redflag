@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { X, Search, Loader2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { X, Search, Loader2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, Clock, TrendingDown } from 'lucide-react';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,9 @@ const RISK_LEVELS = ['critical', 'high', 'moderate', 'low'] as const;
 type RiskLevel = typeof RISK_LEVELS[number];
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100, 200];
+
+type SortOption = 'newest' | 'oldest' | 'risk_high' | 'risk_low';
+type NetworkFilter = 'all' | 'mainnet' | 'testnet';
 
 type PackageStatusState = {
   packageId: string;
@@ -73,6 +76,8 @@ function DashboardContent() {
   const [selectedPackageNetwork, setSelectedPackageNetwork] = useState<'mainnet' | 'testnet' | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('compact');
   const [expandedCompactCard, setExpandedCompactCard] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<SortOption>('newest');
+  const [networkFilter, setNetworkFilter] = useState<NetworkFilter>('all');
 
   // Load viewMode from localStorage on mount
   useEffect(() => {
@@ -112,7 +117,7 @@ function DashboardContent() {
   // Initialize pagination hook
   const pagination = usePagination({
     initialPage: 1,
-    initialPageSize: 10,
+    initialPageSize: 25,
     total: data?.total ?? 0
   });
 
@@ -370,13 +375,44 @@ function DashboardContent() {
     if (!data) {
       return [];
     }
-    // Show all if all filters are selected or none are selected (empty set means show all)
-    if (selectedFilters.size === 0 || selectedFilters.size === RISK_LEVELS.length) {
-      return data.contracts;
+
+    let contracts = data.contracts;
+
+    // Filter by network
+    if (networkFilter !== 'all') {
+      contracts = contracts.filter((contract) => contract.network === networkFilter);
     }
-    // Filter by selected risk levels
-    return data.contracts.filter((contract) => selectedFilters.has(contract.analysis.risk_level));
-  }, [data, selectedFilters]);
+
+    // Filter by risk level (show all if all filters are selected or none are selected)
+    if (selectedFilters.size > 0 && selectedFilters.size < RISK_LEVELS.length) {
+      contracts = contracts.filter((contract) => selectedFilters.has(contract.analysis.risk_level));
+    }
+
+    // Sort contracts
+    const riskOrder: Record<RiskLevel, number> = { critical: 0, high: 1, moderate: 2, low: 3 };
+    const sorted = [...contracts].sort((a, b) => {
+      switch (sortBy) {
+        case 'newest':
+          return new Date(b.analyzed_at).getTime() - new Date(a.analyzed_at).getTime();
+        case 'oldest':
+          return new Date(a.analyzed_at).getTime() - new Date(b.analyzed_at).getTime();
+        case 'risk_high':
+          if (riskOrder[a.analysis.risk_level] !== riskOrder[b.analysis.risk_level]) {
+            return riskOrder[a.analysis.risk_level] - riskOrder[b.analysis.risk_level];
+          }
+          return b.analysis.risk_score - a.analysis.risk_score;
+        case 'risk_low':
+          if (riskOrder[a.analysis.risk_level] !== riskOrder[b.analysis.risk_level]) {
+            return riskOrder[b.analysis.risk_level] - riskOrder[a.analysis.risk_level];
+          }
+          return a.analysis.risk_score - b.analysis.risk_score;
+        default:
+          return 0;
+      }
+    });
+
+    return sorted;
+  }, [data, selectedFilters, networkFilter, sortBy]);
 
   const hasSelectedAnalyzedPackage = !!(
     packageStatus &&
@@ -513,10 +549,10 @@ function DashboardContent() {
       {/* Controls: Search, Filters, Actions */}
       <Card className="border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-elevated))] dark:bg-black/40 text-foreground dark:text-white shadow-lg backdrop-blur">
         <CardContent className="p-6 pt-0 space-y-6">
-          {/* Search and Filters Row */}
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-center gap-3">
-              <div className="relative w-full md:w-72">
+          {/* Search and Controls Row */}
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            {/* Search */}
+            <div className="relative w-full lg:w-80">
               <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground dark:text-zinc-500" />
               <input
                 type="text"
@@ -537,7 +573,44 @@ function DashboardContent() {
                   </button>
                 )}
               </div>
+            </div>
+
+            {/* Controls: Network, Sort, View */}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Network Filter */}
+              <div className="inline-flex items-center gap-1 rounded-full border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-black/40 p-1">
+                {(['all', 'mainnet', 'testnet'] as const).map((network) => (
+                  <button
+                    key={network}
+                    onClick={() => setNetworkFilter(network)}
+                    className={cn(
+                      'px-3 py-1 rounded-full text-xs font-medium transition-all',
+                      networkFilter === network
+                        ? 'bg-foreground dark:bg-white text-background dark:text-black'
+                        : 'text-muted-foreground hover:text-foreground dark:hover:text-white'
+                    )}
+                  >
+                    {network === 'all' ? 'All' : network.charAt(0).toUpperCase() + network.slice(1)}
+                  </button>
+                ))}
               </div>
+
+              {/* Sort Dropdown */}
+              <div className="relative">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as SortOption)}
+                  className="h-8 appearance-none rounded-full border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-black/40 pl-3 pr-8 text-xs font-medium text-foreground dark:text-white transition-colors focus:border-[#D12226] focus:outline-none focus:ring-2 focus:ring-[#D12226]/40 cursor-pointer"
+                >
+                  <option value="newest">Newest First</option>
+                  <option value="oldest">Oldest First</option>
+                  <option value="risk_high">Highest Risk</option>
+                  <option value="risk_low">Lowest Risk</option>
+                </select>
+                <ArrowUpDown className="absolute right-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              </div>
+
+              {/* View Mode */}
               <ViewModeToggle mode={viewMode} onChange={handleViewModeChange} />
             </div>
           </div>
@@ -756,17 +829,18 @@ function DashboardContent() {
         ) : viewMode === 'compact' ? (
           <div className="rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-black/40 backdrop-blur overflow-hidden">
             {/* Table Header */}
-            <div className="hidden md:flex items-center gap-3 px-3 py-2.5 sm:px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground dark:text-zinc-400 border-b border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-black/60">
-              <div className="w-[90px] shrink-0">Risk</div>
-              <div className="w-[160px] shrink-0">Package ID</div>
-              <div className="w-[36px] shrink-0 text-center">Score</div>
+            <div className="hidden md:flex items-center gap-4 pl-6 pr-4 py-3 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60 dark:text-zinc-500 border-b border-border/50 dark:border-white/5 bg-[hsl(var(--surface-muted))]/30 dark:bg-black/20">
+              <div className="w-11 shrink-0 text-center">Score</div>
+              <div className="w-[100px] shrink-0">Risk</div>
+              <div className="w-[140px] shrink-0">Package</div>
               <div className="flex-1">Summary</div>
-              <div className="w-[40px] shrink-0 text-right">Time</div>
-              <div className="w-[16px] shrink-0" />
+              <div className="w-12 shrink-0 text-center">Net</div>
+              <div className="w-10 shrink-0 text-right">Time</div>
+              <div className="w-4 shrink-0" />
             </div>
 
-            {/* Table Body */}
-            <div className="divide-y divide-border dark:divide-white/5">
+            {/* Table Body - with spacing between rows */}
+            <div className="divide-y divide-border/30 dark:divide-white/[0.03]">
               {displayedContracts.map((contract, index) => {
                 const cardKey = `${contract.package_id}-${contract.network}`;
                 const isExpanded = expandedCompactCard === cardKey;

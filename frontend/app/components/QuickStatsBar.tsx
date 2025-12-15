@@ -52,6 +52,8 @@ export function QuickStatsBar({
 }: QuickStatsBarProps) {
   const total = counts.critical + counts.high + counts.moderate + counts.low;
   const allSelected = activeFilters.length === riskLevels.length;
+  const riskyCount = counts.critical + counts.high;
+  const riskyPercent = total > 0 ? ((riskyCount / total) * 100).toFixed(1) : '0';
 
   return (
     <div className="space-y-4">
@@ -62,6 +64,7 @@ export function QuickStatsBar({
           const isActive = activeFilters.includes(level) && !allSelected;
           const count = counts[level];
           const colors = riskLevelColors[level];
+          const percentage = total > 0 ? ((count / total) * 100).toFixed(1) : '0';
 
           return (
             <button
@@ -74,11 +77,16 @@ export function QuickStatsBar({
                   : 'border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-black/40 hover:border-[#D12226]/40 dark:hover:border-[#D12226]/60 hover:bg-[#D12226]/5 dark:hover:bg-[#D12226]/10'
               )}
             >
-              <div className="mb-1.5">
+              <div className="mb-1.5 flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground dark:text-zinc-400">
                   <span className="text-sm">{getRiskLevelIcon(level)}</span>
                   {getRiskLevelName(level).split(' ')[0]}
                 </div>
+                {!isLoading && total > 0 && (
+                  <span className="text-[10px] font-medium text-muted-foreground dark:text-zinc-500 tabular-nums">
+                    {percentage}%
+                  </span>
+                )}
               </div>
               <div className={cn('text-xl font-bold tabular-nums', colors.text)}>
                 {isLoading ? (

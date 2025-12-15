@@ -200,6 +200,25 @@ export const getRiskScoreTextColor = (score: number) => {
   return "text-emerald-700 dark:text-emerald-200";
 };
 
+// Left edge bar color for compact view - saturated colors matching filter badges
+export const getRiskBarColor = (level: RiskLevel | string) => {
+  const colors: Record<string, string> = {
+    critical: "bg-[#D12226]",
+    high: "bg-orange-500",
+    moderate: "bg-yellow-500",
+    low: "bg-emerald-500",
+  };
+  return colors[level] || "bg-zinc-500";
+};
+
+// Score text color for compact view (score-based)
+export const getRiskScoreCompactColor = (score: number) => {
+  if (score >= 70) return "text-[#D12226]";
+  if (score >= 50) return "text-orange-600 dark:text-orange-400";
+  if (score >= 30) return "text-yellow-600 dark:text-yellow-400";
+  return "text-emerald-600 dark:text-emerald-400";
+};
+
 export const getRiskLevelDot = (level: RiskLevel | string) => {
   const token = riskLevelTokens[level as RiskLevel];
   if (!token) return "bg-white/20";
