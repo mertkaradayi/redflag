@@ -88,7 +88,21 @@ function DashboardContent() {
     localStorage.setItem('dashboard-view-mode', mode);
     setExpandedCompactCard(null);
   }, []);
-  
+
+  // Handle Escape key to close expanded card
+  useEffect(() => {
+    if (!expandedCompactCard) return;
+
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setExpandedCompactCard(null);
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [expandedCompactCard]);
+
   // Package status state (for URL-based package lookup)
   const [packageStatus, setPackageStatus] = useState<PackageStatusState | null>(null);
   const [packageStatusLoading, setPackageStatusLoading] = useState(false);
@@ -895,18 +909,29 @@ function DashboardContent() {
 
             if (isExpanded) {
               return (
-                <div key={cardKey} className="space-y-2">
-                  <button
+                <div key={cardKey} className="relative">
+                  {/* Click-outside overlay */}
+                  <div
+                    className="fixed inset-0 z-40 bg-black/20 dark:bg-black/40 backdrop-blur-[2px] cursor-pointer"
                     onClick={() => setExpandedCompactCard(null)}
-                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    ← Back to compact view
-                  </button>
-                  <AnalyzedContractCard
-                    contract={contract}
-                    index={index}
-                    onAutoRefreshPause={pauseAutoRefreshFromDetails}
+                    aria-label="Close expanded view"
                   />
+                  {/* Expanded card */}
+                  <div className="relative z-50">
+                    {/* Close button */}
+                    <button
+                      onClick={() => setExpandedCompactCard(null)}
+                      className="absolute -top-2 -right-2 z-10 p-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-muted-foreground hover:text-foreground dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors shadow-lg"
+                      aria-label="Close"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                    <AnalyzedContractCard
+                      contract={contract}
+                      index={index}
+                      onAutoRefreshPause={pauseAutoRefreshFromDetails}
+                    />
+                  </div>
                 </div>
               );
             }
