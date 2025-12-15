@@ -1,5 +1,4 @@
 {
-  "rootDirectory": "frontend",
   "installCommand": "cd .. && yarn install",
   "buildCommand": "cd .. && yarn workspace frontend build",
   "framework": "nextjs"
