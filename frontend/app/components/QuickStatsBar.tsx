@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { RefreshCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   getRiskLevelIcon,
@@ -18,6 +19,8 @@ interface QuickStatsBarProps {
   activeFilters: string[];
   onFilterToggle: (level: string) => void;
   isLoading?: boolean;
+  onRefresh?: () => void;
+  lastUpdated?: Date | null;
 }
 
 const riskLevels = ['critical', 'high', 'moderate', 'low'] as const;
@@ -40,14 +43,25 @@ function AnimatedNumber({ value, isLoading }: { value: number; isLoading?: boole
   );
 }
 
+function formatRelativeTime(date: Date): string {
+  const diffMs = Date.now() - date.getTime();
+  const diffSeconds = Math.round(diffMs / 1000);
+
+  if (diffSeconds < 60) return 'just now';
+  if (diffSeconds < 3600) return `${Math.round(diffSeconds / 60)}m ago`;
+  if (diffSeconds < 86400) return `${Math.round(diffSeconds / 3600)}h ago`;
+  return date.toLocaleDateString();
+}
+
 export function QuickStatsBar({
   counts,
   activeFilters,
   onFilterToggle,
   isLoading = false,
+  onRefresh,
+  lastUpdated,
 }: QuickStatsBarProps) {
   const total = counts.critical + counts.high + counts.moderate + counts.low;
-  const allSelected = activeFilters.length === 4;
 
   return (
     <div className="rounded-2xl border border-zinc-200/50 dark:border-zinc-800/50 bg-white/60 dark:bg-zinc-950/60 backdrop-blur-sm p-3 sm:p-4">
@@ -81,23 +95,48 @@ export function QuickStatsBar({
         {/* Divider */}
         <div className="hidden sm:block h-8 w-px bg-zinc-200 dark:bg-zinc-800 mx-1" />
 
-        {/* Total count */}
-        <div className="ml-auto flex items-center gap-2 rounded-xl bg-zinc-100 dark:bg-zinc-900 px-3 py-2">
-          <span className="text-[10px] sm:text-xs uppercase tracking-wider text-muted-foreground">
-            Total
-          </span>
-          <motion.span
-            key={total}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-sm sm:text-base font-bold text-foreground dark:text-white tabular-nums"
-          >
-            {isLoading ? (
-              <span className="inline-block w-8 h-4 bg-zinc-300 dark:bg-zinc-700 rounded animate-pulse" />
-            ) : (
-              total.toLocaleString()
-            )}
-          </motion.span>
+        {/* Total count and actions */}
+        <div className="ml-auto flex items-center gap-2">
+          {/* Last updated timestamp */}
+          {lastUpdated && (
+            <span className="hidden md:inline text-[10px] text-muted-foreground dark:text-zinc-500">
+              {formatRelativeTime(lastUpdated)}
+            </span>
+          )}
+
+          {/* Refresh button */}
+          {onRefresh && (
+            <button
+              onClick={onRefresh}
+              disabled={isLoading}
+              className={cn(
+                'inline-flex items-center justify-center h-9 w-9 rounded-xl border border-zinc-200/50 dark:border-zinc-800/50 bg-zinc-100 dark:bg-zinc-900 text-muted-foreground hover:text-foreground dark:hover:text-white hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors',
+                isLoading && 'pointer-events-none opacity-60'
+              )}
+              title="Refresh"
+            >
+              <RefreshCcw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
+            </button>
+          )}
+
+          {/* Total count */}
+          <div className="flex items-center gap-2 rounded-xl bg-zinc-100 dark:bg-zinc-900 px-3 py-2">
+            <span className="text-[10px] sm:text-xs uppercase tracking-wider text-muted-foreground">
+              Total
+            </span>
+            <motion.span
+              key={total}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-sm sm:text-base font-bold text-foreground dark:text-white tabular-nums"
+            >
+              {isLoading ? (
+                <span className="inline-block w-8 h-4 bg-zinc-300 dark:bg-zinc-700 rounded animate-pulse" />
+              ) : (
+                total.toLocaleString()
+              )}
+            </motion.span>
+          </div>
         </div>
       </div>
 

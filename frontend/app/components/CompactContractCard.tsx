@@ -16,6 +16,7 @@ import { RiskScoreGauge } from './RiskScoreGauge';
 interface CompactContractCardProps {
   contract: AnalyzedContract;
   index?: number;
+  isExpanded?: boolean;
   onExpand?: () => void;
 }
 
@@ -42,6 +43,7 @@ function truncatePackageId(id: string): string {
 export function CompactContractCard({
   contract,
   index = 0,
+  isExpanded = false,
   onExpand,
 }: CompactContractCardProps) {
   const [copied, setCopied] = useState(false);
@@ -67,17 +69,17 @@ export function CompactContractCard({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2, delay: index * 0.03 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.15, delay: index * 0.02 }}
       onClick={onExpand}
       className={cn(
-        'group rounded-xl border border-zinc-200/50 dark:border-zinc-800/50',
-        'bg-white/80 dark:bg-zinc-950/80 backdrop-blur-sm',
+        'group',
         'px-3 py-2.5 sm:px-4 sm:py-3',
-        'cursor-pointer transition-all duration-150',
-        'hover:border-zinc-300 dark:hover:border-zinc-700',
-        'hover:shadow-sm dark:hover:shadow-lg dark:hover:shadow-black/20'
+        'cursor-pointer transition-colors duration-100',
+        isExpanded
+          ? 'bg-zinc-100/80 dark:bg-zinc-800/50'
+          : 'hover:bg-zinc-50 dark:hover:bg-zinc-900/50'
       )}
     >
       <div className="flex items-center gap-3">
@@ -137,7 +139,12 @@ export function CompactContractCard({
         </span>
 
         {/* Expand indicator - fixed width */}
-        <ChevronRight className="w-[16px] shrink-0 h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+        <ChevronRight
+          className={cn(
+            'w-[16px] shrink-0 h-4 w-4 text-muted-foreground transition-all duration-200',
+            isExpanded ? 'rotate-90 opacity-100' : 'opacity-0 group-hover:opacity-100'
+          )}
+        />
       </div>
 
       {/* Mobile: Show one-liner below */}

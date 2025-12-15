@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useMemo, useState, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { X, Search, Loader2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, RefreshCcw } from 'lucide-react';
+import { X, Search, Loader2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import AnalyzedContractCard from '@/app/components/AnalyzedContractCard';
 import { UnanalyzedPackageCard } from '@/app/components/UnanalyzedPackageCard';
 import { SkeletonCard } from '@/app/components/SkeletonCard';
@@ -89,19 +89,6 @@ function DashboardContent() {
     setExpandedCompactCard(null);
   }, []);
 
-  // Handle Escape key to close expanded card
-  useEffect(() => {
-    if (!expandedCompactCard) return;
-
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setExpandedCompactCard(null);
-      }
-    };
-
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [expandedCompactCard]);
 
   // Package status state (for URL-based package lookup)
   const [packageStatus, setPackageStatus] = useState<PackageStatusState | null>(null);
@@ -456,24 +443,6 @@ function DashboardContent() {
     return riskCounts.critical + riskCounts.high + riskCounts.moderate + riskCounts.low;
   }, [data?.total, riskCounts]);
 
-  const formattedLastUpdated = useMemo(() => {
-    if (!lastUpdated) {
-      return null;
-    }
-    return lastUpdated.toLocaleString();
-  }, [lastUpdated]);
-
-  const riskBreakdown = useMemo(() => {
-    if (totalAnalyzed === 0) return null;
-
-    return {
-      critical: { count: riskCounts.critical, pct: (riskCounts.critical / totalAnalyzed) * 100 },
-      high: { count: riskCounts.high, pct: (riskCounts.high / totalAnalyzed) * 100 },
-      moderate: { count: riskCounts.moderate, pct: (riskCounts.moderate / totalAnalyzed) * 100 },
-      low: { count: riskCounts.low, pct: (riskCounts.low / totalAnalyzed) * 100 },
-    };
-  }, [riskCounts, totalAnalyzed]);
-
   // Handle search input Enter key (instant submit)
   const handleSearchKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -535,108 +504,6 @@ function DashboardContent() {
 
   return (
     <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 pb-24 transition-colors duration-200 sm:px-8 lg:gap-6 lg:px-16">
-      {/* Header */}
-      <section className="-mx-4 py-4 px-4 sm:-mx-8 sm:px-8 lg:-mx-16 lg:px-16">
-        <Card className="border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-elevated))] dark:bg-black/40 text-foreground dark:text-white shadow-lg backdrop-blur">
-          <CardHeader className="space-y-4 pb-4">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-4">
-                <div>
-                  <CardTitle className="text-xl font-semibold leading-none tracking-tight text-foreground dark:text-white">
-                    Contract Analysis
-                  </CardTitle>
-                  {formattedLastUpdated && (
-                    <p className="mt-1.5 text-xs text-muted-foreground dark:text-zinc-500">
-                      Last updated {formattedLastUpdated}
-                    </p>
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <div className="text-2xl font-bold tabular-nums text-foreground dark:text-white">
-                    {totalAnalyzed.toLocaleString()}
-                  </div>
-                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground dark:text-zinc-500">
-                    contracts analyzed
-                  </div>
-                </div>
-                <Button
-                  onClick={() => fetchAnalyzedContracts()}
-                  variant="outline"
-                  size="icon"
-                  className={cn(
-                    'h-10 w-10 rounded-xl border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700',
-                    (isRefreshing || loading) && 'pointer-events-none opacity-60',
-                  )}
-                >
-                  <RefreshCcw className={cn('h-4 w-4', (isRefreshing || loading) && 'animate-spin')} />
-                </Button>
-              </div>
-            </div>
-
-            {/* Risk Breakdown Bar */}
-            {riskBreakdown && (
-              <div className="space-y-2">
-                <div className="flex h-2 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-900">
-                  {riskBreakdown.critical.pct > 0 && (
-                    <div
-                      className="bg-[#D12226] transition-all"
-                      style={{ width: `${riskBreakdown.critical.pct}%` }}
-                      title={`Critical: ${riskBreakdown.critical.count.toLocaleString()}`}
-                    />
-                  )}
-                  {riskBreakdown.high.pct > 0 && (
-                    <div
-                      className="bg-orange-500 transition-all"
-                      style={{ width: `${riskBreakdown.high.pct}%` }}
-                      title={`High: ${riskBreakdown.high.count.toLocaleString()}`}
-                    />
-                  )}
-                  {riskBreakdown.moderate.pct > 0 && (
-                    <div
-                      className="bg-yellow-500 transition-all"
-                      style={{ width: `${riskBreakdown.moderate.pct}%` }}
-                      title={`Moderate: ${riskBreakdown.moderate.count.toLocaleString()}`}
-                    />
-                  )}
-                  {riskBreakdown.low.pct > 0 && (
-                    <div
-                      className="bg-emerald-500 transition-all"
-                      style={{ width: `${riskBreakdown.low.pct}%` }}
-                      title={`Low: ${riskBreakdown.low.count.toLocaleString()}`}
-                    />
-                  )}
-                </div>
-                <div className="flex items-center justify-between text-[10px] text-muted-foreground dark:text-zinc-500">
-                  <div className="flex items-center gap-4">
-                    <span className="flex items-center gap-1.5">
-                      <span className="h-2 w-2 rounded-full bg-[#D12226]" />
-                      {riskBreakdown.critical.pct.toFixed(1)}% critical
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <span className="h-2 w-2 rounded-full bg-orange-500" />
-                      {riskBreakdown.high.pct.toFixed(1)}% high
-                    </span>
-                    <span className="hidden sm:flex items-center gap-1.5">
-                      <span className="h-2 w-2 rounded-full bg-yellow-500" />
-                      {riskBreakdown.moderate.pct.toFixed(1)}% moderate
-                    </span>
-                    <span className="hidden sm:flex items-center gap-1.5">
-                      <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                      {riskBreakdown.low.pct.toFixed(1)}% safe
-                    </span>
-                  </div>
-                  <span className="tabular-nums">
-                    {(riskBreakdown.critical.count + riskBreakdown.high.count).toLocaleString()} risky
-                  </span>
-                </div>
-              </div>
-            )}
-          </CardHeader>
-        </Card>
-      </section>
-
       {error && (
         <Alert className="rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 text-foreground dark:text-white/90 shadow-sm shadow-black/5 dark:shadow-white/5 transition-colors duration-200">
           <AlertDescription>{error}</AlertDescription>
@@ -817,6 +684,8 @@ function DashboardContent() {
         activeFilters={Array.from(selectedFilters)}
         onFilterToggle={(level) => handleToggleRiskFilter(level as RiskLevel)}
         isLoading={isRefreshing}
+        onRefresh={() => fetchAnalyzedContracts()}
+        lastUpdated={lastUpdated}
       />
 
       {/* Contract List */}
@@ -885,48 +754,51 @@ function DashboardContent() {
             </div>
           </div>
         ) : viewMode === 'compact' ? (
-          displayedContracts.map((contract, index) => {
-            const cardKey = `${contract.package_id}-${contract.network}`;
-            const isExpanded = expandedCompactCard === cardKey;
+          <div className="rounded-xl border border-zinc-200/50 dark:border-zinc-800/50 bg-white/60 dark:bg-zinc-950/60 backdrop-blur-sm overflow-hidden">
+            {/* Table Header */}
+            <div className="hidden md:flex items-center gap-3 px-3 py-2.5 sm:px-4 text-[10px] uppercase tracking-wider font-medium text-muted-foreground dark:text-zinc-500 border-b border-zinc-200/50 dark:border-zinc-800/50 bg-zinc-50/50 dark:bg-zinc-900/50">
+              <div className="w-[90px] shrink-0">Risk</div>
+              <div className="w-[160px] shrink-0">Package ID</div>
+              <div className="w-[36px] shrink-0 text-center">Score</div>
+              <div className="flex-1">Summary</div>
+              <div className="w-[40px] shrink-0 text-right">Time</div>
+              <div className="w-[16px] shrink-0" />
+            </div>
 
-            if (isExpanded) {
-              return (
-                <div key={cardKey} className="relative">
-                  {/* Click-outside overlay */}
-                  <div
-                    className="fixed inset-0 z-40 bg-black/20 dark:bg-black/40 backdrop-blur-[2px] cursor-pointer"
-                    onClick={() => setExpandedCompactCard(null)}
-                    aria-label="Close expanded view"
-                  />
-                  {/* Expanded card */}
-                  <div className="relative z-50">
-                    {/* Close button */}
-                    <button
-                      onClick={() => setExpandedCompactCard(null)}
-                      className="absolute -top-2 -right-2 z-10 p-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-muted-foreground hover:text-foreground dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors shadow-lg"
-                      aria-label="Close"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                    <AnalyzedContractCard
+            {/* Table Body */}
+            <div className="divide-y divide-zinc-100 dark:divide-zinc-800/50">
+              {displayedContracts.map((contract, index) => {
+                const cardKey = `${contract.package_id}-${contract.network}`;
+                const isExpanded = expandedCompactCard === cardKey;
+
+                return (
+                  <div key={cardKey}>
+                    {/* Compact row - always visible, click to toggle */}
+                    <CompactContractCard
                       contract={contract}
                       index={index}
-                      onAutoRefreshPause={pauseAutoRefreshFromDetails}
+                      isExpanded={isExpanded}
+                      onExpand={() => setExpandedCompactCard(isExpanded ? null : cardKey)}
                     />
-                  </div>
-                </div>
-              );
-            }
 
-            return (
-              <CompactContractCard
-                key={cardKey}
-                contract={contract}
-                index={index}
-                onExpand={() => setExpandedCompactCard(cardKey)}
-              />
-            );
-          })
+                    {/* Expanded details - inline below the row */}
+                    {isExpanded && (
+                      <div className="border-t border-zinc-200/50 dark:border-zinc-800/50 bg-zinc-50/50 dark:bg-zinc-900/30">
+                        <div className="p-4">
+                          <AnalyzedContractCard
+                            contract={contract}
+                            index={index}
+                            onAutoRefreshPause={pauseAutoRefreshFromDetails}
+                            isInline
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         ) : (
           displayedContracts.map((contract, index) => (
             <AnalyzedContractCard
