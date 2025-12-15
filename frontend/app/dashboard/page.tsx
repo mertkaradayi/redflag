@@ -677,124 +677,18 @@ function DashboardContent() {
               </div>
               <ViewModeToggle mode={viewMode} onChange={handleViewModeChange} />
             </div>
-            <div className="flex flex-wrap items-center gap-1.5">
-              <button
-                type="button"
-                onClick={handleResetFilters}
-                className={cn(
-                  'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-medium transition-all duration-200',
-                  'border-zinc-200/50 dark:border-zinc-800/50',
-                  'bg-white/80 backdrop-blur-xl supports-backdrop-filter:bg-white/80 dark:bg-zinc-950/80 dark:supports-backdrop-filter:bg-zinc-950/80',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D12226]/40 focus-visible:ring-offset-2',
-                  areAllFiltersSelected
-                    ? 'text-zinc-900 dark:text-white/90 border-zinc-300 dark:border-zinc-700 shadow-sm'
-                    : 'text-zinc-600 dark:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-700 hover:bg-white/90 dark:hover:bg-zinc-950/90 hover:shadow-sm hover:scale-[1.02] active:scale-[0.98]'
-                )}
-              >
-                <span>All</span>
-                {(data || riskStats) && (
-                  <span className={cn(
-                    'ml-0.5 rounded px-1.5 py-0.5 text-[10px] font-semibold transition-colors',
-                    areAllFiltersSelected
-                      ? 'bg-zinc-100 dark:bg-black/40 text-zinc-700 dark:text-zinc-200'
-                      : 'bg-zinc-50 dark:bg-black/60 text-zinc-500 dark:text-zinc-400'
-                  )}>
-                    {totalAnalyzed.toLocaleString()}
-                  </span>
-                )}
-              </button>
-              {RISK_LEVELS.map((level) => {
-                const isActive = selectedFilters.has(level);
-                const label = getRiskLevelName(level);
-                const count = riskCounts[level] ?? 0;
-                const styles = getRiskFilterStyles(level);
-
-                return (
-                  <button
-                    key={level}
-                    type="button"
-                    onClick={() => handleToggleRiskFilter(level)}
-                    className={cn(
-                      'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-medium transition-all duration-200',
-                      'bg-white/80 backdrop-blur-xl supports-backdrop-filter:bg-white/80 dark:bg-zinc-950/80 dark:supports-backdrop-filter:bg-zinc-950/80',
-                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
-                      isActive && styles
-                        ? cn(
-                            styles.borderActive,
-                            styles.text,
-                            'bg-white/90 dark:bg-zinc-950/90 shadow-sm',
-                            styles.ring && 'focus-visible:ring-[#D12226]/40'
-                          )
-                        : cn(
-                            'border-zinc-200/50 dark:border-zinc-800/50',
-                            'text-zinc-600 dark:text-zinc-300',
-                            'hover:border-zinc-300 dark:hover:border-zinc-700 hover:bg-white/90 dark:hover:bg-zinc-950/90 hover:shadow-sm hover:scale-[1.02] active:scale-[0.98]',
-                            'focus-visible:ring-zinc-400/40'
-                          )
-                    )}
-                  >
-                    <span className={cn(
-                      'h-1.5 w-1.5 rounded-full shrink-0 transition-all duration-200',
-                      getRiskLevelDot(level),
-                      isActive && 'ring-2 ring-offset-1 ring-offset-transparent ring-current/20'
-                    )} />
-                    <span className="font-medium">{label}</span>
-                    {(data || riskStats) && (
-                      <span className={cn(
-                        'ml-0.5 rounded px-1.5 py-0.5 text-[10px] font-semibold transition-all duration-200',
-                        isActive
-                          ? 'bg-zinc-100 dark:bg-black/40 text-zinc-700 dark:text-zinc-200 shadow-sm'
-                          : 'bg-zinc-50 dark:bg-black/60 text-zinc-500 dark:text-zinc-400'
-                      )}>
-                        {count.toLocaleString()}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
           </div>
 
-          {/* Active Filters */}
-          {(debouncedSearchQuery || isRiskFiltered) && (
+          {/* Active Search */}
+          {debouncedSearchQuery && (
             <div className="flex flex-wrap items-center gap-2 text-sm">
-              {debouncedSearchQuery && (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-muted))] dark:bg-black/40 px-2.5 py-1 text-[10px] font-medium text-foreground dark:text-white/80">
-                  <Search className="h-3 w-3 text-muted-foreground dark:text-zinc-400" />
-                  <span>&apos;{debouncedSearchQuery}&apos;</span>
-                  <button onClick={clearSearch} className="p-0.5 hover:text-foreground dark:hover:text-white transition-colors" aria-label="Clear search">
-                    <X className="h-3 w-3" />
-                  </button>
-                </span>
-              )}
-              {isRiskFiltered && activeFilters.length > 0 && (
-                <>
-                  {activeFilters.map((level) => {
-                    const label = getRiskLevelName(level);
-                    const styles = getRiskFilterStyles(level);
-                    return (
-                      <span key={level} className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-muted))] dark:bg-black/40 px-2.5 py-1 text-[10px] font-medium text-foreground dark:text-white/80">
-                        <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', styles.dot)} />
-                        <span>{label}</span>
-                        <button 
-                          onClick={() => handleToggleRiskFilter(level)} 
-                          className="p-0.5 hover:text-foreground dark:hover:text-white transition-colors" 
-                          aria-label={`Remove ${label} filter`}
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </span>
-                    );
-                  })}
-                  <button 
-                    onClick={handleResetFilters} 
-                    className="text-sm text-muted-foreground dark:text-zinc-400 hover:text-foreground dark:hover:text-white/90 underline transition-colors"
-                    aria-label="Show all filters"
-                  >
-                    Clear filters
-                  </button>
-                </>
-              )}
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-muted))] dark:bg-black/40 px-2.5 py-1 text-[10px] font-medium text-foreground dark:text-white/80">
+                <Search className="h-3 w-3 text-muted-foreground dark:text-zinc-400" />
+                <span>&apos;{debouncedSearchQuery}&apos;</span>
+                <button onClick={clearSearch} className="p-0.5 hover:text-foreground dark:hover:text-white transition-colors" aria-label="Clear search">
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
             </div>
           )}
 

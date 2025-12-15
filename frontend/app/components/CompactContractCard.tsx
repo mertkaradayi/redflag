@@ -80,24 +80,24 @@ export function CompactContractCard({
         'hover:shadow-sm dark:hover:shadow-lg dark:hover:shadow-black/20'
       )}
     >
-      <div className="flex items-center gap-2 sm:gap-3">
-        {/* Risk badge */}
+      <div className="flex items-center gap-3">
+        {/* Risk badge - fixed width */}
         <div
           className={cn(
-            'shrink-0 inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wider',
+            'w-[90px] shrink-0 inline-flex items-center justify-center gap-1 rounded-md px-2 py-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wider',
             getRiskLevelBadge(contract.analysis.risk_level)
           )}
         >
           <span className="leading-none">{getRiskLevelIcon(contract.analysis.risk_level)}</span>
-          <span className="hidden sm:inline leading-tight">
+          <span className="leading-tight">
             {getRiskLevelName(contract.analysis.risk_level).split(' ')[0]}
           </span>
         </div>
 
-        {/* Package ID */}
-        <div className="flex items-center gap-1.5 min-w-0">
+        {/* Package ID - fixed width */}
+        <div className="w-[160px] shrink-0 flex items-center gap-1">
           <span
-            className="font-mono text-xs text-foreground dark:text-white truncate cursor-pointer hover:text-[#D12226] transition-colors"
+            className="font-mono text-xs text-foreground dark:text-white cursor-pointer hover:text-[#D12226] transition-colors"
             onClick={handleCopy}
             title={contract.package_id}
           >
@@ -105,7 +105,7 @@ export function CompactContractCard({
           </span>
           <button
             onClick={handleCopy}
-            className="shrink-0 p-1 rounded text-muted-foreground hover:text-foreground dark:hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
+            className="shrink-0 p-0.5 rounded text-muted-foreground hover:text-foreground dark:hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
           >
             {copied ? (
               <Check className="h-3 w-3 text-emerald-500" />
@@ -115,29 +115,29 @@ export function CompactContractCard({
           </button>
           <button
             onClick={handleOpenExplorer}
-            className="shrink-0 p-1 rounded text-muted-foreground hover:text-foreground dark:hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
+            className="shrink-0 p-0.5 rounded text-muted-foreground hover:text-foreground dark:hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
           >
             <ExternalLink className="h-3 w-3" />
           </button>
         </div>
 
-        {/* Risk score gauge */}
-        <div className="shrink-0">
+        {/* Risk score gauge - fixed width */}
+        <div className="w-[36px] shrink-0 flex justify-center">
           <RiskScoreGauge score={contract.analysis.risk_score} size="sm" animated={false} />
         </div>
 
-        {/* One-liner summary */}
-        <p className="hidden md:block flex-1 text-xs text-muted-foreground dark:text-zinc-400 truncate min-w-0">
+        {/* One-liner summary - flex to fill remaining space */}
+        <p className="hidden md:block flex-1 text-xs text-muted-foreground dark:text-zinc-400 truncate">
           {contract.analysis.why_risky_one_liner}
         </p>
 
-        {/* Timestamp */}
-        <span className="shrink-0 text-[10px] text-muted-foreground dark:text-zinc-500 tabular-nums">
+        {/* Timestamp - fixed width */}
+        <span className="w-[40px] shrink-0 text-[10px] text-muted-foreground dark:text-zinc-500 tabular-nums text-right">
           {relativeTime}
         </span>
 
-        {/* Expand indicator */}
-        <ChevronRight className="shrink-0 h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+        {/* Expand indicator - fixed width */}
+        <ChevronRight className="w-[16px] shrink-0 h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
       </div>
 
       {/* Mobile: Show one-liner below */}
