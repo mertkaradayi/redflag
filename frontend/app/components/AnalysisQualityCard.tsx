@@ -1,0 +1,111 @@
+'use client';
+
+import { BarChart3 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import type { AnalysisQuality, ValidationSummary } from '@/app/dashboard/types';
+import { getCoverageIndicator, getValidationRateColor } from '@/app/dashboard/risk-utils';
+
+interface AnalysisQualityCardProps {
+  quality: AnalysisQuality;
+  validationSummary?: ValidationSummary;
+}
+
+export function AnalysisQualityCard({ quality, validationSummary }: AnalysisQualityCardProps) {
+  const moduleIndicator = getCoverageIndicator(quality.modules_analyzed, quality.modules_total);
+  const functionIndicator = getCoverageIndicator(quality.functions_analyzed, quality.functions_total);
+  const validationRate = validationSummary
+    ? Math.round(validationSummary.avg_validation_score * 100)
+    : Math.round(quality.validation_rate * 100);
+
+  return (
+    <div className="rounded-lg border border-zinc-200 dark:border-white/10 bg-[hsl(var(--surface-muted))]/50 dark:bg-black/20 p-4 sm:p-5 transition-colors duration-200">
+      <div className="mb-3 flex items-center gap-2">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[hsl(var(--surface-muted))] dark:bg-black/40">
+          <BarChart3 className="h-4 w-4 text-muted-foreground dark:text-zinc-400" />
+        </div>
+        <h6 className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.3em] text-foreground dark:text-white">
+          Analysis Quality
+        </h6>
+      </div>
+
+      <div className="space-y-2">
+        {/* Modules coverage */}
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs text-muted-foreground dark:text-zinc-400">Modules</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-foreground dark:text-white tabular-nums">
+              {quality.modules_analyzed}/{quality.modules_total}
+            </span>
+            <span className={cn('text-xs', moduleIndicator.color)}>{moduleIndicator.icon}</span>
+          </div>
+        </div>
+
+        {/* Functions coverage */}
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs text-muted-foreground dark:text-zinc-400">Functions</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-foreground dark:text-white tabular-nums">
+              {quality.functions_analyzed}/{quality.functions_total}
+            </span>
+            <span className={cn('text-xs', functionIndicator.color)}>{functionIndicator.icon}</span>
+          </div>
+        </div>
+
+        {/* Validation rate */}
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs text-muted-foreground dark:text-zinc-400">Validation</span>
+          <div className="flex items-center gap-2">
+            <span className={cn('text-xs font-medium tabular-nums', getValidationRateColor(validationRate))}>
+              {validationRate}%
+            </span>
+            <span className={cn('text-xs', validationRate >= 90 ? 'text-emerald-500' : validationRate >= 70 ? 'text-yellow-500' : 'text-orange-500')}>
+              {validationRate >= 90 ? '✓' : validationRate >= 70 ? '~' : '!'}
+            </span>
+          </div>
+        </div>
+
+        {/* Truncation status */}
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs text-muted-foreground dark:text-zinc-400">Truncated</span>
+          <div className="flex items-center gap-2">
+            <span className={cn(
+              'text-xs font-medium',
+              quality.truncation_occurred ? 'text-orange-600 dark:text-orange-400' : 'text-emerald-600 dark:text-emerald-400'
+            )}>
+              {quality.truncation_occurred ? 'Yes' : 'No'}
+            </span>
+            <span className={cn('text-xs', quality.truncation_occurred ? 'text-orange-500' : 'text-emerald-500')}>
+              {quality.truncation_occurred ? '!' : '✓'}
+            </span>
+          </div>
+        </div>
+
+        {/* Validation summary breakdown (if available) */}
+        {validationSummary && validationSummary.total > 0 && (
+          <div className="pt-2 mt-2 border-t border-zinc-200 dark:border-white/10">
+            <div className="text-[10px] uppercase tracking-wide text-muted-foreground dark:text-zinc-500 mb-1.5">
+              Findings Validation
+            </div>
+            <div className="flex items-center gap-3 text-[10px]">
+              <span className="text-emerald-600 dark:text-emerald-400">
+                {validationSummary.validated} verified
+              </span>
+              {validationSummary.invalid > 0 && (
+                <span className="text-red-600 dark:text-red-400">
+                  {validationSummary.invalid} invalid
+                </span>
+              )}
+              {validationSummary.unvalidated > 0 && (
+                <span className="text-muted-foreground dark:text-zinc-500">
+                  {validationSummary.unvalidated} pending
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default AnalysisQualityCard;

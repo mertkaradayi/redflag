@@ -398,6 +398,171 @@ Scenario 3: Moderate Risk
 
 8. USE PATTERN IDs
    Reference patterns by ID (e.g., CRITICAL-01) for clarity and consistency.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                      SUI-SPECIFIC PATTERNS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+These patterns are specific to Sui Move and its object model.
+
+ID: SUI-CRITICAL-01
+Name: UpgradeCap Transfer to Arbitrary Address
+Severity: Critical
+
+Description:
+Transfer of UpgradeCap to an address parameter allows complete package takeover.
+The recipient can upgrade the contract to any code, including malicious backdoors.
+
+Indicators:
+• UpgradeCap as function parameter
+• transfer::public_transfer called on UpgradeCap
+• Recipient is a function parameter (not hardcoded safe address)
+• Keywords: upgrade_cap, transfer_cap, give_upgrade
+
+Base Score Hint: 95-100
+
+Score Modifiers:
+(-) If transfer is to a hardcoded multi-sig address
+(-) If transfer requires governance approval
+(+) If UpgradeCap can be claimed by anyone
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ID: SUI-CRITICAL-02
+Name: TreasuryCap in Public Entry Function
+Severity: Critical
+
+Description:
+TreasuryCap exposed in public entry function allows unlimited token minting.
+Any caller with access to TreasuryCap can inflate token supply arbitrarily.
+
+Indicators:
+• TreasuryCap<T> as parameter to public entry function
+• coin::mint or coin::mint_and_transfer called
+• No verifiable supply cap checks
+• Keywords: treasury_cap, mint, create_coins
+
+Base Score Hint: 90-100
+
+Score Modifiers:
+(-) If minting is clearly bounded by verified supply cap
+(-) If TreasuryCap is destroyed after initial mint
+(+) If TreasuryCap can be stored/transferred
+(+) If multiple minting functions exist
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ID: SUI-HIGH-01
+Name: Shared Object Mutation Without Access Control
+Severity: High
+
+Description:
+Shared objects mutated in public functions without capability checks allow
+anyone to modify protocol state, potentially corrupting balances or settings.
+
+Indicators:
+• &mut SharedObject parameter in public function
+• No Capability (AdminCap, OwnerCap) in function signature
+• Direct state modifications on shared objects
+• Keywords: shared, mut, update_state, set_config
+
+Base Score Hint: 65-85
+
+Score Modifiers:
+(+) If mutation affects balance or financial state
+(+) If shared object controls core protocol logic
+(-) If function only allows self-modifications (user's own data)
+(-) If mutations are append-only or non-destructive
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ID: SUI-HIGH-02
+Name: Dynamic Field Admin Injection
+Severity: High
+
+Description:
+Dynamic fields can be used to inject admin capabilities or backdoors after
+deployment, bypassing initial security review.
+
+Indicators:
+• dynamic_field::add or dynamic_object_field::add in public functions
+• Adding Capability objects to dynamic fields
+• No validation on what's being stored
+• Keywords: dynamic_field, add_field, store_cap
+
+Base Score Hint: 60-80
+
+Score Modifiers:
+(+) If capabilities (AdminCap, etc.) can be stored
+(+) If field key is attacker-controlled
+(-) If only specific, validated data types can be stored
+(-) If admin-only function
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ID: SUI-MEDIUM-01
+Name: Object Wrapping Without Unwrap Protection
+Severity: Medium
+
+Description:
+Objects wrapped into other objects may become permanently inaccessible if
+the wrapper doesn't provide an unwrap mechanism, leading to locked funds.
+
+Indicators:
+• Object stored inside another object (wrapping)
+• No corresponding unwrap/extract function
+• Valuable objects (Coin, NFT) being wrapped
+• Keywords: wrap, store, inner_object
+
+Base Score Hint: 25-45
+
+Score Modifiers:
+(+) If wrapped objects contain user funds
+(+) If wrapper can be destroyed without unwrapping
+(-) If clear unwrap mechanism exists
+(-) If wrapping is temporary/reversible
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ID: SUI-MEDIUM-02
+Name: Clock-Based Logic Without Tolerance
+Severity: Medium
+
+Description:
+Logic depending on exact clock timestamps without tolerance can be
+manipulated by validators or fail unexpectedly due to timing variations.
+
+Indicators:
+• sui::clock::timestamp_ms used in comparisons
+• Exact timestamp checks (==) rather than ranges
+• Time-based unlocks or vesting without grace periods
+• Keywords: clock, timestamp, time_lock, vesting
+
+Base Score Hint: 20-40
+
+Score Modifiers:
+(+) If affects fund unlocks or critical state changes
+(+) If timing window is very narrow
+(-) If uses reasonable time ranges (> 1 hour tolerance)
+(-) If only affects non-critical features
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SUI-SPECIFIC PATTERN MATCHING GUIDE:
+
+SUI CRITICAL PATTERNS:
+• SUI-CRITICAL-01: upgrade_cap_transfer, cap_handover, give_upgrade_cap
+• SUI-CRITICAL-02: treasury_exposure, unlimited_mint, public_treasury
+
+SUI HIGH PATTERNS:
+• SUI-HIGH-01: shared_mutation, unprotected_shared, anyone_can_modify
+• SUI-HIGH-02: dynamic_field_injection, backdoor_injection, cap_storage
+
+SUI MEDIUM PATTERNS:
+• SUI-MEDIUM-01: object_wrapping_risk, locked_funds, no_unwrap
+• SUI-MEDIUM-02: clock_manipulation, timestamp_dependence, timing_risk
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 `;
 
 export default riskPatterns;

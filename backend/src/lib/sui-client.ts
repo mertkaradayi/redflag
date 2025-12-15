@@ -177,6 +177,19 @@ export async function getRecentPublishTransactions({
           });
           pageCount += 1;
         } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+
+          // Handle "effect is empty" errors by skipping to next page/mode
+          if (errorMsg.includes('effect is empty') || errorMsg.includes('balance/object changes')) {
+            console.warn(`RPC returned empty effects error, skipping batch. Cursor: ${cursor}`);
+            // Try next cursor if available, otherwise try next mode
+            if (cursor) {
+              // Skip this batch and continue - the monitor will retry on next poll
+              hasNextPage = false;
+            }
+            break;
+          }
+
           modeFailed = true;
           if (mode.name === 'transaction-kind') {
             if (supportsTransactionKindFilter) {

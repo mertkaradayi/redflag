@@ -148,12 +148,194 @@ The frontend uses the `@/` alias (rooted at `frontend/`) for cross-module import
 
 Set `ENABLE_AUTO_ANALYSIS=false` to skip this worker entirely, or `ENABLE_SUI_RPC=false` to short-circuit every Sui RPC call while working offline.
 
-## Supabase Schema (minimum viable)
+## Analysis Pipeline Architecture
+
+RedFlag uses a multi-layered analysis approach combining deterministic static analysis with LLM-powered security auditing. The pipeline is designed to minimize hallucinations and provide confidence metrics.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         CONTRACT ANALYSIS PIPELINE                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+                              ┌──────────────┐
+                              │   Package    │
+                              │     ID       │
+                              └──────┬───────┘
+                                     │
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 1: CACHE CHECK                                                        │
+│  • Check Supabase for existing analysis                                     │
+│  • If found & not forced → Return cached result                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                     │
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 2: FETCH PACKAGE DATA                                                 │
+│  • Get disassembled bytecode from Sui RPC                                   │
+│  • Get normalized modules (function signatures, structs)                    │
+│  • Extract dependencies from bytecode (0x...:: patterns)                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                     │
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 3: PRE-LLM ANALYSIS (Deterministic)                                   │
+│                                                                             │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐             │
+│  │ 3.5 STATIC      │  │ 3.6 CROSS-      │  │ 3.7 DEPENDENCY  │             │
+│  │ ANALYSIS        │  │ MODULE          │  │ ANALYSIS        │             │
+│  │                 │  │                 │  │                 │             │
+│  │ • Regex patterns│  │ • Track caps    │  │ • Check deps    │             │
+│  │ • CRITICAL/HIGH │  │ • Detect flows  │  │ • Mark unaudited│             │
+│  │ • MEDIUM/LOW    │  │ • Flag risks    │  │ • Inherit risk  │             │
+│  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘             │
+│           │                    │                    │                       │
+│           └────────────────────┴────────────────────┘                       │
+│                                │                                            │
+│                    ┌───────────▼───────────┐                                │
+│                    │   Aggregated Context  │                                │
+│                    │   for LLM Analysis    │                                │
+│                    └───────────────────────┘                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                     │
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 4: LANGCHAIN 3-AGENT ANALYSIS                                         │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │  AGENT 1: ANALYZER                                                   │   │
+│  │  • Reviews bytecode + static findings + cross-module risks           │   │
+│  │  • Identifies technical vulnerabilities                              │   │
+│  │  • Matches against risk pattern knowledge base                       │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                     │                                       │
+│                                     ▼                                       │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │  EVIDENCE VALIDATION (Post-Agent 1)                                  │   │
+│  │  • Verify function exists in bytecode                                │   │
+│  │  • Verify evidence snippet exists in bytecode                        │   │
+│  │  • Score: 0-100 validation score per finding                         │   │
+│  │  • REMOVE invalid/hallucinated findings                              │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                     │                                       │
+│                                     ▼                                       │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │  AGENT 2: SCORER                                                     │   │
+│  │  • Analyzes VALIDATED findings only                                  │   │
+│  │  • Calculates base risk score (0-100)                                │   │
+│  │  • Applies severity modifiers                                        │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                     │                                       │
+│                                     ▼                                       │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │  AGENT 3: REPORTER                                                   │   │
+│  │  • Translates technical findings for users                           │   │
+│  │  • Creates human-readable summary                                    │   │
+│  │  • Generates impact assessment                                       │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                     │                                       │
+│                                     ▼                                       │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │  CONFIDENCE CALCULATION                                              │   │
+│  │  • Validation rate, truncation, static/LLM agreement                 │   │
+│  │  • Output: confidence_interval, confidence_level, analysis_quality   │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                     │
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 5: PERSISTENCE                                                        │
+│                                                                             │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐             │
+│  │ contract_       │  │ dependency_     │  │ analysis_       │             │
+│  │ analyses        │  │ risks           │  │ audit_logs      │             │
+│  │                 │  │                 │  │                 │             │
+│  │ • SafetyCard    │  │ • Dep status    │  │ • Duration      │             │
+│  │ • Risk score    │  │ • Risk inherit  │  │ • Findings      │             │
+│  │ • Findings      │  │ • Audit status  │  │ • Errors        │             │
+│  │ • Confidence    │  │                 │  │ • Metrics       │             │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                     │
+                                     ▼
+                              ┌──────────────┐
+                              │  SafetyCard  │
+                              │   Response   │
+                              └──────────────┘
+```
+
+### Analysis Layers
+
+| Layer | File | Purpose |
+|-------|------|---------|
+| Static Analysis | `static-analyzer.ts` | Deterministic regex-based pattern detection (pre-LLM) |
+| Cross-Module | `cross-module-analyzer.ts` | Tracks capability flows between modules |
+| Dependency Analysis | `dependency-analyzer.ts` | Assesses risks from external dependencies |
+| Evidence Validation | `evidence-validator.ts` | Validates LLM findings against actual bytecode |
+| Confidence Scoring | `langchain-analyzer.ts` | Calculates confidence intervals and quality metrics |
+| Audit Trail | `audit-trail.ts` | Logs analysis metadata for debugging |
+
+### Static Patterns Detected
+
+- `STATIC-ADMINCAP-TRANSFER` - AdminCap transferred in public functions (Critical)
+- `STATIC-TREASURYCAP-PUBLIC` - TreasuryCap exposed publicly (Critical)
+- `STATIC-UPGRADECAP-TRANSFER` - UpgradeCap transferred to arbitrary address (Critical)
+- `STATIC-BALANCE-DRAIN` - Funds withdrawal patterns (High)
+- `STATIC-COIN-SPLIT-TRANSFER` - Token splitting/transfer patterns (High)
+- And more Sui-specific patterns...
+
+### SafetyCard Output Structure
+
+```typescript
+{
+  // User-facing summary
+  summary: string,
+  risky_functions: [...],
+  rug_pull_indicators: [...],
+  impact_on_user: string,
+  why_risky_one_liner: string,
+
+  // Risk assessment
+  risk_score: number,        // 0-100
+  risk_level: string,        // low | moderate | high | critical
+
+  // Technical details
+  technical_findings: [{
+    function_name: string,
+    matched_pattern_id: string,
+    severity: string,
+    evidence_code_snippet: string,
+  }],
+
+  // Validation metrics
+  validation_summary: {
+    total: number,
+    validated: number,
+    invalid: number,
+  },
+
+  // Confidence metrics
+  confidence_interval: { lower: number, upper: number },
+  confidence_level: string,  // high | medium | low
+  analysis_quality: {
+    modules_analyzed: number,
+    truncation_occurred: boolean,
+    validation_rate: number,
+  },
+
+  // Dependency summary
+  dependency_summary: {
+    total_dependencies: number,
+    audited_count: number,
+    unaudited_count: number,
+  }
+}
+```
+
+## Supabase Schema
 
 ```sql
--- Enable if you prefer UUID identifiers
--- create extension if not exists pgcrypto;
-
+-- Core tables
 create table if not exists public.sui_package_deployments (
   package_id text primary key,
   deployer_address text not null,
@@ -175,12 +357,73 @@ create table if not exists public.contract_analyses (
   rug_pull_indicators jsonb default '[]'::jsonb,
   impact_on_user text,
   technical_findings jsonb,
+  validation_summary jsonb,
+  confidence_interval jsonb,
+  confidence_level text,
+  analysis_quality jsonb,
+  limitations jsonb,
+  dependency_summary jsonb,
+  analysis_status text default 'completed',
+  error_message text,
   analyzed_at timestamptz not null default now(),
   unique (package_id, network)
 );
+
+-- Dependency risk tracking
+create table if not exists public.dependency_risks (
+  id serial primary key,
+  package_id text not null,
+  network text not null default 'mainnet',
+  dependency_type text default 'unknown',
+  is_system_package boolean default false,
+  is_audited boolean default false,
+  is_upgradeable boolean default false,
+  risk_score integer,
+  risk_level text,
+  last_analyzed timestamptz,
+  analysis_source text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  unique (package_id, network)
+);
+
+-- Analysis audit logs (for debugging & monitoring)
+create table if not exists public.analysis_audit_logs (
+  id serial primary key,
+  package_id text not null,
+  network text not null default 'testnet',
+  analyzed_at timestamptz default now(),
+  total_duration_ms integer,
+  total_tokens integer default 0,
+  prompt_tokens integer default 0,
+  completion_tokens integer default 0,
+  llm_calls integer default 0,
+  modules_analyzed integer default 0,
+  modules_total integer default 0,
+  functions_analyzed integer default 0,
+  functions_total integer default 0,
+  truncation_occurred boolean default false,
+  static_findings_count integer default 0,
+  llm_findings_count integer default 0,
+  validated_findings_count integer default 0,
+  cross_module_risks_count integer default 0,
+  final_risk_score integer,
+  final_risk_level text,
+  errors jsonb default '[]'::jsonb,
+  warnings jsonb default '[]'::jsonb,
+  model_used text,
+  analysis_version text default 'v1',
+  created_at timestamptz default now()
+);
+
+-- Indexes for performance
+create index if not exists idx_contract_analyses_network on contract_analyses(network);
+create index if not exists idx_contract_analyses_risk_level on contract_analyses(risk_level);
+create index if not exists idx_dependency_risks_package_network on dependency_risks(package_id, network);
+create index if not exists idx_audit_logs_analyzed_at on analysis_audit_logs(analyzed_at desc);
 ```
 
-Adjust column types as needed for your Supabase project (e.g., replace `gen_random_uuid()` with `uuid_generate_v4()` if `pgcrypto` is unavailable).
+Run migrations in order from `backend/migrations/` or apply the schema above directly. Adjust column types as needed for your Supabase project.
 
 ## Frontend Overview
 

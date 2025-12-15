@@ -4,6 +4,21 @@ import { createLLM, getModelConfig, MODEL_PRESETS } from './langchain-llm';
 import { analyzerPromptTemplate, scorerPromptTemplate, reporterPromptTemplate } from './langchain-prompts';
 import { analyzerParser, scorerParser, reporterParser } from './langchain-schemas';
 import type { AnalyzerResponse, ScorerResponse, ReporterResponse } from './langchain-schemas';
+import type { StaticAnalysisResult } from './static-analyzer';
+import { formatStaticFindingsForPrompt } from './static-analyzer';
+import { validateFindings, type ValidationResult, type ValidatedFinding, KNOWN_PATTERN_IDS } from './evidence-validator';
+import { runCrossModuleAnalysis, formatCrossModuleForPrompt, type CrossModuleAnalysisResult } from './cross-module-analyzer';
+import {
+  createMetricsCollector,
+  updateFromBytecode,
+  updateFromStaticAnalysis,
+  updateFromCrossModule,
+  updateFromValidation,
+  updateFromLLM,
+  finalizeMetrics,
+  calculateConfidence,
+  type MetricsCollector,
+} from './confidence-calculator';
 
 // Helper: Strip markdown code blocks from JSON responses
 function stripMarkdownJson(text: string): string {
@@ -68,6 +83,8 @@ export interface ContractAnalysisInput {
   structDefinitions: any;
   disassembledCode: any;
   riskPatterns: string;
+  staticFindings?: StaticAnalysisResult;  // Pre-LLM static analysis results
+  crossModuleAnalysis?: CrossModuleAnalysisResult;  // Cross-module capability flow analysis
 }
 
 export interface SafetyCard {
@@ -79,6 +96,37 @@ export interface SafetyCard {
   risk_score: number;
   risk_level: 'low' | 'moderate' | 'high' | 'critical';
   technical_findings?: any[];
+  validation_summary?: {
+    total: number;
+    validated: number;
+    unvalidated: number;
+    invalid: number;
+    avg_validation_score: number;
+  };
+  // Phase 5: Confidence metrics
+  confidence_interval?: {
+    lower: number;
+    upper: number;
+  };
+  confidence_level?: 'high' | 'medium' | 'low';
+  analysis_quality?: {
+    modules_analyzed: number;
+    modules_total: number;
+    functions_analyzed: number;
+    functions_total: number;
+    truncation_occurred: boolean;
+    validation_rate: number;
+    static_analysis_coverage: number;
+  };
+  limitations?: string[];
+  // Phase 6: Dependency risks
+  dependency_summary?: {
+    total_dependencies: number;
+    audited_count: number;
+    unaudited_count: number;
+    high_risk_count: number;
+    system_packages: number;
+  };
 }
 
 // ================================================================
@@ -386,6 +434,12 @@ async function createAnalyzerChain() {
       publicFunctions: (input: ContractAnalysisInput) => JSON.stringify(input.publicFunctions, null, 2),
       structDefinitions: (input: ContractAnalysisInput) => JSON.stringify(input.structDefinitions, null, 2),
       disassembledCode: (input: ContractAnalysisInput) => truncateDisassembledCode(input.disassembledCode, input.publicFunctions),
+      staticFindings: (input: ContractAnalysisInput) => input.staticFindings
+        ? formatStaticFindingsForPrompt(input.staticFindings)
+        : 'No static analysis performed.',
+      crossModuleAnalysis: (input: ContractAnalysisInput) => input.crossModuleAnalysis
+        ? formatCrossModuleForPrompt(input.crossModuleAnalysis)
+        : 'No cross-module risks detected.',
       formatInstructions: () => analyzerParser.getFormatInstructions(),
     },
     analyzerPromptTemplate,
@@ -544,9 +598,21 @@ function getRiskLevel(score: number): 'low' | 'moderate' | 'high' | 'critical' {
 export async function runLangChainAnalysis(input: ContractAnalysisInput): Promise<SafetyCard> {
   const modelName = MODEL_PRESETS.analyzer.model;
 
+  // Initialize metrics collector for confidence scoring
+  const metrics = createMetricsCollector();
+
   try {
     console.log('[LangChain] Starting 3-agent analysis...');
     console.log(`[LangChain] Using model: ${modelName}`);
+
+    // Update metrics from input data
+    updateFromBytecode(metrics, input.disassembledCode, input.publicFunctions);
+    if (input.staticFindings) {
+      updateFromStaticAnalysis(metrics, input.staticFindings);
+    }
+    if (input.crossModuleAnalysis) {
+      updateFromCrossModule(metrics, input.crossModuleAnalysis);
+    }
 
     // Check if we should use chunked analysis
     const chunks = chunkByModule(input);
@@ -580,9 +646,41 @@ export async function runLangChainAnalysis(input: ContractAnalysisInput): Promis
     const findingsCount = findings.technical_findings?.length || 0;
     console.log(`[Agent 1] Total findings: ${findingsCount}`);
 
-    // Fast lane: No findings
-    if (findingsCount === 0) {
+    // Validate findings against bytecode and known patterns
+    console.log('[Validation] Validating LLM findings against bytecode...');
+    const validationResult = validateFindings(findings, {
+      disassembledCode: input.disassembledCode,
+      publicFunctions: input.publicFunctions,
+      knownPatternIds: KNOWN_PATTERN_IDS,
+    });
+
+    // Update findings with only validated ones (invalid findings removed)
+    findings = {
+      technical_findings: validationResult.validated_findings.map(vf => ({
+        function_name: vf.function_name,
+        technical_reason: vf.technical_reason,
+        matched_pattern_id: vf.matched_pattern_id,
+        severity: vf.severity,
+        contextual_notes: [
+          ...(vf.contextual_notes || []),
+          `Validation: ${vf.validation_status} (score: ${vf.validation_score})`,
+        ],
+        evidence_code_snippet: vf.evidence_code_snippet,
+      })),
+    };
+
+    const validatedCount = findings.technical_findings?.length || 0;
+    console.log(`[Validation] ${validationResult.validation_summary.validated} validated, ${validationResult.validation_summary.unvalidated} unvalidated, ${validationResult.validation_summary.invalid} removed`);
+
+    // Update metrics from validation
+    updateFromValidation(metrics, validationResult);
+    updateFromLLM(metrics, findingsCount);
+
+    // Fast lane: No findings after validation
+    if (validatedCount === 0) {
       console.log('[LangChain] No findings - returning low risk card');
+      finalizeMetrics(metrics);
+      const noFindingsConfidence = calculateConfidence(metrics, 5);
       return {
         summary: "No security risks detected.",
         risky_functions: [],
@@ -592,6 +690,21 @@ export async function runLangChainAnalysis(input: ContractAnalysisInput): Promis
         risk_score: 5,
         risk_level: 'low',
         technical_findings: [],
+        confidence_interval: {
+          lower: noFindingsConfidence.confidence_interval.lower,
+          upper: noFindingsConfidence.confidence_interval.upper,
+        },
+        confidence_level: noFindingsConfidence.confidence_level,
+        analysis_quality: {
+          modules_analyzed: noFindingsConfidence.analysis_quality.modules_analyzed,
+          modules_total: noFindingsConfidence.analysis_quality.modules_total,
+          functions_analyzed: noFindingsConfidence.analysis_quality.functions_analyzed,
+          functions_total: noFindingsConfidence.analysis_quality.functions_total,
+          truncation_occurred: noFindingsConfidence.analysis_quality.truncation_occurred,
+          validation_rate: noFindingsConfidence.analysis_quality.validation_rate,
+          static_analysis_coverage: noFindingsConfidence.analysis_quality.static_analysis_coverage,
+        },
+        limitations: noFindingsConfidence.limitations.map(l => l.description),
       };
     }
 
@@ -628,11 +741,33 @@ export async function runLangChainAnalysis(input: ContractAnalysisInput): Promis
     // Combine results
     const riskLevel = getRiskLevel(score.risk_score);
 
+    // Calculate confidence metrics
+    finalizeMetrics(metrics);
+    const confidenceMetrics = calculateConfidence(metrics, score.risk_score);
+    console.log(`[Confidence] Level: ${confidenceMetrics.confidence_level}, Interval: [${confidenceMetrics.confidence_interval.lower}-${confidenceMetrics.confidence_interval.upper}]`);
+
     return {
       ...report,
       risk_score: score.risk_score,
       risk_level: riskLevel,
       technical_findings: findings.technical_findings,
+      validation_summary: validationResult.validation_summary,
+      // Phase 5: Confidence metrics
+      confidence_interval: {
+        lower: confidenceMetrics.confidence_interval.lower,
+        upper: confidenceMetrics.confidence_interval.upper,
+      },
+      confidence_level: confidenceMetrics.confidence_level,
+      analysis_quality: {
+        modules_analyzed: confidenceMetrics.analysis_quality.modules_analyzed,
+        modules_total: confidenceMetrics.analysis_quality.modules_total,
+        functions_analyzed: confidenceMetrics.analysis_quality.functions_analyzed,
+        functions_total: confidenceMetrics.analysis_quality.functions_total,
+        truncation_occurred: confidenceMetrics.analysis_quality.truncation_occurred,
+        validation_rate: confidenceMetrics.analysis_quality.validation_rate,
+        static_analysis_coverage: confidenceMetrics.analysis_quality.static_analysis_coverage,
+      },
+      limitations: confidenceMetrics.limitations.map(l => l.description),
     };
 
   } catch (error) {
