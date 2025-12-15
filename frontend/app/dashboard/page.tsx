@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { X, Search, Loader2, BarChart3, Filter, ShieldAlert, Timer, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, RefreshCcw } from 'lucide-react';
+import { X, Search, Loader2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, RefreshCcw } from 'lucide-react';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -71,7 +71,7 @@ function DashboardContent() {
   const [pauseReason, setPauseReason] = useState<'toolbar' | 'details' | null>(null);
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
   const [selectedPackageNetwork, setSelectedPackageNetwork] = useState<'mainnet' | 'testnet' | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('full');
+  const [viewMode, setViewMode] = useState<ViewMode>('compact');
   const [expandedCompactCard, setExpandedCompactCard] = useState<string | null>(null);
 
   // Load viewMode from localStorage on mount
@@ -463,64 +463,16 @@ function DashboardContent() {
     return lastUpdated.toLocaleString();
   }, [lastUpdated]);
 
-  const heroStats = useMemo(() => {
-    if (!data && !riskStats) {
-      return [];
-    }
+  const riskBreakdown = useMemo(() => {
+    if (totalAnalyzed === 0) return null;
 
-    const visible = displayedContracts.length + (hasSelectedAnalyzedPackage ? 1 : 0);
-    const visiblePercent = totalAnalyzed > 0 ? Math.round((visible / totalAnalyzed) * 100) : null;
-    const criticalAndHigh = riskCounts.critical + riskCounts.high;
-
-    return [
-      {
-        key: 'total',
-        label: 'Analyzed packages',
-        value: totalAnalyzed,
-        meta: 'All time',
-        icon: BarChart3,
-        span: 'double' as const,
-      },
-      {
-        key: 'highRisk',
-        label: 'High risk detected',
-        value: criticalAndHigh,
-        meta: `${riskCounts.critical.toLocaleString()} critical • ${riskCounts.high.toLocaleString()} high`,
-        icon: ShieldAlert,
-      },
-      {
-        key: 'visible',
-        label: 'In current view',
-        value: visible,
-        meta: visiblePercent !== null ? `${visiblePercent}% of total` : null,
-        icon: Filter,
-      },
-      {
-        key: 'refresh',
-        label: autoRefresh ? 'Auto-refresh' : 'Refresh paused',
-        value: autoRefresh ? `${refreshCountdown}s` : 'Manual',
-        meta: autoRefresh
-          ? formattedLastUpdated
-            ? `Updated ${formattedLastUpdated}`
-            : 'Until next sync'
-          : pauseReason === 'details'
-            ? 'Paused while exploring details'
-            : 'Use toolbar controls to resume',
-        icon: Timer,
-      },
-    ];
-  }, [
-    autoRefresh,
-    data,
-    displayedContracts,
-    formattedLastUpdated,
-    hasSelectedAnalyzedPackage,
-    pauseReason,
-    refreshCountdown,
-    riskCounts,
-    riskStats,
-    totalAnalyzed,
-  ]);
+    return {
+      critical: { count: riskCounts.critical, pct: (riskCounts.critical / totalAnalyzed) * 100 },
+      high: { count: riskCounts.high, pct: (riskCounts.high / totalAnalyzed) * 100 },
+      moderate: { count: riskCounts.moderate, pct: (riskCounts.moderate / totalAnalyzed) * 100 },
+      low: { count: riskCounts.low, pct: (riskCounts.low / totalAnalyzed) * 100 },
+    };
+  }, [riskCounts, totalAnalyzed]);
 
   // Handle search input Enter key (instant submit)
   const handleSearchKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -583,72 +535,102 @@ function DashboardContent() {
 
   return (
     <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 pb-24 transition-colors duration-200 sm:px-8 lg:gap-6 lg:px-16">
-      {/* Header: Title + Key Stats */}
+      {/* Header */}
       <section className="-mx-4 py-4 px-4 sm:-mx-8 sm:px-8 lg:-mx-16 lg:px-16">
         <Card className="border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-elevated))] dark:bg-black/40 text-foreground dark:text-white shadow-lg backdrop-blur">
-          <CardHeader className="space-y-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <CardTitle className="text-2xl font-semibold leading-none tracking-tight text-foreground dark:text-white">
-                  Dashboard
-                </CardTitle>
-                <CardDescription className="mt-2 text-sm text-muted-foreground dark:text-zinc-400">
-                  Monitor and analyze your Sui smart contracts
-                </CardDescription>
+          <CardHeader className="space-y-4 pb-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-4">
+                <div>
+                  <CardTitle className="text-xl font-semibold leading-none tracking-tight text-foreground dark:text-white">
+                    Contract Analysis
+                  </CardTitle>
+                  {formattedLastUpdated && (
+                    <p className="mt-1.5 text-xs text-muted-foreground dark:text-zinc-500">
+                      Last updated {formattedLastUpdated}
+                    </p>
+                  )}
+                </div>
               </div>
-              <Button
-                onClick={() => fetchAnalyzedContracts()}
-                variant="outline"
-                size="sm"
-                className={cn(
-                  'justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border bg-background hover:text-accent-foreground h-9 rounded-md px-3 inline-flex items-center gap-2 border-[#D12226]/40 text-[#D12226] hover:bg-[#D12226]/10',
-                  (isRefreshing || loading) && 'pointer-events-none opacity-60',
-                )}
-              >
-                <RefreshCcw className={cn('h-4 w-4', (isRefreshing || loading) && 'animate-spin')} />
-                Refresh
-              </Button>
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <div className="text-2xl font-bold tabular-nums text-foreground dark:text-white">
+                    {totalAnalyzed.toLocaleString()}
+                  </div>
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground dark:text-zinc-500">
+                    contracts analyzed
+                  </div>
+                </div>
+                <Button
+                  onClick={() => fetchAnalyzedContracts()}
+                  variant="outline"
+                  size="icon"
+                  className={cn(
+                    'h-10 w-10 rounded-xl border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700',
+                    (isRefreshing || loading) && 'pointer-events-none opacity-60',
+                  )}
+                >
+                  <RefreshCcw className={cn('h-4 w-4', (isRefreshing || loading) && 'animate-spin')} />
+                </Button>
+              </div>
             </div>
 
-            {/* Key Stats */}
-            {heroStats.length > 0 && (
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {heroStats.map(({ key, label, value, meta, icon: Icon, span }) => {
-                  const displayValue = typeof value === 'number' ? value.toLocaleString() : value;
-                  
-                  return (
+            {/* Risk Breakdown Bar */}
+            {riskBreakdown && (
+              <div className="space-y-2">
+                <div className="flex h-2 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-900">
+                  {riskBreakdown.critical.pct > 0 && (
                     <div
-                      key={key}
-                      className={cn(
-                        'group relative rounded-xl border p-3.5 text-left transition-all',
-                        span === 'double' && 'sm:col-span-2 lg:col-span-1',
-                        'border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-muted))] dark:bg-black/40',
-                      )}
-                    >
-                      <div className="mb-2">
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground dark:text-zinc-400">
-                          {label}
-                        </div>
-                      </div>
-                      <div className="flex items-baseline gap-2">
-                        {Icon ? (
-                          <Icon className="h-4 w-4 flex-shrink-0 text-muted-foreground dark:text-zinc-400" aria-hidden="true" />
-                        ) : null}
-                        <div className={cn(
-                          'text-2xl font-bold tabular-nums',
-                          key === 'highRisk' ? 'text-[#D12226]' : 'text-foreground dark:text-white'
-                        )}>
-                          {displayValue}
-                        </div>
-                      </div>
-                      {meta && (
-                        <p className="mt-1 text-[10px] text-muted-foreground dark:text-zinc-500">
-                          {meta}
-                        </p>
-                      )}
-                    </div>
-                  );
-                })}
+                      className="bg-[#D12226] transition-all"
+                      style={{ width: `${riskBreakdown.critical.pct}%` }}
+                      title={`Critical: ${riskBreakdown.critical.count.toLocaleString()}`}
+                    />
+                  )}
+                  {riskBreakdown.high.pct > 0 && (
+                    <div
+                      className="bg-orange-500 transition-all"
+                      style={{ width: `${riskBreakdown.high.pct}%` }}
+                      title={`High: ${riskBreakdown.high.count.toLocaleString()}`}
+                    />
+                  )}
+                  {riskBreakdown.moderate.pct > 0 && (
+                    <div
+                      className="bg-yellow-500 transition-all"
+                      style={{ width: `${riskBreakdown.moderate.pct}%` }}
+                      title={`Moderate: ${riskBreakdown.moderate.count.toLocaleString()}`}
+                    />
+                  )}
+                  {riskBreakdown.low.pct > 0 && (
+                    <div
+                      className="bg-emerald-500 transition-all"
+                      style={{ width: `${riskBreakdown.low.pct}%` }}
+                      title={`Low: ${riskBreakdown.low.count.toLocaleString()}`}
+                    />
+                  )}
+                </div>
+                <div className="flex items-center justify-between text-[10px] text-muted-foreground dark:text-zinc-500">
+                  <div className="flex items-center gap-4">
+                    <span className="flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-[#D12226]" />
+                      {riskBreakdown.critical.pct.toFixed(1)}% critical
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-orange-500" />
+                      {riskBreakdown.high.pct.toFixed(1)}% high
+                    </span>
+                    <span className="hidden sm:flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-yellow-500" />
+                      {riskBreakdown.moderate.pct.toFixed(1)}% moderate
+                    </span>
+                    <span className="hidden sm:flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                      {riskBreakdown.low.pct.toFixed(1)}% safe
+                    </span>
+                  </div>
+                  <span className="tabular-nums">
+                    {(riskBreakdown.critical.count + riskBreakdown.high.count).toLocaleString()} risky
+                  </span>
+                </div>
               </div>
             )}
           </CardHeader>

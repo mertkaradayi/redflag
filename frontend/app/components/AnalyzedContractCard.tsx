@@ -293,8 +293,11 @@ export function AnalyzedContractCard({ contract, index = 0, onAutoRefreshPause }
             {hasRiskyFunctions && (
               <div className="space-y-2">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <h5 className="text-sm font-semibold text-foreground dark:text-white flex items-center gap-1.5">
-                    <AlertTriangle className="h-4 w-4 text-[#D12226] dark:text-[#ff6b6e]" />
+                  <h5 className={cn(
+                    'text-sm font-semibold flex items-center gap-1.5',
+                    getRiskLevelEmphasis(contract.analysis.risk_level)
+                  )}>
+                    <AlertTriangle className="h-4 w-4" />
                     Risky Functions ({contract.analysis.risky_functions.length})
                   </h5>
                   <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto sm:justify-end">
@@ -347,7 +350,7 @@ export function AnalyzedContractCard({ contract, index = 0, onAutoRefreshPause }
                           <span className="flex min-w-0 flex-1 items-start gap-2">
                             <ChevronRight
                               className={cn(
-                                'mt-0.5 h-4 w-4 shrink-0 text-[#D12226] dark:text-[#ff6b6e] transition-transform duration-150 sm:mt-0',
+                                'mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-150 sm:mt-0',
                                 isExpanded && 'rotate-90',
                               )}
                             />
@@ -381,8 +384,11 @@ export function AnalyzedContractCard({ contract, index = 0, onAutoRefreshPause }
             {hasRugPullIndicators && (
               <div className="space-y-2">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <h5 className="text-sm font-semibold text-[#D12226] dark:text-[#ff6b6e] flex items-center gap-1.5">
-                    <span>⚠️</span>
+                  <h5 className={cn(
+                    'text-sm font-semibold flex items-center gap-1.5',
+                    getRiskLevelEmphasis(contract.analysis.risk_level)
+                  )}>
+                    <span>{getRiskLevelIcon(contract.analysis.risk_level)}</span>
                     <span>Rug Pull Indicators ({contract.analysis.rug_pull_indicators.length})</span>
                   </h5>
                   {contract.analysis.rug_pull_indicators.length > DEFAULT_VISIBLE_INDICATORS && (
@@ -405,9 +411,15 @@ export function AnalyzedContractCard({ contract, index = 0, onAutoRefreshPause }
                   {rugPullIndicators.map((indicator, index) => (
                     <div
                       key={`${indicator.pattern_name}-${index}`}
-                      className="space-y-1.5 rounded-lg border border-[#D12226]/30 dark:border-[#D12226]/40 bg-[#D12226]/5 dark:bg-[#D12226]/10 px-3 py-2 text-sm"
+                      className={cn(
+                        'space-y-1.5 rounded-lg border px-3 py-2.5 text-sm',
+                        getRiskLevelSubtle(contract.analysis.risk_level)
+                      )}
                     >
-                      <div className="font-semibold text-[#D12226] dark:text-[#ff6b6e] mb-2">
+                      <div className={cn(
+                        'font-semibold mb-2',
+                        getRiskLevelEmphasis(contract.analysis.risk_level)
+                      )}>
                         {indicator.pattern_name}
                       </div>
                       <EvidenceBlock text={indicator.evidence} />

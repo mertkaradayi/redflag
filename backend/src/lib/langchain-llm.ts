@@ -8,6 +8,26 @@ export interface LLMConfig {
   quantizations?: string[];    // Quantization filter (e.g., ["fp4"])
 }
 
+// Error types that should trigger fallback to paid model
+const FALLBACK_ERROR_CODES = [
+  429,  // Rate limit
+  503,  // Service unavailable
+  502,  // Bad gateway
+  504,  // Gateway timeout
+  500,  // Internal server error
+];
+
+const FALLBACK_ERROR_MESSAGES = [
+  'rate limit',
+  'rate_limit',
+  'too many requests',
+  'timeout',
+  'timed out',
+  'service unavailable',
+  'model is overloaded',
+  'capacity',
+];
+
 // Create LLM using OpenRouter
 export function createLLM(config: LLMConfig): ChatOpenAI {
   const apiKey = process.env.OPEN_ROUTER_KEY;
@@ -55,35 +75,35 @@ export function createLLM(config: LLMConfig): ChatOpenAI {
 }
 
 // Model presets for each agent
-// Using openai/gpt-oss-120b via DeepInfra FP4 quantization
-// Cost: $0.039 per 1M input tokens, $0.19 per 1M output tokens
-// With Map-Reduce chunking, each module analyzed separately = smaller outputs
+// PRIMARY: Free model (mistralai/devstral-2512:free via Mistral)
+// FALLBACK: Paid model (openai/gpt-oss-120b via DeepInfra) - used on rate limits/errors
 export const MODEL_PRESETS = {
   analyzer: {
-    model: 'openai/gpt-oss-120b',
+    // Primary: Free model
+    model: 'mistralai/devstral-2512:free',
     temperature: 0.3, // Lower for technical analysis
-    maxTokens: 6000, // Per-module analysis: fewer functions = smaller output
-    providerOrder: ['deepinfra'],
-    quantizations: ['fp4'],
+    maxTokens: 6000,
+    providerOrder: ['mistral'],
   },
   scorer: {
-    model: 'openai/gpt-oss-120b',
+    model: 'mistralai/devstral-2512:free',
     temperature: 0.2, // Very low for consistent scoring
-    maxTokens: 2000, // Small: just score + justification
-    providerOrder: ['deepinfra'],
-    quantizations: ['fp4'],
+    maxTokens: 2000,
+    providerOrder: ['mistral'],
   },
   reporter: {
-    model: 'openai/gpt-oss-120b',
+    model: 'mistralai/devstral-2512:free',
     temperature: 0.7, // Higher for creative writing
-    maxTokens: 4000, // Medium: summary report
-    providerOrder: ['deepinfra'],
-    quantizations: ['fp4'],
+    maxTokens: 4000,
+    providerOrder: ['mistral'],
   },
+  // Paid fallback used when free model hits rate limits or errors
   fallback: {
-    model: 'meta-llama/llama-3.3-70b-instruct:free', // Free fallback (no provider needed)
+    model: 'openai/gpt-oss-120b',
     temperature: 0.5,
     maxTokens: 8000,
+    providerOrder: ['deepinfra'],
+    quantizations: ['fp4'],
   }
 } as const;
 
@@ -98,5 +118,46 @@ export function getModelConfig(agentName: keyof typeof MODEL_PRESETS): LLMConfig
     maxTokens: 'maxTokens' in preset ? preset.maxTokens : undefined,
     providerOrder: 'providerOrder' in preset ? [...preset.providerOrder] : undefined,
     quantizations: 'quantizations' in preset ? [...preset.quantizations] : undefined,
+  };
+}
+
+// Get fallback model config (paid model for when free model fails)
+export function getFallbackConfig(agentName: keyof typeof MODEL_PRESETS): LLMConfig {
+  const fallback = MODEL_PRESETS.fallback;
+  const primary = MODEL_PRESETS[agentName];
+
+  return {
+    model: fallback.model,
+    temperature: primary.temperature, // Use agent's preferred temperature
+    maxTokens: fallback.maxTokens,
+    providerOrder: [...fallback.providerOrder],
+    quantizations: [...fallback.quantizations],
+  };
+}
+
+// Check if error should trigger fallback to paid model
+export function shouldFallback(error: unknown): boolean {
+  if (!error) return false;
+
+  const errorObj = error as Record<string, unknown>;
+
+  // Check HTTP status code
+  if (typeof errorObj.status === 'number' && FALLBACK_ERROR_CODES.includes(errorObj.status)) {
+    return true;
+  }
+
+  // Check error message
+  const message = (errorObj.message || errorObj.error || String(error)).toString().toLowerCase();
+  return FALLBACK_ERROR_MESSAGES.some(pattern => message.includes(pattern));
+}
+
+// Create LLM with fallback capability
+export function createLLMWithFallback(
+  primaryConfig: LLMConfig,
+  fallbackConfig: LLMConfig
+): { primary: ChatOpenAI; fallback: ChatOpenAI } {
+  return {
+    primary: createLLM(primaryConfig),
+    fallback: createLLM(fallbackConfig),
   };
 }

@@ -1,6 +1,6 @@
 import { RunnableSequence } from "@langchain/core/runnables";
 import { StringOutputParser } from "@langchain/core/output_parsers";
-import { createLLM, getModelConfig, MODEL_PRESETS } from './langchain-llm';
+import { createLLM, getModelConfig, getFallbackConfig, shouldFallback, MODEL_PRESETS } from './langchain-llm';
 import { analyzerPromptTemplate, scorerPromptTemplate, reporterPromptTemplate } from './langchain-prompts';
 import { analyzerParser, scorerParser, reporterParser } from './langchain-schemas';
 import type { AnalyzerResponse, ScorerResponse, ReporterResponse } from './langchain-schemas';
@@ -19,6 +19,9 @@ import {
   calculateConfidence,
   type MetricsCollector,
 } from './confidence-calculator';
+
+// Track which model is being used for logging
+let currentModelType: 'free' | 'paid' = 'free';
 
 // Helper: Strip markdown code blocks from JSON responses
 function stripMarkdownJson(text: string): string {
@@ -48,12 +51,13 @@ function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Helper: Retry with exponential backoff
+// Helper: Retry with exponential backoff and fallback support
 async function retryWithBackoff<T>(
   fn: () => Promise<T>,
   maxRetries: number = 3,
   initialDelayMs: number = 1000,
-  operationName: string = 'operation'
+  operationName: string = 'operation',
+  fallbackFn?: () => Promise<T>  // Optional fallback function using paid model
 ): Promise<T> {
   let lastError: Error | undefined;
 
@@ -62,6 +66,21 @@ async function retryWithBackoff<T>(
       return await fn();
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
+
+      // Check if we should fallback to paid model
+      if (fallbackFn && shouldFallback(error)) {
+        console.warn(`[Fallback] ${operationName} hit rate limit or error, switching to paid model...`);
+        currentModelType = 'paid';
+
+        // Try fallback with its own retry logic
+        try {
+          const result = await retryWithBackoff(fallbackFn, maxRetries, initialDelayMs, `${operationName} (fallback)`);
+          return result;
+        } catch (fallbackError) {
+          console.error(`[Fallback] Paid model also failed:`, fallbackError instanceof Error ? fallbackError.message : fallbackError);
+          throw fallbackError;
+        }
+      }
 
       if (attempt === maxRetries) {
         console.error(`[Retry] ${operationName} failed after ${maxRetries} attempts:`, lastError.message);
@@ -227,14 +246,17 @@ function filterStructsForModule(allStructs: any, functions: any[]): any {
 /**
  * Analyzes multiple modules in parallel using Promise.allSettled for fault tolerance.
  * Returns aggregated findings from all successful module analyses.
+ * Supports automatic fallback to paid model on rate limits.
  */
 async function analyzeModulesInParallel(
   chunks: ModuleChunk[],
   riskPatterns: string
 ): Promise<AnalyzerResponse> {
   console.log(`[MapReduce] Starting parallel analysis of ${chunks.length} modules...`);
+  console.log(`[MapReduce] Using free model (${MODEL_PRESETS.analyzer.model}), fallback: ${MODEL_PRESETS.fallback.model}`);
 
-  const analyzerChain = await createAnalyzerChain();
+  const analyzerChain = await createAnalyzerChain(false);
+  const fallbackChain = await createAnalyzerChain(true);
 
   // Create analysis tasks for each module
   const analysisPromises = chunks.map(async (chunk, index) => {
@@ -254,13 +276,14 @@ async function analyzeModulesInParallel(
         () => analyzerChain.invoke(moduleInput),
         3,
         2000,
-        `Analyzer for ${chunk.moduleName}`
+        `Analyzer for ${chunk.moduleName}`,
+        () => fallbackChain.invoke(moduleInput)  // Fallback function
       );
 
       const findings = await safeParseAnalyzerResponse(rawResponse);
       const duration = Date.now() - startTime;
 
-      console.log(`[Chunk ${index + 1}/${chunks.length}] ${chunk.moduleName}: ${findings.technical_findings?.length || 0} findings (${duration}ms)`);
+      console.log(`[Chunk ${index + 1}/${chunks.length}] ${chunk.moduleName}: ${findings.technical_findings?.length || 0} findings (${duration}ms, ${currentModelType} model)`);
 
       return {
         moduleName: chunk.moduleName,
@@ -424,8 +447,9 @@ async function safeParseAnalyzerResponse(text: string): Promise<AnalyzerResponse
 }
 
 // Agent 1: Analyzer Chain
-async function createAnalyzerChain() {
-  const llm = createLLM(getModelConfig('analyzer'));
+async function createAnalyzerChain(useFallback: boolean = false) {
+  const config = useFallback ? getFallbackConfig('analyzer') : getModelConfig('analyzer');
+  const llm = createLLM(config);
   const stringParser = new StringOutputParser();
 
   return RunnableSequence.from([
@@ -486,8 +510,9 @@ async function safeParseScorerResponse(text: string): Promise<ScorerResponse> {
 }
 
 // Agent 2: Scorer Chain
-async function createScorerChain() {
-  const llm = createLLM(getModelConfig('scorer'));
+async function createScorerChain(useFallback: boolean = false) {
+  const config = useFallback ? getFallbackConfig('scorer') : getModelConfig('scorer');
+  const llm = createLLM(config);
   const stringParser = new StringOutputParser();
 
   return RunnableSequence.from([
@@ -560,8 +585,9 @@ function getDefaultReporterResponse(): ReporterResponse {
 }
 
 // Agent 3: Reporter Chain
-async function createReporterChain() {
-  const llm = createLLM(getModelConfig('reporter'));
+async function createReporterChain(useFallback: boolean = false) {
+  const config = useFallback ? getFallbackConfig('reporter') : getModelConfig('reporter');
+  const llm = createLLM(config);
   const stringParser = new StringOutputParser();
 
   return RunnableSequence.from([
@@ -596,14 +622,19 @@ function getRiskLevel(score: number): 'low' | 'moderate' | 'high' | 'critical' {
  * - Multiple modules: Uses parallel chunked analysis (Map-Reduce pattern)
  */
 export async function runLangChainAnalysis(input: ContractAnalysisInput): Promise<SafetyCard> {
-  const modelName = MODEL_PRESETS.analyzer.model;
+  const primaryModel = MODEL_PRESETS.analyzer.model;
+  const fallbackModel = MODEL_PRESETS.fallback.model;
+
+  // Reset model tracking for this analysis run
+  currentModelType = 'free';
 
   // Initialize metrics collector for confidence scoring
   const metrics = createMetricsCollector();
 
   try {
     console.log('[LangChain] Starting 3-agent analysis...');
-    console.log(`[LangChain] Using model: ${modelName}`);
+    console.log(`[LangChain] Primary model: ${primaryModel} (free)`);
+    console.log(`[LangChain] Fallback model: ${fallbackModel} (paid)`);
 
     // Update metrics from input data
     updateFromBytecode(metrics, input.disassembledCode, input.publicFunctions);
@@ -629,17 +660,19 @@ export async function runLangChainAnalysis(input: ContractAnalysisInput): Promis
     } else {
       // ===== SINGLE-PASS: Traditional analysis =====
       console.log(`[LangChain] Small contract: ${chunks.length} module(s), using single-pass analysis`);
-      console.log(`[Agent 1] Running Analyzer (${modelName})...`);
+      console.log(`[Agent 1] Running Analyzer (${primaryModel})...`);
 
-      const analyzerChain = await createAnalyzerChain();
+      const analyzerChain = await createAnalyzerChain(false);
+      const fallbackAnalyzerChain = await createAnalyzerChain(true);
       const rawAnalyzerResponse = await retryWithBackoff(
         () => analyzerChain.invoke(input),
         3,
         2000,
-        'Analyzer LLM call'
+        'Analyzer LLM call',
+        () => fallbackAnalyzerChain.invoke(input)  // Fallback to paid model
       );
 
-      console.log('[Agent 1] Raw response received, parsing...');
+      console.log(`[Agent 1] Raw response received (${currentModelType} model), parsing...`);
       findings = await safeParseAnalyzerResponse(rawAnalyzerResponse);
     }
 
@@ -708,33 +741,37 @@ export async function runLangChainAnalysis(input: ContractAnalysisInput): Promis
       };
     }
 
-    // Agent 2: Score with retry (same for both paths)
-    console.log(`[Agent 2] Running Scorer (${modelName})...`);
-    const scorerChain = await createScorerChain();
+    // Agent 2: Score with retry and fallback
+    console.log(`[Agent 2] Running Scorer (${primaryModel})...`);
+    const scorerChain = await createScorerChain(false);
+    const fallbackScorerChain = await createScorerChain(true);
 
     const rawScorerResponse = await retryWithBackoff(
       () => scorerChain.invoke({ findings }),
       3,
       2000,
-      'Scorer LLM call'
+      'Scorer LLM call',
+      () => fallbackScorerChain.invoke({ findings })  // Fallback to paid model
     );
 
-    console.log('[Agent 2] Raw response received, parsing...');
+    console.log(`[Agent 2] Raw response received (${currentModelType} model), parsing...`);
     const score = await safeParseScorerResponse(rawScorerResponse);
     console.log(`[Agent 2] Risk score: ${score.risk_score}`);
 
-    // Agent 3: Report with retry (same for both paths)
-    console.log(`[Agent 3] Running Reporter (${modelName})...`);
-    const reporterChain = await createReporterChain();
+    // Agent 3: Report with retry and fallback
+    console.log(`[Agent 3] Running Reporter (${primaryModel})...`);
+    const reporterChain = await createReporterChain(false);
+    const fallbackReporterChain = await createReporterChain(true);
 
     const rawReporterResponse = await retryWithBackoff(
       () => reporterChain.invoke({ findings, score }),
       3,
       2000,
-      'Reporter LLM call'
+      'Reporter LLM call',
+      () => fallbackReporterChain.invoke({ findings, score })  // Fallback to paid model
     );
 
-    console.log('[Agent 3] Raw response received, parsing...');
+    console.log(`[Agent 3] Raw response received (${currentModelType} model), parsing...`);
     const report = await safeParseReporterResponse(rawReporterResponse);
     console.log('[Agent 3] Report generated');
 
