@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, Copy, ExternalLink, Check, Package, Network, Clock, Users, FileText, AlertTriangle, Gauge } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronDown, ChevronRight, Copy, ExternalLink, Check, Package, Network, Clock, Users, FileText, AlertTriangle } from 'lucide-react';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,7 +17,6 @@ import {
   getRiskLevelSubtle,
   getRiskLevelSubtleText,
   getRiskScoreBarColor,
-  getRiskScoreTextColor,
 } from '@/app/dashboard/risk-utils';
 import { cn } from '@/lib/utils';
 import { ConfidenceBadge } from './ConfidenceBadge';
@@ -24,9 +24,11 @@ import { AnalysisQualityCard } from './AnalysisQualityCard';
 import { DependencySummaryCard } from './DependencySummaryCard';
 import { TechnicalFindingsSection } from './TechnicalFindingsSection';
 import { EvidenceBlock } from './EvidenceBlock';
+import { RiskScoreGauge } from './RiskScoreGauge';
 
 interface AnalyzedContractCardProps {
   contract: AnalyzedContract;
+  index?: number;
   onAutoRefreshPause?: () => void;
 }
 
@@ -72,7 +74,7 @@ function formatRelativeTime(timestamp: string) {
   return rtf.format(roundedDuration, unit);
 }
 
-export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedContractCardProps) {
+export function AnalyzedContractCard({ contract, index = 0, onAutoRefreshPause }: AnalyzedContractCardProps) {
   const [showAllFunctions, setShowAllFunctions] = useState(false);
   const [showAllIndicators, setShowAllIndicators] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -172,6 +174,11 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
   }, [allFunctionsExpanded, contract.analysis.risky_functions, onAutoRefreshPause]);
 
   return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: index * 0.05 }}
+    >
     <Card className="relative overflow-hidden rounded-3xl border border-zinc-200/50 dark:border-zinc-800/50 bg-transparent p-0 shadow-sm dark:shadow-lg">
       <CardContent className="relative space-y-3 p-4 sm:space-y-4 sm:p-6 bg-white/80 backdrop-blur-xl supports-backdrop-filter:bg-white/80 dark:bg-zinc-950/80 dark:supports-backdrop-filter:bg-zinc-950/80">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -190,13 +197,7 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
                 <Network className="h-3 w-3 shrink-0" />
                 <span>{contract.network}</span>
               </span>
-              <div className="inline-flex items-center gap-1.5 rounded-md bg-[hsl(var(--surface-muted))] dark:bg-black/40 px-2.5 py-1 shrink-0">
-                <Gauge className={cn('h-3 w-3 shrink-0', getRiskScoreTextColor(contract.analysis.risk_score))} />
-                <span className={cn('text-xs font-bold leading-tight tabular-nums', getRiskScoreTextColor(contract.analysis.risk_score))}>
-                  {contract.analysis.risk_score}
-                </span>
-                <span className="text-[10px] font-medium text-muted-foreground leading-tight">/ 100</span>
-              </div>
+              <RiskScoreGauge score={contract.analysis.risk_score} size="sm" />
               {contract.analysis.confidence_level && (
                 <ConfidenceBadge
                   level={contract.analysis.confidence_level}
@@ -537,6 +538,7 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
         </section>
       </CardContent>
     </Card>
+    </motion.div>
   );
 }
 

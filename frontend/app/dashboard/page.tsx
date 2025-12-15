@@ -10,6 +10,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import AnalyzedContractCard from '@/app/components/AnalyzedContractCard';
 import { UnanalyzedPackageCard } from '@/app/components/UnanalyzedPackageCard';
+import { SkeletonCard } from '@/app/components/SkeletonCard';
+import { QuickStatsBar } from '@/app/components/QuickStatsBar';
+import { ViewModeToggle, type ViewMode } from '@/app/components/ViewModeToggle';
+import { CompactContractCard } from '@/app/components/CompactContractCard';
 import type { AnalyzedContract, DashboardData } from '@/app/dashboard/types';
 import type { Deployment } from '@/lib/deployments';
 import {
@@ -67,6 +71,23 @@ function DashboardContent() {
   const [pauseReason, setPauseReason] = useState<'toolbar' | 'details' | null>(null);
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
   const [selectedPackageNetwork, setSelectedPackageNetwork] = useState<'mainnet' | 'testnet' | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('full');
+  const [expandedCompactCard, setExpandedCompactCard] = useState<string | null>(null);
+
+  // Load viewMode from localStorage on mount
+  useEffect(() => {
+    const savedMode = localStorage.getItem('dashboard-view-mode');
+    if (savedMode === 'full' || savedMode === 'compact') {
+      setViewMode(savedMode);
+    }
+  }, []);
+
+  // Save viewMode to localStorage when it changes
+  const handleViewModeChange = useCallback((mode: ViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem('dashboard-view-mode', mode);
+    setExpandedCompactCard(null);
+  }, []);
   
   // Package status state (for URL-based package lookup)
   const [packageStatus, setPackageStatus] = useState<PackageStatusState | null>(null);
@@ -536,10 +557,11 @@ function DashboardContent() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="flex flex-col items-center gap-4 text-center">
-          <div className="h-11 w-11 animate-spin rounded-full border-2 border-border dark:border-white/20 border-t-transparent transition-colors duration-200" />
-          <p className="text-sm text-muted-foreground">Loading analyzed contracts...</p>
+      <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 pb-24 transition-colors duration-200 sm:px-8 lg:gap-6 lg:px-16">
+        <div className="space-y-4">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <SkeletonCard key={i} variant={viewMode} />
+          ))}
         </div>
       </div>
     );
@@ -630,7 +652,8 @@ function DashboardContent() {
         <CardContent className="p-6 pt-0 space-y-6">
           {/* Search and Filters Row */}
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="relative w-full md:max-w-sm">
+            <div className="flex items-center gap-3">
+              <div className="relative w-full md:w-72">
               <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground dark:text-zinc-500" />
               <input
                 type="text"
@@ -651,6 +674,8 @@ function DashboardContent() {
                   </button>
                 )}
               </div>
+              </div>
+              <ViewModeToggle mode={viewMode} onChange={handleViewModeChange} />
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
               <button
@@ -896,6 +921,14 @@ function DashboardContent() {
         </Alert>
       )}
 
+      {/* Quick Stats Bar */}
+      <QuickStatsBar
+        counts={riskCounts}
+        activeFilters={Array.from(selectedFilters)}
+        onFilterToggle={(level) => handleToggleRiskFilter(level as RiskLevel)}
+        isLoading={isRefreshing}
+      />
+
       {/* Contract List */}
       <section className="space-y-4">
         {/* Show package status card if packageId is in URL */}
@@ -922,6 +955,7 @@ function DashboardContent() {
                   analysis: packageStatus.analysis,
                   analyzed_at: packageStatus.analyzedAt || new Date().toISOString(),
                 }}
+                index={0}
                 onAutoRefreshPause={pauseAutoRefreshFromDetails}
               />
             ) : packageStatus ? (
@@ -960,11 +994,44 @@ function DashboardContent() {
               </Link>
             </div>
           </div>
+        ) : viewMode === 'compact' ? (
+          displayedContracts.map((contract, index) => {
+            const cardKey = `${contract.package_id}-${contract.network}`;
+            const isExpanded = expandedCompactCard === cardKey;
+
+            if (isExpanded) {
+              return (
+                <div key={cardKey} className="space-y-2">
+                  <button
+                    onClick={() => setExpandedCompactCard(null)}
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    ← Back to compact view
+                  </button>
+                  <AnalyzedContractCard
+                    contract={contract}
+                    index={index}
+                    onAutoRefreshPause={pauseAutoRefreshFromDetails}
+                  />
+                </div>
+              );
+            }
+
+            return (
+              <CompactContractCard
+                key={cardKey}
+                contract={contract}
+                index={index}
+                onExpand={() => setExpandedCompactCard(cardKey)}
+              />
+            );
+          })
         ) : (
-          displayedContracts.map((contract) => (
+          displayedContracts.map((contract, index) => (
             <AnalyzedContractCard
               key={`${contract.package_id}-${contract.network}-${contract.analyzed_at}`}
               contract={contract}
+              index={index}
               onAutoRefreshPause={pauseAutoRefreshFromDetails}
             />
           ))
