@@ -1,6 +1,109 @@
-import type { AnalyzedContract } from "./types";
+import type { AnalyzedContract, ConfidenceLevel, FindingSeverity } from "./types";
 
 export type RiskLevel = AnalyzedContract["analysis"]["risk_level"];
+
+// Confidence level styling tokens
+const confidenceLevelTokens: Record<
+  ConfidenceLevel,
+  {
+    name: string;
+    badge: string;
+    icon: string;
+  }
+> = {
+  high: {
+    name: "High Confidence",
+    badge: "bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400",
+    icon: "✓",
+  },
+  medium: {
+    name: "Medium Confidence",
+    badge: "bg-yellow-400/10 dark:bg-yellow-400/20 text-yellow-600 dark:text-yellow-400",
+    icon: "~",
+  },
+  low: {
+    name: "Low Confidence",
+    badge: "bg-orange-500/10 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400",
+    icon: "?",
+  },
+};
+
+export const getConfidenceLevelName = (level: ConfidenceLevel | string) => {
+  const token = confidenceLevelTokens[level as ConfidenceLevel];
+  return token ? token.name : "Unknown Confidence";
+};
+
+export const getConfidenceLevelBadge = (level: ConfidenceLevel | string) => {
+  const token = confidenceLevelTokens[level as ConfidenceLevel];
+  return token ? token.badge : "bg-gray-500/10 text-gray-500";
+};
+
+export const getConfidenceLevelIcon = (level: ConfidenceLevel | string) => {
+  const token = confidenceLevelTokens[level as ConfidenceLevel];
+  return token ? token.icon : "?";
+};
+
+// Severity styling tokens (for technical findings)
+const severityTokens: Record<
+  FindingSeverity,
+  {
+    badge: string;
+    text: string;
+    bg: string;
+  }
+> = {
+  Critical: {
+    badge: "bg-red-600 text-white",
+    text: "text-red-600 dark:text-red-400",
+    bg: "bg-red-500/10 dark:bg-red-500/20",
+  },
+  High: {
+    badge: "bg-orange-500 text-white",
+    text: "text-orange-600 dark:text-orange-400",
+    bg: "bg-orange-500/10 dark:bg-orange-500/20",
+  },
+  Medium: {
+    badge: "bg-yellow-500 text-black",
+    text: "text-yellow-600 dark:text-yellow-400",
+    bg: "bg-yellow-500/10 dark:bg-yellow-500/20",
+  },
+  Low: {
+    badge: "bg-blue-500 text-white",
+    text: "text-blue-600 dark:text-blue-400",
+    bg: "bg-blue-500/10 dark:bg-blue-500/20",
+  },
+};
+
+export const getSeverityBadge = (severity: FindingSeverity | string) => {
+  const token = severityTokens[severity as FindingSeverity];
+  return token ? token.badge : "bg-gray-500 text-white";
+};
+
+export const getSeverityText = (severity: FindingSeverity | string) => {
+  const token = severityTokens[severity as FindingSeverity];
+  return token ? token.text : "text-gray-500";
+};
+
+export const getSeverityBg = (severity: FindingSeverity | string) => {
+  const token = severityTokens[severity as FindingSeverity];
+  return token ? token.bg : "bg-gray-500/10";
+};
+
+// Validation rate color (for analysis quality)
+export const getValidationRateColor = (rate: number) => {
+  if (rate >= 90) return "text-emerald-600 dark:text-emerald-400";
+  if (rate >= 70) return "text-yellow-600 dark:text-yellow-400";
+  return "text-orange-600 dark:text-orange-400";
+};
+
+// Coverage indicator (checkmark or warning based on percentage)
+export const getCoverageIndicator = (analyzed: number, total: number) => {
+  if (total === 0) return { icon: "−", color: "text-gray-400" };
+  const pct = (analyzed / total) * 100;
+  if (pct >= 100) return { icon: "✓", color: "text-emerald-500" };
+  if (pct >= 80) return { icon: "~", color: "text-yellow-500" };
+  return { icon: "!", color: "text-orange-500" };
+};
 
 const riskLevelTokens: Record<
   RiskLevel,

@@ -1,3 +1,48 @@
+// Sub-types for new analysis fields
+export interface ConfidenceInterval {
+  lower: number;
+  upper: number;
+}
+
+export type ConfidenceLevel = "high" | "medium" | "low";
+
+export interface AnalysisQuality {
+  modules_analyzed: number;
+  modules_total: number;
+  functions_analyzed: number;
+  functions_total: number;
+  truncation_occurred: boolean;
+  validation_rate: number;
+  static_analysis_coverage: number;
+}
+
+export interface ValidationSummary {
+  total: number;
+  validated: number;
+  unvalidated: number;
+  invalid: number;
+  avg_validation_score: number;
+}
+
+export type FindingSeverity = "Critical" | "High" | "Medium" | "Low";
+
+export interface TechnicalFinding {
+  function_name: string;
+  technical_reason: string;
+  matched_pattern_id: string;
+  severity: FindingSeverity;
+  evidence_code_snippet: string;
+  contextual_notes?: string[];
+}
+
+export interface DependencySummary {
+  total_dependencies: number;
+  audited_count: number;
+  unaudited_count: number;
+  high_risk_count: number;
+  system_packages: number;
+}
+
 export interface AnalyzedContract {
   package_id: string;
   network: "mainnet" | "testnet";
@@ -15,6 +60,21 @@ export interface AnalyzedContract {
     why_risky_one_liner: string;
     risk_score: number;
     risk_level: "low" | "moderate" | "high" | "critical";
+
+    // Confidence metrics (optional for backward compatibility)
+    confidence_interval?: ConfidenceInterval;
+    confidence_level?: ConfidenceLevel;
+    analysis_quality?: AnalysisQuality;
+    limitations?: string[];
+
+    // Validation summary (optional)
+    validation_summary?: ValidationSummary;
+
+    // Technical findings with evidence (optional)
+    technical_findings?: TechnicalFinding[];
+
+    // Dependency audit status (optional)
+    dependency_summary?: DependencySummary;
   };
   analyzed_at: string;
 }

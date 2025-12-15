@@ -19,6 +19,10 @@ import {
   getRiskScoreTextColor,
 } from '@/app/dashboard/risk-utils';
 import { cn } from '@/lib/utils';
+import { ConfidenceBadge } from './ConfidenceBadge';
+import { AnalysisQualityCard } from './AnalysisQualityCard';
+import { DependencySummaryCard } from './DependencySummaryCard';
+import { TechnicalFindingsSection } from './TechnicalFindingsSection';
 
 interface AnalyzedContractCardProps {
   contract: AnalyzedContract;
@@ -192,6 +196,12 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
                 </span>
                 <span className="text-[10px] font-medium text-muted-foreground leading-tight">/ 100</span>
               </div>
+              {contract.analysis.confidence_level && (
+                <ConfidenceBadge
+                  level={contract.analysis.confidence_level}
+                  interval={contract.analysis.confidence_interval}
+                />
+              )}
             </div>
             
             {/* Package ID Field Block */}
@@ -404,6 +414,14 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
                 </div>
               </div>
             )}
+
+            {/* Technical Findings (detailed findings with pattern IDs and evidence) */}
+            {contract.analysis.technical_findings && contract.analysis.technical_findings.length > 0 && (
+              <TechnicalFindingsSection
+                findings={contract.analysis.technical_findings}
+                onExpand={onAutoRefreshPause}
+              />
+            )}
           </div>
           <div className="space-y-4">
                 <div className="rounded-lg border border-zinc-200 dark:border-white/10 bg-[hsl(var(--surface-muted))]/50 dark:bg-black/20 p-4 sm:p-5 transition-colors duration-200">
@@ -419,6 +437,43 @@ export function AnalyzedContractCard({ contract, onAutoRefreshPause }: AnalyzedC
                     {contract.analysis.impact_on_user}
                   </p>
                 </div>
+
+                {/* Analysis Quality Card (NEW) */}
+                {contract.analysis.analysis_quality && (
+                  <AnalysisQualityCard
+                    quality={contract.analysis.analysis_quality}
+                    validationSummary={contract.analysis.validation_summary}
+                  />
+                )}
+
+                {/* Dependency Summary Card (NEW) */}
+                {contract.analysis.dependency_summary &&
+                 contract.analysis.dependency_summary.total_dependencies > 0 && (
+                  <DependencySummaryCard summary={contract.analysis.dependency_summary} />
+                )}
+
+                {/* Limitations Card (NEW) */}
+                {contract.analysis.limitations && contract.analysis.limitations.length > 0 && (
+                  <div className="rounded-lg border border-orange-200 dark:border-orange-500/30 bg-orange-50/50 dark:bg-orange-500/10 p-4 sm:p-5 transition-colors duration-200">
+                    <div className="mb-3 flex items-center gap-2">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-500/20">
+                        <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                      </div>
+                      <h6 className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.3em] text-orange-800 dark:text-orange-300">
+                        Limitations
+                      </h6>
+                    </div>
+                    <ul className="space-y-1.5">
+                      {contract.analysis.limitations.map((limitation, index) => (
+                        <li key={index} className="text-xs text-orange-700 dark:text-orange-200/80 flex items-start gap-1.5">
+                          <span className="shrink-0">-</span>
+                          <span>{limitation}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
                 <div className="rounded-lg border border-zinc-200 dark:border-white/10 bg-[hsl(var(--surface-muted))]/50 dark:bg-black/20 p-4 sm:p-5 transition-colors duration-200">
                   <div className="mb-3 flex items-center gap-2">
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[hsl(var(--surface-muted))] dark:bg-black/40">
