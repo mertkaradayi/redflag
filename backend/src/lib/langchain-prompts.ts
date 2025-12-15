@@ -117,6 +117,11 @@ RULES:
 - Be clear and direct about risks
 - Include evidence snippets in risky_functions reasons
 
+CRITICAL FOR rug_pull_indicators:
+- pattern_name MUST be a human-readable title like "Unrestricted Fund Withdrawal" or "Missing Access Control"
+- NEVER use pattern IDs like "HIGH-01", "SUI-CRITICAL-01", "LOW-02" as pattern_name
+- Each pattern_name should clearly describe WHAT the risk is in plain English
+
 GOLDEN RULE: Return ONLY valid JSON.
 
 {formatInstructions}

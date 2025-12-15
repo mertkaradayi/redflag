@@ -28,17 +28,17 @@ export const scorerParser = StructuredOutputParser.fromZodSchema(scorerResponseS
 
 // Agent 3: Reporter Schema
 export const reporterResponseSchema = z.object({
-  summary: z.string(),
+  summary: z.string().describe("A clear summary of the contract's purpose and overall risk assessment"),
   risky_functions: z.array(z.object({
-    function_name: z.string(),
-    reason: z.string(),
+    function_name: z.string().describe("Name of the risky function"),
+    reason: z.string().describe("Plain-language explanation of why this function is risky"),
   })),
   rug_pull_indicators: z.array(z.object({
-    pattern_name: z.string(),
-    evidence: z.string(),
+    pattern_name: z.string().describe("A short, human-readable title describing the risk (e.g., 'Unrestricted Fund Withdrawal', 'Missing Access Control', 'No Event Logging'). Do NOT use pattern IDs like 'HIGH-01' or 'SUI-CRITICAL-01'."),
+    evidence: z.string().describe("Plain-language explanation with code evidence"),
   })),
-  impact_on_user: z.string(),
-  why_risky_one_liner: z.string(),
+  impact_on_user: z.string().describe("How this contract could affect users who interact with it"),
+  why_risky_one_liner: z.string().describe("One sentence summary of the main risk"),
 });
 
 export const reporterParser = StructuredOutputParser.fromZodSchema(reporterResponseSchema);
