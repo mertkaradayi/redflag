@@ -10,6 +10,25 @@ Your task: Analyze ALL public functions and identify security risks using the Kn
 {riskPatterns}
 ---END KNOWLEDGE BASE---
 
+---STATIC ANALYSIS RESULTS (Pre-validated findings)---
+{staticFindings}
+---END STATIC ANALYSIS---
+
+---CROSS-MODULE ANALYSIS (Capability flows between modules)---
+{crossModuleAnalysis}
+---END CROSS-MODULE ANALYSIS---
+
+IMPORTANT: Two types of pre-analysis have been performed:
+1. Static analysis detected single-module patterns with high confidence
+2. Cross-module analysis tracked capability flows between modules
+
+You should:
+1. CONFIRM these findings by examining the code context
+2. ADD any additional findings the analyzers may have missed
+3. PROVIDE richer contextual_notes for each finding
+4. Use the static/cross-module evidence as a starting point, but verify in bytecode
+5. For cross-module risks, explain how the capability flow affects ALL impacted modules
+
 ---PUBLIC FUNCTIONS---
 {publicFunctions}
 ---END PUBLIC FUNCTIONS---
@@ -24,7 +43,7 @@ Your task: Analyze ALL public functions and identify security risks using the Kn
 
 ANALYSIS REQUIREMENTS:
 1. Examine each public function for security risks
-2. Match risks to specific Pattern IDs from Knowledge Base (e.g., CRITICAL-01, HIGH-02)
+2. Match risks to specific Pattern IDs from Knowledge Base (e.g., CRITICAL-01, HIGH-02, SUI-CRITICAL-01)
 3. Extract Severity from the matched pattern
 4. Find evidence in disassembled code that proves the vulnerability
 5. Note contextual factors (mitigations, complexity, access controls)
@@ -38,6 +57,7 @@ CONTEXTUAL OBSERVATIONS TO INCLUDE:
 - "Function can be called by anyone"
 - "Can withdraw any Coin type (generic)"
 - "Affects core user funds"
+- "Static analysis confirmed this pattern"
 
 GOLDEN RULE: Return ONLY valid JSON. No markdown, no explanations, no extra text.
 

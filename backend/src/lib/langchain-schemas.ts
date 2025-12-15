@@ -47,3 +47,4 @@ export const reporterParser = StructuredOutputParser.fromZodSchema(reporterRespo
 export type AnalyzerResponse = z.infer<typeof analyzerResponseSchema>;
 export type ScorerResponse = z.infer<typeof scorerResponseSchema>;
 export type ReporterResponse = z.infer<typeof reporterResponseSchema>;
+export type AnalyzerFinding = z.infer<typeof analyzerFindingSchema>;

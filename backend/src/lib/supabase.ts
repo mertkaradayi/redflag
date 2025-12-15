@@ -849,3 +849,412 @@ export async function getHighRiskAnalyses(options: {
     };
   }
 }
+
+// ================================================================
+// DEPENDENCY RISK OPERATIONS
+// ================================================================
+
+export interface DependencyRisk {
+  package_id: string;
+  network: string;
+  dependency_type: 'framework' | 'library' | 'contract' | 'unknown';
+  is_system_package: boolean;
+  is_audited: boolean;
+  is_upgradeable: boolean;
+  risk_score: number | null;
+  risk_level: 'low' | 'moderate' | 'high' | 'critical' | null;
+  last_analyzed: string | null;
+  analysis_source: 'auto' | 'manual' | 'inherited' | null;
+}
+
+export interface DependencySummary {
+  total_dependencies: number;
+  audited_count: number;
+  unaudited_count: number;
+  high_risk_count: number;
+  system_packages: number;
+  risk_dependencies: DependencyRisk[];
+}
+
+/**
+ * Get dependency risk info for a package
+ */
+export async function getDependencyRisk(
+  packageId: string,
+  network: string
+): Promise<{ success: boolean; dependency: DependencyRisk | null; error?: string }> {
+  try {
+    if (!supabase) {
+      return { success: false, dependency: null, error: 'Supabase client not initialized' };
+    }
+
+    const { data, error } = await supabase
+      .from('dependency_risks')
+      .select('*')
+      .eq('package_id', packageId)
+      .eq('network', network)
+      .single();
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 = not found
+      console.error('Error fetching dependency risk:', error);
+      return { success: false, dependency: null, error: error.message };
+    }
+
+    return { success: true, dependency: data || null };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Unexpected error in getDependencyRisk:', error);
+    return { success: false, dependency: null, error: errorMessage };
+  }
+}
+
+/**
+ * Get dependency risks for multiple packages
+ */
+export async function getDependencyRisks(
+  packageIds: string[],
+  network: string
+): Promise<{ success: boolean; dependencies: DependencyRisk[]; error?: string }> {
+  try {
+    if (!supabase) {
+      return { success: false, dependencies: [], error: 'Supabase client not initialized' };
+    }
+
+    if (packageIds.length === 0) {
+      return { success: true, dependencies: [] };
+    }
+
+    const { data, error } = await supabase
+      .from('dependency_risks')
+      .select('*')
+      .in('package_id', packageIds)
+      .eq('network', network);
+
+    if (error) {
+      console.error('Error fetching dependency risks:', error);
+      return { success: false, dependencies: [], error: error.message };
+    }
+
+    return { success: true, dependencies: data || [] };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Unexpected error in getDependencyRisks:', error);
+    return { success: false, dependencies: [], error: errorMessage };
+  }
+}
+
+/**
+ * Save or update dependency risk info
+ */
+export async function saveDependencyRisk(
+  dependency: Partial<DependencyRisk> & { package_id: string; network: string }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Supabase client not initialized' };
+    }
+
+    const { error } = await supabase
+      .from('dependency_risks')
+      .upsert({
+        package_id: dependency.package_id,
+        network: dependency.network,
+        dependency_type: dependency.dependency_type || 'unknown',
+        is_system_package: dependency.is_system_package || false,
+        is_audited: dependency.is_audited || false,
+        is_upgradeable: dependency.is_upgradeable || false,
+        risk_score: dependency.risk_score ?? null,
+        risk_level: dependency.risk_level ?? null,
+        last_analyzed: dependency.last_analyzed || new Date().toISOString(),
+        analysis_source: dependency.analysis_source || 'auto',
+        updated_at: new Date().toISOString(),
+      }, {
+        onConflict: 'package_id,network'
+      });
+
+    if (error) {
+      console.error('Error saving dependency risk:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Unexpected error in saveDependencyRisk:', error);
+    return { success: false, error: errorMessage };
+  }
+}
+
+/**
+ * Update contract analysis with dependency summary
+ */
+export async function updateAnalysisDependencySummary(
+  packageId: string,
+  network: string,
+  dependencySummary: DependencySummary
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Supabase client not initialized' };
+    }
+
+    const { error } = await supabase
+      .from('contract_analyses')
+      .update({
+        dependency_summary: dependencySummary,
+      })
+      .eq('package_id', packageId)
+      .eq('network', network);
+
+    if (error) {
+      console.error('Error updating dependency summary:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Unexpected error in updateAnalysisDependencySummary:', error);
+    return { success: false, error: errorMessage };
+  }
+}
+
+/**
+ * Check if a package is a known system package
+ */
+export function isSystemPackage(packageId: string): boolean {
+  const systemPackages = ['0x1', '0x2', '0x3', '0x6', '0xdee9'];
+  return systemPackages.includes(packageId.toLowerCase());
+}
+
+// ================================================================
+// AUDIT TRAIL OPERATIONS
+// ================================================================
+
+export interface AuditLogEntry {
+  package_id: string;
+  network: string;
+  analyzed_at?: string;
+  total_duration_ms?: number;
+  total_tokens?: number;
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  llm_calls?: number;
+  modules_analyzed?: number;
+  modules_total?: number;
+  functions_analyzed?: number;
+  functions_total?: number;
+  truncation_occurred?: boolean;
+  static_findings_count?: number;
+  llm_findings_count?: number;
+  validated_findings_count?: number;
+  cross_module_risks_count?: number;
+  final_risk_score?: number;
+  final_risk_level?: string;
+  errors?: Array<{ stage: string; message: string; timestamp: string }>;
+  warnings?: Array<{ stage: string; message: string; timestamp: string }>;
+  model_used?: string;
+  analysis_version?: string;
+}
+
+/**
+ * Save an audit log entry for an analysis run
+ */
+export async function saveAuditLog(
+  entry: AuditLogEntry
+): Promise<{ success: boolean; id?: number; error?: string }> {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Supabase client not initialized' };
+    }
+
+    const { data, error } = await supabase
+      .from('analysis_audit_logs')
+      .insert({
+        package_id: entry.package_id,
+        network: entry.network,
+        analyzed_at: entry.analyzed_at || new Date().toISOString(),
+        total_duration_ms: entry.total_duration_ms,
+        total_tokens: entry.total_tokens || 0,
+        prompt_tokens: entry.prompt_tokens || 0,
+        completion_tokens: entry.completion_tokens || 0,
+        llm_calls: entry.llm_calls || 0,
+        modules_analyzed: entry.modules_analyzed || 0,
+        modules_total: entry.modules_total || 0,
+        functions_analyzed: entry.functions_analyzed || 0,
+        functions_total: entry.functions_total || 0,
+        truncation_occurred: entry.truncation_occurred || false,
+        static_findings_count: entry.static_findings_count || 0,
+        llm_findings_count: entry.llm_findings_count || 0,
+        validated_findings_count: entry.validated_findings_count || 0,
+        cross_module_risks_count: entry.cross_module_risks_count || 0,
+        final_risk_score: entry.final_risk_score,
+        final_risk_level: entry.final_risk_level,
+        errors: entry.errors || [],
+        warnings: entry.warnings || [],
+        model_used: entry.model_used,
+        analysis_version: entry.analysis_version || 'v1',
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error('Error saving audit log:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, id: data?.id };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Unexpected error in saveAuditLog:', error);
+    return { success: false, error: errorMessage };
+  }
+}
+
+/**
+ * Get audit logs for a package
+ */
+export async function getAuditLogs(
+  packageId: string,
+  network: string,
+  limit: number = 10
+): Promise<{ success: boolean; logs: AuditLogEntry[]; error?: string }> {
+  try {
+    if (!supabase) {
+      return { success: false, logs: [], error: 'Supabase client not initialized' };
+    }
+
+    const { data, error } = await supabase
+      .from('analysis_audit_logs')
+      .select('*')
+      .eq('package_id', packageId)
+      .eq('network', network)
+      .order('analyzed_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error('Error fetching audit logs:', error);
+      return { success: false, logs: [], error: error.message };
+    }
+
+    return { success: true, logs: data || [] };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Unexpected error in getAuditLogs:', error);
+    return { success: false, logs: [], error: errorMessage };
+  }
+}
+
+/**
+ * Get recent audit logs across all packages (for monitoring dashboard)
+ */
+export async function getRecentAuditLogs(
+  limit: number = 50,
+  network?: string
+): Promise<{ success: boolean; logs: AuditLogEntry[]; error?: string }> {
+  try {
+    if (!supabase) {
+      return { success: false, logs: [], error: 'Supabase client not initialized' };
+    }
+
+    let query = supabase
+      .from('analysis_audit_logs')
+      .select('*')
+      .order('analyzed_at', { ascending: false })
+      .limit(limit);
+
+    if (network) {
+      query = query.eq('network', network);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Error fetching recent audit logs:', error);
+      return { success: false, logs: [], error: error.message };
+    }
+
+    return { success: true, logs: data || [] };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Unexpected error in getRecentAuditLogs:', error);
+    return { success: false, logs: [], error: errorMessage };
+  }
+}
+
+/**
+ * Get audit log statistics (for monitoring)
+ */
+export async function getAuditLogStats(
+  network?: string,
+  hours: number = 24
+): Promise<{
+  success: boolean;
+  stats?: {
+    total_analyses: number;
+    avg_duration_ms: number;
+    total_tokens: number;
+    error_count: number;
+    avg_risk_score: number;
+  };
+  error?: string;
+}> {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Supabase client not initialized' };
+    }
+
+    const since = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+
+    let query = supabase
+      .from('analysis_audit_logs')
+      .select('total_duration_ms, total_tokens, final_risk_score, errors')
+      .gte('analyzed_at', since);
+
+    if (network) {
+      query = query.eq('network', network);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Error fetching audit log stats:', error);
+      return { success: false, error: error.message };
+    }
+
+    if (!data || data.length === 0) {
+      return {
+        success: true,
+        stats: {
+          total_analyses: 0,
+          avg_duration_ms: 0,
+          total_tokens: 0,
+          error_count: 0,
+          avg_risk_score: 0,
+        },
+      };
+    }
+
+    const totalAnalyses = data.length;
+    const avgDuration = data.reduce((sum, d) => sum + (d.total_duration_ms || 0), 0) / totalAnalyses;
+    const totalTokens = data.reduce((sum, d) => sum + (d.total_tokens || 0), 0);
+    const errorCount = data.filter((d) => d.errors && (d.errors as any[]).length > 0).length;
+    const riskScores = data.filter((d) => d.final_risk_score !== null).map((d) => d.final_risk_score!);
+    const avgRiskScore = riskScores.length > 0 ? riskScores.reduce((sum, s) => sum + s, 0) / riskScores.length : 0;
+
+    return {
+      success: true,
+      stats: {
+        total_analyses: totalAnalyses,
+        avg_duration_ms: Math.round(avgDuration),
+        total_tokens: totalTokens,
+        error_count: errorCount,
+        avg_risk_score: Math.round(avgRiskScore),
+      },
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Unexpected error in getAuditLogStats:', error);
+    return { success: false, error: errorMessage };
+  }
+}
