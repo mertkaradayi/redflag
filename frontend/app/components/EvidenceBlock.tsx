@@ -81,14 +81,14 @@ export function EvidenceBlock({ text, className }: EvidenceBlockProps) {
     <div className={cn('w-full min-w-0 max-w-full overflow-x-hidden', className)}>
       {/* Explanation text */}
       {explanation && (
-        <p className="text-sm md:text-base leading-relaxed text-foreground/80 dark:text-white/80 mb-2 md:mb-3 break-words">
+        <p className="text-xs leading-relaxed text-foreground/80 dark:text-white/80 mb-2 break-words">
           {explanation}
         </p>
       )}
 
       {/* Code snippets */}
       {codeSnippets.length > 0 && (
-        <div className="space-y-2 md:space-y-2.5 w-full min-w-0">
+        <div className="space-y-2 w-full min-w-0">
           {codeSnippets.map((snippet, index) => (
             <CodeSnippet key={index} code={snippet} />
           ))}
@@ -97,7 +97,7 @@ export function EvidenceBlock({ text, className }: EvidenceBlockProps) {
 
       {/* Fallback: if no code was extracted, show original text */}
       {codeSnippets.length === 0 && !explanation && (
-        <p className="text-sm md:text-base leading-relaxed text-foreground/80 dark:text-white/80 break-words">
+        <p className="text-xs leading-relaxed text-foreground/80 dark:text-white/80 break-words">
           {text}
         </p>
       )}

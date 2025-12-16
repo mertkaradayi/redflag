@@ -119,22 +119,6 @@ export function AnalyzedContractCard({ contract, index = 0, onAutoRefreshPause, 
   const hasRiskyFunctions = contract.analysis.risky_functions.length > 0;
   const hasRugPullIndicators = contract.analysis.rug_pull_indicators.length > 0;
 
-  const allFunctionsExpanded = useMemo(() => {
-    if (!contract.analysis.risky_functions.length) {
-      return false;
-    }
-
-    return contract.analysis.risky_functions.every((func, index) => expandedFunctions[getFunctionKey(func.function_name, index)]);
-  }, [contract.analysis.risky_functions, expandedFunctions]);
-
-  const allIndicatorsExpanded = useMemo(() => {
-    if (!contract.analysis.rug_pull_indicators.length) {
-      return false;
-    }
-
-    return contract.analysis.rug_pull_indicators.every((indicator, index) => expandedIndicators[getIndicatorKey(indicator.pattern_name, index)]);
-  }, [contract.analysis.rug_pull_indicators, expandedIndicators]);
-
   const handleCopyPackageId = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(contract.package_id);
@@ -165,23 +149,6 @@ export function AnalyzedContractCard({ contract, index = 0, onAutoRefreshPause, 
     [onAutoRefreshPause],
   );
 
-  const handleToggleAllFunctionContent = useCallback(() => {
-    setExpandedFunctions((prev) => {
-      const nextExpanded = !allFunctionsExpanded;
-      const nextState = { ...prev };
-
-      contract.analysis.risky_functions.forEach((func, index) => {
-        nextState[getFunctionKey(func.function_name, index)] = nextExpanded;
-      });
-
-      return nextState;
-    });
-
-    if (!allFunctionsExpanded && onAutoRefreshPause) {
-      onAutoRefreshPause();
-    }
-  }, [allFunctionsExpanded, contract.analysis.risky_functions, onAutoRefreshPause]);
-
   const handleToggleIndicatorContent = useCallback(
     (key: string) => {
       setExpandedIndicators((prev) => {
@@ -200,61 +167,6 @@ export function AnalyzedContractCard({ contract, index = 0, onAutoRefreshPause, 
     },
     [onAutoRefreshPause],
   );
-
-  const handleToggleAllIndicatorContent = useCallback(() => {
-    setExpandedIndicators((prev) => {
-      const nextExpanded = !allIndicatorsExpanded;
-      const nextState = { ...prev };
-
-      contract.analysis.rug_pull_indicators.forEach((indicator, index) => {
-        nextState[getIndicatorKey(indicator.pattern_name, index)] = nextExpanded;
-      });
-
-      return nextState;
-    });
-
-    if (!allIndicatorsExpanded && onAutoRefreshPause) {
-      onAutoRefreshPause();
-    }
-  }, [allIndicatorsExpanded, contract.analysis.rug_pull_indicators, onAutoRefreshPause]);
-
-  // Combined mobile action for Risky Functions (3-state cycle)
-  const handleMobileFunctionsCombinedAction = useCallback(() => {
-    if (!showAllFunctions) {
-      // State 1 → State 2: Show all items
-      setShowAllFunctions(true);
-      setExpandedFunctions({});
-      if (onAutoRefreshPause) {
-        onAutoRefreshPause();
-      }
-    } else if (!allFunctionsExpanded) {
-      // State 2 → State 3: Expand all details
-      handleToggleAllFunctionContent();
-    } else {
-      // State 3 → State 1: Collapse everything
-      setShowAllFunctions(false);
-      setExpandedFunctions({});
-    }
-  }, [showAllFunctions, allFunctionsExpanded, handleToggleAllFunctionContent, onAutoRefreshPause]);
-
-  // Combined mobile action for Rug Pull Indicators (3-state cycle)
-  const handleMobileIndicatorsCombinedAction = useCallback(() => {
-    if (!showAllIndicators) {
-      // State 1 → State 2: Show all items
-      setShowAllIndicators(true);
-      setExpandedIndicators({});
-      if (onAutoRefreshPause) {
-        onAutoRefreshPause();
-      }
-    } else if (!allIndicatorsExpanded) {
-      // State 2 → State 3: Expand all details
-      handleToggleAllIndicatorContent();
-    } else {
-      // State 3 → State 1: Collapse everything
-      setShowAllIndicators(false);
-      setExpandedIndicators({});
-    }
-  }, [showAllIndicators, allIndicatorsExpanded, handleToggleAllIndicatorContent, onAutoRefreshPause]);
 
   return (
     <motion.div
@@ -367,19 +279,19 @@ export function AnalyzedContractCard({ contract, index = 0, onAutoRefreshPause, 
         </div>
         <section className="w-full max-w-full overflow-x-hidden">
           <div className="rounded-lg border border-border/50 dark:border-white/5 bg-[hsl(var(--surface-muted))]/30 dark:bg-white/[0.02] p-4 sm:p-5 md:p-6 transition-colors duration-200 w-full max-w-full overflow-x-hidden">
-            <div className="mb-3 md:mb-4 flex items-center gap-2 md:gap-3">
-              <div className="flex h-8 w-8 md:h-9 md:w-9 items-center justify-center rounded-lg bg-[hsl(var(--surface-muted))]/50 dark:bg-white/[0.03] shrink-0">
-                <FileText className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground dark:text-zinc-500" />
+            <div className="mb-3 flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[hsl(var(--surface-muted))]/50 dark:bg-white/[0.03] shrink-0">
+                <FileText className="h-3.5 w-3.5 text-muted-foreground dark:text-zinc-500" />
               </div>
-              <h4 className="text-[10px] sm:text-xs md:text-sm font-semibold uppercase tracking-[0.3em] text-foreground dark:text-white">
+              <h4 className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-foreground dark:text-white">
                 Summary
               </h4>
             </div>
-            <div className="space-y-3 md:space-y-4">
-              <p className="text-sm md:text-base leading-relaxed text-muted-foreground dark:text-zinc-400 break-words">
+            <div className="space-y-3">
+              <p className="text-xs leading-relaxed text-muted-foreground dark:text-zinc-400 break-words">
                 {contract.analysis.summary}
               </p>
-              <div className="rounded-lg border border-border/40 dark:border-white/[0.03] bg-[hsl(var(--surface-muted))]/40 dark:bg-white/[0.015] px-3 py-2.5 md:px-4 md:py-3 text-sm md:text-base text-muted-foreground dark:text-zinc-400 leading-relaxed break-words w-full max-w-full overflow-x-hidden">
+              <div className="rounded-lg border border-border/40 dark:border-white/[0.03] bg-[hsl(var(--surface-muted))]/40 dark:bg-white/[0.015] px-3 py-2 text-xs text-muted-foreground dark:text-zinc-400 leading-relaxed break-words w-full max-w-full overflow-x-hidden">
                 {contract.analysis.why_risky_one_liner}
               </div>
             </div>
@@ -390,63 +302,16 @@ export function AnalyzedContractCard({ contract, index = 0, onAutoRefreshPause, 
           <div className="space-y-4 md:space-y-5 lg:space-y-6 w-full max-w-full min-w-0">
             {hasRiskyFunctions && (
               <div className="rounded-lg border border-border/50 dark:border-white/5 bg-[hsl(var(--surface-muted))]/30 dark:bg-white/[0.02] p-4 sm:p-5 md:p-6 transition-colors duration-200 w-full max-w-full overflow-x-hidden">
-                <div className="mb-3 md:mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <h5 className="text-[10px] sm:text-xs md:text-sm font-semibold uppercase tracking-[0.2em] sm:tracking-[0.3em] text-foreground dark:text-white flex items-center gap-1.5 md:gap-2">
-                    <div className="flex h-8 w-8 md:h-9 md:w-9 items-center justify-center rounded-lg bg-[hsl(var(--surface-muted))]/50 dark:bg-white/[0.03] shrink-0">
-                      <AlertTriangle className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground dark:text-zinc-500" />
+                <div className="mb-3 flex items-center justify-between">
+                  <h5 className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-foreground dark:text-white flex items-center gap-2">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[hsl(var(--surface-muted))]/50 dark:bg-white/[0.03] shrink-0">
+                      <AlertTriangle className="h-3.5 w-3.5 text-muted-foreground dark:text-zinc-500" />
                     </div>
-                    Risky Functions ({contract.analysis.risky_functions.length})
+                    Risky Functions
+                    <span className="text-muted-foreground dark:text-zinc-500 font-normal">({contract.analysis.risky_functions.length})</span>
                   </h5>
-
-                  {/* Mobile: Single 3-state cycle button */}
-                  <div className="sm:hidden w-full">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleMobileFunctionsCombinedAction}
-                      className="inline-flex h-9 w-full items-center justify-start gap-1 px-2 text-xs font-semibold text-foreground dark:text-white hover:bg-[hsl(var(--surface-muted))] dark:hover:bg-black/40 active:scale-95 transition-transform"
-                    >
-                      {!showAllFunctions
-                        ? `Show All (${contract.analysis.risky_functions.length})`
-                        : !allFunctionsExpanded
-                        ? 'Unfold Details'
-                        : 'Collapse All'}
-                      <ChevronDown
-                        className={cn('h-3.5 w-3.5 transition-transform', allFunctionsExpanded && 'rotate-180')}
-                      />
-                    </Button>
-                  </div>
-
-                  {/* Desktop: Separate buttons */}
-                  <div className="hidden sm:flex items-center gap-1.5 md:gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleToggleAllFunctionContent}
-                      disabled={!contract.analysis.risky_functions.length}
-                      className="inline-flex h-7 md:h-8 items-center justify-center gap-1 md:gap-1.5 px-2 md:px-2.5 text-xs md:text-sm font-semibold text-foreground dark:text-white hover:bg-[hsl(var(--surface-muted))] dark:hover:bg-black/40"
-                    >
-                      {allFunctionsExpanded ? 'Fold all' : 'Unfold all'}
-                      <ChevronDown
-                        className={cn('h-3.5 w-3.5 md:h-4 md:w-4 transition-transform', allFunctionsExpanded && 'rotate-180')}
-                      />
-                    </Button>
-                    {contract.analysis.risky_functions.length > DEFAULT_VISIBLE_FUNCTIONS && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={toggleFunctions}
-                        className="inline-flex h-7 md:h-8 items-center justify-center gap-1 md:gap-1.5 px-2 md:px-2.5 text-xs md:text-sm font-semibold text-foreground dark:text-white hover:bg-[hsl(var(--surface-muted))] dark:hover:bg-black/40"
-                      >
-                        {showAllFunctions ? 'Show less' : `Show all (+${contract.analysis.risky_functions.length - DEFAULT_VISIBLE_FUNCTIONS})`}
-                        <ChevronDown
-                          className={cn('h-3.5 w-3.5 md:h-4 md:w-4 transition-transform', showAllFunctions && 'rotate-180')}
-                        />
-                      </Button>
-                    )}
-                  </div>
                 </div>
-                <div className="space-y-2 md:space-y-2.5">
+                <div className="space-y-1.5">
                   {visibleRiskyFunctions.map(({ data: func, originalIndex }) => {
                     const functionKey = getFunctionKey(func.function_name, originalIndex);
                     const isExpanded = Boolean(expandedFunctions[functionKey]);
@@ -455,24 +320,24 @@ export function AnalyzedContractCard({ contract, index = 0, onAutoRefreshPause, 
                       <div
                         key={functionKey}
                         className={cn(
-                          'rounded-lg bg-[hsl(var(--surface-muted))]/30 dark:bg-black/40 border border-border/50 dark:border-white/5 px-3 py-2.5 sm:px-3 sm:py-2 md:px-4 md:py-2.5 text-sm md:text-base transition-colors duration-150 w-full max-w-full overflow-x-hidden',
+                          'rounded-lg bg-[hsl(var(--surface-muted))]/30 dark:bg-black/40 border border-border/50 dark:border-white/5 px-3 py-2 transition-colors duration-150 w-full max-w-full overflow-x-hidden',
                           isExpanded && 'border-border/60 dark:border-white/10 bg-[hsl(var(--surface-muted))]/40 dark:bg-black/50',
                         )}
                       >
                         <button
                           type="button"
                           onClick={() => handleToggleFunctionContent(functionKey)}
-                          className="flex w-full flex-wrap items-start gap-2 md:gap-3 text-left sm:flex-nowrap sm:items-center sm:justify-between min-w-0"
+                          className="flex w-full flex-wrap items-start gap-2 text-left sm:flex-nowrap sm:items-center sm:justify-between min-w-0"
                           aria-expanded={isExpanded}
                         >
-                          <span className="flex min-w-0 flex-1 items-start gap-2 md:gap-2.5">
+                          <span className="flex min-w-0 flex-1 items-start gap-2">
                             <ChevronRight
                               className={cn(
-                                'mt-0.5 h-4 w-4 md:h-5 md:w-5 shrink-0 text-muted-foreground transition-transform duration-150 sm:mt-0',
+                                'mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-150 sm:mt-0',
                                 isExpanded && 'rotate-90',
                               )}
                             />
-                            <span className="break-words font-mono text-sm md:text-base font-medium leading-5 md:leading-6 text-muted-foreground dark:text-zinc-300 line-clamp-2 sm:line-clamp-none min-w-0">
+                            <span className="break-words font-mono text-xs font-medium leading-5 text-muted-foreground dark:text-zinc-300 line-clamp-2 sm:line-clamp-none min-w-0">
                               {func.function_name}
                             </span>
                           </span>
@@ -485,69 +350,35 @@ export function AnalyzedContractCard({ contract, index = 0, onAutoRefreshPause, 
                       </div>
                     );
                   })}
+                  {contract.analysis.risky_functions.length > DEFAULT_VISIBLE_FUNCTIONS && (
+                    <button
+                      type="button"
+                      onClick={toggleFunctions}
+                      className="w-full pt-2 flex items-center justify-center gap-1 text-[10px] text-muted-foreground hover:text-foreground dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
+                    >
+                      {showAllFunctions ? (
+                        <>Show less <ChevronDown className="h-3 w-3 rotate-180" /></>
+                      ) : (
+                        <>+{contract.analysis.risky_functions.length - DEFAULT_VISIBLE_FUNCTIONS} more <ChevronDown className="h-3 w-3" /></>
+                      )}
+                    </button>
+                  )}
                 </div>
               </div>
             )}
 
             {hasRugPullIndicators && (
-              <div className="rounded-lg border border-border/50 dark:border-white/5 bg-[hsl(var(--surface-muted))]/30 dark:bg-white/[0.02] p-4 sm:p-5 md:p-6 transition-colors duration-200 w-full max-w-full overflow-x-hidden">
-                <div className="mb-3 md:mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <h5 className="text-[10px] sm:text-xs md:text-sm font-semibold uppercase tracking-[0.2em] sm:tracking-[0.3em] text-foreground dark:text-white flex items-center gap-1.5 md:gap-2">
-                    <div className="flex h-8 w-8 md:h-9 md:w-9 items-center justify-center rounded-lg bg-[hsl(var(--surface-muted))]/50 dark:bg-white/[0.03] shrink-0">
-                      <AlertTriangle className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground dark:text-zinc-500" />
+              <div className="rounded-lg border border-border/50 dark:border-white/5 bg-[hsl(var(--surface-muted))]/30 dark:bg-white/[0.02] p-4 transition-colors duration-200 w-full max-w-full overflow-x-hidden">
+                <div className="mb-3 flex items-center justify-between">
+                  <h5 className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-foreground dark:text-white flex items-center gap-2">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[hsl(var(--surface-muted))]/50 dark:bg-white/[0.03] shrink-0">
+                      <AlertTriangle className="h-3.5 w-3.5 text-muted-foreground dark:text-zinc-500" />
                     </div>
-                    Rug Pull Indicators ({contract.analysis.rug_pull_indicators.length})
+                    Rug Pull Indicators
+                    <span className="text-muted-foreground dark:text-zinc-500 font-normal">({contract.analysis.rug_pull_indicators.length})</span>
                   </h5>
-
-                  {/* Mobile: Single 3-state cycle button */}
-                  <div className="sm:hidden w-full">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleMobileIndicatorsCombinedAction}
-                      className="inline-flex h-9 w-full items-center justify-start gap-1 px-2 text-xs font-semibold text-foreground dark:text-white hover:bg-[hsl(var(--surface-muted))] dark:hover:bg-black/40 active:scale-95 transition-transform"
-                    >
-                      {!showAllIndicators
-                        ? `Show All (${contract.analysis.rug_pull_indicators.length})`
-                        : !allIndicatorsExpanded
-                        ? 'Unfold Details'
-                        : 'Collapse All'}
-                      <ChevronDown
-                        className={cn('h-3.5 w-3.5 transition-transform', allIndicatorsExpanded && 'rotate-180')}
-                      />
-                    </Button>
-                  </div>
-
-                  {/* Desktop: Separate buttons */}
-                  <div className="hidden sm:flex items-center gap-1.5 md:gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleToggleAllIndicatorContent}
-                      disabled={!contract.analysis.rug_pull_indicators.length}
-                      className="inline-flex h-7 md:h-8 items-center justify-center gap-1 md:gap-1.5 px-2 md:px-2.5 text-xs md:text-sm font-semibold text-foreground dark:text-white hover:bg-[hsl(var(--surface-muted))] dark:hover:bg-black/40"
-                    >
-                      {allIndicatorsExpanded ? 'Fold all' : 'Unfold all'}
-                      <ChevronDown
-                        className={cn('h-3.5 w-3.5 md:h-4 md:w-4 transition-transform', allIndicatorsExpanded && 'rotate-180')}
-                      />
-                    </Button>
-                    {contract.analysis.rug_pull_indicators.length > DEFAULT_VISIBLE_INDICATORS && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={toggleIndicators}
-                        className="inline-flex h-7 md:h-8 items-center justify-center gap-1 md:gap-1.5 px-2 md:px-2.5 text-xs md:text-sm font-semibold text-foreground dark:text-white hover:bg-[hsl(var(--surface-muted))] dark:hover:bg-black/40"
-                      >
-                        {showAllIndicators ? 'Show less' : `Show all (+${contract.analysis.rug_pull_indicators.length - DEFAULT_VISIBLE_INDICATORS})`}
-                        <ChevronDown
-                          className={cn('h-3.5 w-3.5 md:h-4 md:w-4 transition-transform', showAllIndicators && 'rotate-180')}
-                        />
-                      </Button>
-                    )}
-                  </div>
                 </div>
-                <div className="space-y-2 md:space-y-2.5">
+                <div className="space-y-1.5">
                   {rugPullIndicators.map((indicator, index) => {
                     const indicatorKey = getIndicatorKey(indicator.pattern_name, index);
                     const isExpanded = Boolean(expandedIndicators[indicatorKey]);
@@ -556,24 +387,24 @@ export function AnalyzedContractCard({ contract, index = 0, onAutoRefreshPause, 
                       <div
                         key={indicatorKey}
                         className={cn(
-                          'rounded-lg bg-[hsl(var(--surface-muted))]/30 dark:bg-black/40 border border-border/50 dark:border-white/5 px-3 py-2.5 sm:px-3 sm:py-2 md:px-4 md:py-2.5 text-sm md:text-base transition-colors duration-150 w-full max-w-full overflow-x-hidden',
+                          'rounded-lg bg-[hsl(var(--surface-muted))]/30 dark:bg-black/40 border border-border/50 dark:border-white/5 px-3 py-2 transition-colors duration-150 w-full max-w-full overflow-x-hidden',
                           isExpanded && 'border-border/60 dark:border-white/10 bg-[hsl(var(--surface-muted))]/40 dark:bg-black/50',
                         )}
                       >
                         <button
                           type="button"
                           onClick={() => handleToggleIndicatorContent(indicatorKey)}
-                          className="flex w-full flex-wrap items-start gap-2 md:gap-3 text-left sm:flex-nowrap sm:items-center sm:justify-between min-w-0"
+                          className="flex w-full flex-wrap items-start gap-2 text-left sm:flex-nowrap sm:items-center sm:justify-between min-w-0"
                           aria-expanded={isExpanded}
                         >
-                          <span className="flex min-w-0 flex-1 items-start gap-2 md:gap-2.5">
+                          <span className="flex min-w-0 flex-1 items-start gap-2">
                             <ChevronRight
                               className={cn(
-                                'mt-0.5 h-4 w-4 md:h-5 md:w-5 shrink-0 text-muted-foreground transition-transform duration-150 sm:mt-0',
+                                'mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-150 sm:mt-0',
                                 isExpanded && 'rotate-90',
                               )}
                             />
-                            <span className="break-words font-medium text-sm md:text-base leading-5 md:leading-6 text-muted-foreground dark:text-zinc-300 line-clamp-2 sm:line-clamp-none min-w-0">
+                            <span className="break-words font-medium text-xs leading-5 text-muted-foreground dark:text-zinc-300 line-clamp-2 sm:line-clamp-none min-w-0">
                               {indicator.pattern_name}
                             </span>
                           </span>
@@ -586,6 +417,19 @@ export function AnalyzedContractCard({ contract, index = 0, onAutoRefreshPause, 
                       </div>
                     );
                   })}
+                  {contract.analysis.rug_pull_indicators.length > DEFAULT_VISIBLE_INDICATORS && (
+                    <button
+                      type="button"
+                      onClick={toggleIndicators}
+                      className="w-full pt-2 flex items-center justify-center gap-1 text-[10px] text-muted-foreground hover:text-foreground dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
+                    >
+                      {showAllIndicators ? (
+                        <>Show less <ChevronDown className="h-3 w-3 rotate-180" /></>
+                      ) : (
+                        <>+{contract.analysis.rug_pull_indicators.length - DEFAULT_VISIBLE_INDICATORS} more <ChevronDown className="h-3 w-3" /></>
+                      )}
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -599,16 +443,16 @@ export function AnalyzedContractCard({ contract, index = 0, onAutoRefreshPause, 
             )}
           </div>
           <div className="space-y-4 md:space-y-5 lg:space-y-6 w-full max-w-full min-w-0">
-                <div className="rounded-lg border border-border/50 dark:border-white/5 bg-[hsl(var(--surface-muted))]/30 dark:bg-white/[0.02] p-4 sm:p-5 md:p-6 transition-colors duration-200 w-full max-w-full overflow-x-hidden">
-                  <div className="mb-3 md:mb-4 flex items-center gap-2 md:gap-3">
-                    <div className="flex h-8 w-8 md:h-9 md:w-9 items-center justify-center rounded-lg bg-[hsl(var(--surface-muted))]/50 dark:bg-white/[0.03] shrink-0">
-                      <Users className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground dark:text-zinc-500" />
+                <div className="rounded-lg border border-border/50 dark:border-white/5 bg-[hsl(var(--surface-muted))]/30 dark:bg-white/[0.02] p-4 transition-colors duration-200 w-full max-w-full overflow-x-hidden">
+                  <div className="mb-3 flex items-center gap-2">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[hsl(var(--surface-muted))]/50 dark:bg-white/[0.03] shrink-0">
+                      <Users className="h-3.5 w-3.5 text-muted-foreground dark:text-zinc-500" />
                     </div>
-                    <h6 className="text-[10px] sm:text-xs md:text-sm font-semibold uppercase tracking-[0.3em] text-foreground dark:text-white">
+                    <h6 className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-foreground dark:text-white">
                       Impact On Users
                     </h6>
                   </div>
-                  <p className="text-sm md:text-base leading-relaxed text-muted-foreground dark:text-zinc-400 break-words">
+                  <p className="text-xs leading-relaxed text-muted-foreground dark:text-zinc-400 break-words">
                     {contract.analysis.impact_on_user}
                   </p>
                 </div>
@@ -629,18 +473,18 @@ export function AnalyzedContractCard({ contract, index = 0, onAutoRefreshPause, 
 
                 {/* Limitations Card */}
                 {contract.analysis.limitations && contract.analysis.limitations.length > 0 && (
-                  <div className="rounded-lg border border-border/50 dark:border-white/5 bg-[hsl(var(--surface-muted))]/30 dark:bg-white/[0.02] p-4 sm:p-5 md:p-6 transition-colors duration-200 w-full max-w-full overflow-x-hidden">
-                    <div className="mb-3 md:mb-4 flex items-center gap-2 md:gap-3">
-                      <div className="flex h-8 w-8 md:h-9 md:w-9 items-center justify-center rounded-lg bg-[hsl(var(--surface-muted))]/50 dark:bg-white/[0.03] shrink-0">
-                        <AlertTriangle className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground dark:text-zinc-500" />
+                  <div className="rounded-lg border border-border/50 dark:border-white/5 bg-[hsl(var(--surface-muted))]/30 dark:bg-white/[0.02] p-4 transition-colors duration-200 w-full max-w-full overflow-x-hidden">
+                    <div className="mb-3 flex items-center gap-2">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[hsl(var(--surface-muted))]/50 dark:bg-white/[0.03] shrink-0">
+                        <AlertTriangle className="h-3.5 w-3.5 text-muted-foreground dark:text-zinc-500" />
                       </div>
-                      <h6 className="text-[10px] sm:text-xs md:text-sm font-semibold uppercase tracking-[0.3em] text-foreground dark:text-white">
+                      <h6 className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-foreground dark:text-white">
                         Limitations
                       </h6>
                     </div>
-                    <ul className="space-y-1.5 md:space-y-2">
+                    <ul className="space-y-1.5">
                       {contract.analysis.limitations.map((limitation, index) => (
-                        <li key={index} className="text-xs md:text-sm text-muted-foreground dark:text-zinc-400 flex items-start gap-1.5 md:gap-2">
+                        <li key={index} className="text-xs text-muted-foreground dark:text-zinc-400 flex items-start gap-1.5">
                           <span className="shrink-0 text-zinc-400 dark:text-zinc-600">•</span>
                           <span className="break-words min-w-0">{limitation}</span>
                         </li>
@@ -649,24 +493,24 @@ export function AnalyzedContractCard({ contract, index = 0, onAutoRefreshPause, 
                   </div>
                 )}
 
-                <div className="rounded-lg border border-border/50 dark:border-white/5 bg-[hsl(var(--surface-muted))]/30 dark:bg-white/[0.02] p-4 sm:p-5 md:p-6 transition-colors duration-200 w-full max-w-full overflow-x-hidden">
-                  <div className="mb-3 md:mb-4 flex items-center gap-2 md:gap-3">
-                    <div className="flex h-8 w-8 md:h-9 md:w-9 items-center justify-center rounded-lg bg-[hsl(var(--surface-muted))]/50 dark:bg-white/[0.03] shrink-0">
-                      <Package className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground dark:text-zinc-500" />
+                <div className="rounded-lg border border-border/50 dark:border-white/5 bg-[hsl(var(--surface-muted))]/30 dark:bg-white/[0.02] p-4 transition-colors duration-200 w-full max-w-full overflow-x-hidden">
+                  <div className="mb-3 flex items-center gap-2">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[hsl(var(--surface-muted))]/50 dark:bg-white/[0.03] shrink-0">
+                      <Package className="h-3.5 w-3.5 text-muted-foreground dark:text-zinc-500" />
                     </div>
-                    <h6 className="text-[10px] sm:text-xs md:text-sm font-semibold uppercase tracking-[0.3em] text-foreground dark:text-white">
+                    <h6 className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-foreground dark:text-white">
                       Data Source
                     </h6>
                   </div>
-                  <div className="space-y-2.5 md:space-y-3 w-full min-w-0">
-                <div className="group flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 md:gap-4 rounded-xl px-2 py-1.5 md:px-3 md:py-2 hover:bg-[hsl(var(--surface-muted))]/50 dark:hover:bg-white/[0.03] transition-colors w-full min-w-0">
-                  <div className="flex items-center gap-2 md:gap-2.5 min-w-0 shrink-0">
-                    <Package className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground dark:text-zinc-500 shrink-0" />
-                    <dt className="text-[10px] sm:text-xs md:text-sm font-semibold uppercase tracking-[0.3em] text-foreground dark:text-white shrink-0 whitespace-nowrap">Package</dt>
+                  <div className="space-y-2 w-full min-w-0">
+                <div className="group flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-3 rounded-lg px-2 py-1.5 hover:bg-[hsl(var(--surface-muted))]/50 dark:hover:bg-white/[0.03] transition-colors w-full min-w-0">
+                  <div className="flex items-center gap-2 min-w-0 shrink-0">
+                    <Package className="h-3 w-3 text-muted-foreground dark:text-zinc-500 shrink-0" />
+                    <dt className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground dark:text-zinc-500 shrink-0 whitespace-nowrap">Package</dt>
                   </div>
-                  <div className="flex items-center gap-1.5 md:gap-2 min-w-0 flex-1 sm:flex-initial sm:justify-end">
+                  <div className="flex items-center gap-1.5 min-w-0 flex-1 sm:flex-initial sm:justify-end">
                     <dd
-                      className="font-mono text-xs md:text-sm text-muted-foreground dark:text-zinc-400 truncate cursor-pointer hover:text-rose-400 active:text-rose-500 transition-colors min-w-0 flex-1"
+                      className="font-mono text-[11px] text-foreground/80 dark:text-zinc-300 truncate cursor-pointer hover:text-rose-400 active:text-rose-500 transition-colors min-w-0 flex-1"
                       onClick={handleCopyPackageId}
                       title={`${contract.package_id} - Tap to copy`}
                     >
@@ -676,32 +520,32 @@ export function AnalyzedContractCard({ contract, index = 0, onAutoRefreshPause, 
                       variant="ghost"
                       size="sm"
                       onClick={handleCopyPackageId}
-                      className="h-9 w-9 sm:h-6 sm:w-6 md:h-7 md:w-7 p-0 shrink-0 text-muted-foreground hover:text-foreground dark:hover:text-white opacity-100 sm:opacity-0 sm:group-hover:opacity-100 active:scale-95 transition-all"
+                      className="h-7 w-7 sm:h-6 sm:w-6 p-0 shrink-0 text-muted-foreground hover:text-foreground dark:hover:text-white opacity-100 sm:opacity-0 sm:group-hover:opacity-100 active:scale-95 transition-all"
                       aria-label="Copy package id"
                     >
                       {copied ? (
-                        <Check className="h-4 w-4 sm:h-3 sm:w-3 md:h-4 md:w-4 text-emerald-400" />
+                        <Check className="h-3 w-3 text-emerald-400" />
                       ) : (
-                        <Copy className="h-4 w-4 sm:h-3 sm:w-3 md:h-4 md:w-4" />
+                        <Copy className="h-3 w-3" />
                       )}
                     </Button>
                   </div>
                 </div>
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 md:gap-4 rounded-xl px-2 py-1.5 md:px-3 md:py-2 w-full min-w-0">
-                  <div className="flex items-center gap-2 md:gap-2.5 shrink-0">
-                    <Network className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground dark:text-zinc-500 shrink-0" />
-                    <dt className="text-[10px] sm:text-xs md:text-sm font-semibold uppercase tracking-[0.3em] text-foreground dark:text-white whitespace-nowrap">Network</dt>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-3 rounded-lg px-2 py-1.5 w-full min-w-0">
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Network className="h-3 w-3 text-muted-foreground dark:text-zinc-500 shrink-0" />
+                    <dt className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground dark:text-zinc-500 whitespace-nowrap">Network</dt>
                   </div>
-                  <dd className="text-xs md:text-sm font-semibold uppercase tracking-[0.3em] text-muted-foreground dark:text-zinc-400 sm:text-right">
+                  <dd className="text-[11px] text-foreground/80 dark:text-zinc-300 sm:text-right">
                     {contract.network}
                   </dd>
                 </div>
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 md:gap-4 rounded-xl px-2 py-1.5 md:px-3 md:py-2 w-full min-w-0">
-                  <div className="flex items-center gap-2 md:gap-2.5 shrink-0">
-                    <Clock className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground dark:text-zinc-500 shrink-0" />
-                    <dt className="text-[10px] sm:text-xs md:text-sm font-semibold uppercase tracking-[0.3em] text-foreground dark:text-white whitespace-nowrap">Generated</dt>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-3 rounded-lg px-2 py-1.5 w-full min-w-0">
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Clock className="h-3 w-3 text-muted-foreground dark:text-zinc-500 shrink-0" />
+                    <dt className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground dark:text-zinc-500 whitespace-nowrap">Generated</dt>
                   </div>
-                  <dd className="text-xs md:text-sm font-medium text-muted-foreground dark:text-zinc-400 sm:text-right" title={absoluteAnalyzedAt}>
+                  <dd className="text-[11px] text-foreground/80 dark:text-zinc-300 sm:text-right" title={absoluteAnalyzedAt}>
                     {relativeAnalyzedAt}
                   </dd>
                 </div>
