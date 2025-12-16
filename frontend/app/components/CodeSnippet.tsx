@@ -82,7 +82,7 @@ function highlightCode(code: string): React.ReactNode[] {
     }
 
     return (
-      <div key={lineIndex} className="leading-relaxed break-words whitespace-pre-wrap sm:whitespace-pre min-w-0">
+      <div key={lineIndex} className="leading-relaxed break-words whitespace-pre-wrap min-w-0">
         {tokens}
       </div>
     );
@@ -120,8 +120,8 @@ export function CodeSnippet({ code, language = 'move', className, showLineNumber
       </button>
 
       {/* Code content */}
-      <pre className="p-3 pr-10 overflow-x-hidden sm:overflow-x-auto text-xs font-mono max-w-full w-full min-w-0">
-        <code className="block max-w-full break-words whitespace-pre-wrap sm:whitespace-pre overflow-wrap-anywhere break-all sm:break-normal">{highlightedCode}</code>
+      <pre className="p-3 md:p-4 pr-10 md:pr-12 overflow-x-hidden text-xs md:text-sm font-mono max-w-full w-full min-w-0">
+        <code className="block max-w-full break-words whitespace-pre-wrap overflow-wrap-anywhere break-all">{highlightedCode}</code>
       </pre>
     </div>
   );
