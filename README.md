@@ -484,6 +484,40 @@ Run migrations in order from `backend/migrations/` or apply the schema above dir
 - **Frontend 500s**: confirm `NEXT_PUBLIC_BACKEND_URL` is reachable and HTTPS when deployed to Vercel.
 - **Large contract analysis**: Contracts with multiple modules are automatically chunked and analyzed in parallel. Check logs for `[MapReduce]` messages to monitor progress.
 
+## Future Improvements (Roadmap)
+
+The following improvements are planned to enhance reliability, observability, and cost control of the LLM analysis pipeline.
+
+### Phase 1: Critical Fixes (Prevent Failures)
+
+- [ ] **Concurrency Control** - Add semaphore to limit parallel LLM calls (max 3-5) to prevent rate limit cascades
+- [ ] **Input Size Limits** - Add truncation for all input fields (functions, structs), not just bytecode
+- [ ] **Global Fallback State** - Track model state globally to prevent per-module fallback cascades
+- [ ] **Retry Loop Prevention** - Add `retry_count` column, skip contracts after N persistent failures
+
+### Phase 2: Quality Improvements
+
+- [ ] **Finding Deduplication** - Dedupe findings by `function_name + pattern_id` after Map-Reduce aggregation
+- [ ] **Partial Failure Handling** - Add `analysis_quality` field showing % of modules that succeeded
+- [ ] **Flexible JSON Recovery** - Make field-order-agnostic regex extraction for truncated responses
+- [ ] **Model Tracking** - Add `model_used` column to track which model produced successful analyses
+
+### Phase 3: Observability & Control
+
+- [ ] **Cost Tracking** - Track tokens per request, log totals, estimate costs
+- [ ] **Circuit Breaker** - Stop using paid model after X uses per hour to control costs
+- [ ] **Error Classification** - Create error taxonomy to distinguish transient vs permanent failures
+- [ ] **Score Consistency** - Cache analysis results, only re-analyze on explicit request
+
+### Phase 4: Advanced Features
+
+- [ ] **Giant Module Splitting** - Split oversized single modules by function groups
+- [ ] **Timeout Control** - Add explicit timeout wrapper for full analysis chain
+- [ ] **Semantic Validation** - Add deeper validation of findings beyond function existence
+- [ ] **Analysis Resumption** - Resume partially completed analyses instead of restarting
+
+See `.local-implementation-plan.md` (not tracked in git) for detailed implementation specifications.
+
 ## Contributing
 
 This is a private project. Follow the workspace coding standards, prefer small focused commits, and update this README when workflows change.
