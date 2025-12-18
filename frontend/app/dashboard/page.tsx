@@ -172,6 +172,14 @@ function DashboardContent() {
     [goToPage],
   );
 
+  const handleNetworkFilterChange = useCallback(
+    (network: NetworkFilter) => {
+      setNetworkFilter(network);
+      goToPage(1);
+    },
+    [goToPage],
+  );
+
   const fetchAnalyzedContracts = useCallback(async ({ silent }: { silent?: boolean } = {}) => {
     try {
       if (!silent) {
@@ -187,13 +195,18 @@ function DashboardContent() {
         limit: pageSize.toString(),
         offset: offset.toString(),
       });
-      
+
       if (debouncedSearchQuery.trim()) {
         params.append('packageId', debouncedSearchQuery.trim());
       }
 
       if (activeRiskFilters.length > 0) {
         params.append('riskLevels', activeRiskFilters.join(','));
+      }
+
+      // Add network parameter for server-side filtering
+      if (networkFilter !== 'all') {
+        params.append('network', networkFilter);
       }
 
       const response = await fetch(`${backendUrl}/api/llm/analyzed-contracts?${params}`, {
@@ -228,7 +241,7 @@ function DashboardContent() {
         setIsRefreshing(false);
       }
     }
-  }, [activeRiskFilters, debouncedSearchQuery, offset, pageSize]);
+  }, [activeRiskFilters, debouncedSearchQuery, networkFilter, offset, pageSize]);
 
   const fetchPackageStatus = useCallback(async (packageId: string, networkOverride?: 'mainnet' | 'testnet') => {
     const requestKey = buildRequestKey(packageId, networkOverride);
@@ -378,11 +391,6 @@ function DashboardContent() {
 
     let contracts = data.contracts;
 
-    // Filter by network
-    if (networkFilter !== 'all') {
-      contracts = contracts.filter((contract) => contract.network === networkFilter);
-    }
-
     // Filter by risk level (show all if all filters are selected or none are selected)
     if (selectedFilters.size > 0 && selectedFilters.size < RISK_LEVELS.length) {
       contracts = contracts.filter((contract) => selectedFilters.has(contract.analysis.risk_level));
@@ -412,7 +420,7 @@ function DashboardContent() {
     });
 
     return sorted;
-  }, [data, selectedFilters, networkFilter, sortBy]);
+  }, [data, selectedFilters, sortBy]);
 
   const hasSelectedAnalyzedPackage = !!(
     packageStatus &&
@@ -582,7 +590,7 @@ function DashboardContent() {
                 {(['all', 'mainnet', 'testnet'] as const).map((network) => (
                   <button
                     key={network}
-                    onClick={() => setNetworkFilter(network)}
+                    onClick={() => handleNetworkFilterChange(network)}
                     className={cn(
                       'px-3 py-1 rounded-full text-xs font-medium transition-all',
                       networkFilter === network

@@ -7,6 +7,7 @@ export interface Deployment {
   checkpoint: number;
   timestamp: string;
   first_seen_at: string;
+  network?: 'mainnet' | 'testnet';
 }
 
 export interface DeploymentsResponse {
@@ -28,12 +29,18 @@ const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001
 export async function fetchDeployments(
   limit: number = 50,
   offset: number = 0,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  network?: 'mainnet' | 'testnet' | null
 ): Promise<DeploymentsResponse> {
   const params = new URLSearchParams({
     limit: limit.toString(),
     offset: offset.toString(),
   });
+
+  // Add network parameter for server-side filtering
+  if (network) {
+    params.append('network', network);
+  }
 
   const response = await fetch(`${backendUrl}/api/sui/deployments?${params}`, { signal });
 
@@ -48,7 +55,9 @@ export async function fetchDeployments(
  * Fetch deployment statistics from the backend API
  * Gets accurate counts from the database, not just paginated results
  */
-export async function fetchDeploymentStats(): Promise<{
+export async function fetchDeploymentStats(
+  network?: 'mainnet' | 'testnet' | null
+): Promise<{
   success: boolean;
   total: number;
   last24h: number;
@@ -57,8 +66,14 @@ export async function fetchDeploymentStats(): Promise<{
   latestCheckpoint: number | null;
   timestamp?: string;
   message?: string;
+  network?: string;
 }> {
-  const response = await fetch(`${backendUrl}/api/sui/deployment-stats`);
+  // Add network parameter to URL if provided
+  const url = network
+    ? `${backendUrl}/api/sui/deployment-stats?network=${network}`
+    : `${backendUrl}/api/sui/deployment-stats`;
+
+  const response = await fetch(url);
 
   if (!response.ok) {
     throw new Error(`Failed to fetch deployment stats: ${response.status} ${response.statusText}`);
@@ -199,6 +214,14 @@ export function getSuiPackageExplorerUrl(packageId: string, network: 'mainnet' |
  */
 export function getSuiAddressExplorerUrl(address: string, network: 'mainnet' | 'testnet' = 'testnet'): string {
   return `https://suiexplorer.com/address/${address}?network=${network}`;
+}
+
+/**
+ * Generate a unique key for a deployment
+ * Includes network to differentiate same package on mainnet vs testnet
+ */
+export function getDeploymentKey(deployment: Deployment): string {
+  return `${deployment.package_id}_${deployment.network || 'unknown'}_${deployment.tx_digest}`;
 }
 
 /**

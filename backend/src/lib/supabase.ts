@@ -56,9 +56,12 @@ export async function testSupabaseConnection() {
 
 /**
  * Upsert (insert or update) Sui package deployments to the database
- * Uses package_id as the conflict resolution key
+ * Uses (package_id, network) as the conflict resolution key
  */
-export async function upsertDeployments(deployments: ContractDeployment[]): Promise<{
+export async function upsertDeployments(
+  deployments: ContractDeployment[],
+  network: string
+): Promise<{
   success: boolean;
   message: string;
   count: number;
@@ -82,25 +85,26 @@ export async function upsertDeployments(deployments: ContractDeployment[]): Prom
       };
     }
 
-    // Transform ContractDeployment to database format
+    // Transform ContractDeployment to database format with network
     const dbDeployments = deployments.map(deployment => ({
       package_id: deployment.packageId,
       deployer_address: deployment.deployer,
       tx_digest: deployment.txDigest,
       checkpoint: deployment.checkpoint,
-      timestamp: new Date(deployment.timestamp).toISOString()
+      timestamp: new Date(deployment.timestamp).toISOString(),
+      network
     }));
 
     const { data, error } = await supabase
       .from('sui_package_deployments')
       .upsert(dbDeployments, {
-        onConflict: 'package_id',
+        onConflict: 'package_id,network',
         ignoreDuplicates: false
       })
       .select('package_id');
 
     if (error) {
-      console.error('Failed to upsert deployments:', error);
+      console.error(`Failed to upsert ${network} deployments:`, error);
       return {
         success: false,
         message: `Database upsert failed: ${error.message}`,
@@ -110,8 +114,8 @@ export async function upsertDeployments(deployments: ContractDeployment[]): Prom
     }
 
     const actualCount = data?.length || 0;
-    console.log(`Successfully upserted ${actualCount} deployments to database`);
-    
+    console.log(`Successfully upserted ${actualCount} ${network} deployments to database`);
+
     return {
       success: true,
       message: `Successfully upserted ${actualCount} deployments`,
@@ -131,10 +135,10 @@ export async function upsertDeployments(deployments: ContractDeployment[]): Prom
 }
 
 /**
- * Get the highest checkpoint number from existing deployments
+ * Get the highest checkpoint number from existing deployments for a specific network
  * Used to resume monitoring from the last processed checkpoint
  */
-export async function getLastProcessedCheckpoint(): Promise<{
+export async function getLastProcessedCheckpoint(network: string): Promise<{
   success: boolean;
   checkpoint: number | null;
   error?: string;
@@ -151,6 +155,7 @@ export async function getLastProcessedCheckpoint(): Promise<{
     const { data, error } = await supabase
       .from('sui_package_deployments')
       .select('checkpoint')
+      .eq('network', network)
       .order('checkpoint', { ascending: false })
       .limit(1)
       .single();
@@ -163,8 +168,8 @@ export async function getLastProcessedCheckpoint(): Promise<{
           checkpoint: null
         };
       }
-      
-      console.error('Failed to get last checkpoint:', error);
+
+      console.error(`Failed to get last checkpoint for ${network}:`, error);
       return {
         success: false,
         checkpoint: null,
@@ -194,6 +199,7 @@ export async function getLastProcessedCheckpoint(): Promise<{
 export async function getDeployments(options: {
   limit?: number;
   offset?: number;
+  network?: string | null;
 } = {}): Promise<{
   success: boolean;
   deployments: DeploymentRow[];
@@ -210,12 +216,19 @@ export async function getDeployments(options: {
       };
     }
 
-    const { limit = 50, offset = 0 } = options;
+    const { limit = 50, offset = 0, network = null } = options;
 
-    // Get total count
-    const { count, error: countError } = await supabase
+    // Build count query
+    let countQuery = supabase
       .from('sui_package_deployments')
       .select('*', { count: 'exact', head: true });
+
+    // Apply network filter if provided
+    if (network && (network === 'mainnet' || network === 'testnet')) {
+      countQuery = countQuery.eq('network', network);
+    }
+
+    const { count, error: countError } = await countQuery;
 
     if (countError) {
       console.error('Failed to get deployment count:', countError);
@@ -227,10 +240,17 @@ export async function getDeployments(options: {
       };
     }
 
-    // Get paginated deployments
-    const { data, error } = await supabase
+    // Build paginated deployments query
+    let query = supabase
       .from('sui_package_deployments')
-      .select('*')
+      .select('*');
+
+    // Apply network filter if provided
+    if (network && (network === 'mainnet' || network === 'testnet')) {
+      query = query.eq('network', network);
+    }
+
+    const { data, error } = await query
       .order('checkpoint', { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -264,8 +284,12 @@ export async function getDeployments(options: {
 
 /**
  * Get a single deployment by package_id
+ * Optional network parameter to filter by network (required for composite primary key)
  */
-export async function getDeploymentByPackageId(packageId: string): Promise<{
+export async function getDeploymentByPackageId(
+  packageId: string,
+  network?: string | null
+): Promise<{
   success: boolean;
   deployment: DeploymentRow | null;
   error?: string;
@@ -279,11 +303,17 @@ export async function getDeploymentByPackageId(packageId: string): Promise<{
       };
     }
 
-    const { data, error } = await supabase
+    let query = supabase
       .from('sui_package_deployments')
       .select('*')
-      .eq('package_id', packageId)
-      .single();
+      .eq('package_id', packageId);
+
+    // Apply network filter if provided
+    if (network && (network === 'mainnet' || network === 'testnet')) {
+      query = query.eq('network', network);
+    }
+
+    const { data, error } = await query.limit(1).single();
 
     if (error) {
       if (error.code === 'PGRST116') {
@@ -321,7 +351,9 @@ export async function getDeploymentByPackageId(packageId: string): Promise<{
  * Get deployment statistics from the database
  * Calculates total, last 24h, and latest checkpoint directly from DB
  */
-export async function getDeploymentStats(): Promise<{
+export async function getDeploymentStats(options: {
+  network?: string | null;
+} = {}): Promise<{
   success: boolean;
   total: number;
   last24h: number;
@@ -341,14 +373,22 @@ export async function getDeploymentStats(): Promise<{
       };
     }
 
+    const { network = null } = options;
+
     const now = new Date();
     const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     const previous24h = new Date(now.getTime() - 48 * 60 * 60 * 1000);
 
-    // Get total count
-    const { count: totalCount, error: totalError } = await supabase
+    // Get total count with network filter
+    let totalQuery = supabase
       .from('sui_package_deployments')
       .select('*', { count: 'exact', head: true });
+
+    if (network && (network === 'mainnet' || network === 'testnet')) {
+      totalQuery = totalQuery.eq('network', network);
+    }
+
+    const { count: totalCount, error: totalError } = await totalQuery;
 
     if (totalError) {
       console.error('Failed to get total count:', totalError);
@@ -362,11 +402,17 @@ export async function getDeploymentStats(): Promise<{
       };
     }
 
-    // Get last 24h count
-    const { count: last24hCount, error: last24hError } = await supabase
+    // Get last 24h count with network filter
+    let last24hQuery = supabase
       .from('sui_package_deployments')
       .select('*', { count: 'exact', head: true })
       .gte('timestamp', last24h.toISOString());
+
+    if (network && (network === 'mainnet' || network === 'testnet')) {
+      last24hQuery = last24hQuery.eq('network', network);
+    }
+
+    const { count: last24hCount, error: last24hError } = await last24hQuery;
 
     if (last24hError) {
       console.error('Failed to get last 24h count:', last24hError);
@@ -380,12 +426,18 @@ export async function getDeploymentStats(): Promise<{
       };
     }
 
-    // Get previous 24h count (24-48 hours ago)
-    const { count: previous24hCount, error: previous24hError } = await supabase
+    // Get previous 24h count (24-48 hours ago) with network filter
+    let previous24hQuery = supabase
       .from('sui_package_deployments')
       .select('*', { count: 'exact', head: true })
       .gte('timestamp', previous24h.toISOString())
       .lt('timestamp', last24h.toISOString());
+
+    if (network && (network === 'mainnet' || network === 'testnet')) {
+      previous24hQuery = previous24hQuery.eq('network', network);
+    }
+
+    const { count: previous24hCount, error: previous24hError } = await previous24hQuery;
 
     if (previous24hError) {
       console.error('Failed to get previous 24h count:', previous24hError);
@@ -399,13 +451,18 @@ export async function getDeploymentStats(): Promise<{
       };
     }
 
-    // Get latest checkpoint
-    const { data: checkpointData, error: checkpointError } = await supabase
+    // Get latest checkpoint with network filter
+    let checkpointQuery = supabase
       .from('sui_package_deployments')
       .select('checkpoint')
       .order('checkpoint', { ascending: false })
-      .limit(1)
-      .single();
+      .limit(1);
+
+    if (network && (network === 'mainnet' || network === 'testnet')) {
+      checkpointQuery = checkpointQuery.eq('network', network);
+    }
+
+    const { data: checkpointData, error: checkpointError } = await checkpointQuery.single();
 
     if (checkpointError && checkpointError.code !== 'PGRST116') {
       console.error('Failed to get latest checkpoint:', checkpointError);
@@ -652,6 +709,7 @@ export async function getRecentAnalyses(options: {
   offset?: number;
   packageId?: string | null;
   riskLevels?: RiskLevel[] | null;
+  network?: string | null;
   includeFailed?: boolean;
 } = {}): Promise<{
   success: boolean;
@@ -669,7 +727,14 @@ export async function getRecentAnalyses(options: {
       };
     }
 
-    const { limit = 50, offset = 0, packageId = null, riskLevels = null, includeFailed = false } = options;
+    const {
+      limit = 50,
+      offset = 0,
+      packageId = null,
+      riskLevels = null,
+      network = null,
+      includeFailed = false
+    } = options;
 
     // Build base query
     let query = supabase
@@ -689,6 +754,11 @@ export async function getRecentAnalyses(options: {
 
     if (riskLevels && riskLevels.length > 0) {
       query = query.in('risk_level', riskLevels);
+    }
+
+    // Apply network filter if provided
+    if (network && (network === 'mainnet' || network === 'testnet')) {
+      query = query.eq('network', network);
     }
 
     // Get paginated analyses with accurate total count in one query
@@ -728,6 +798,7 @@ export async function getRecentAnalyses(options: {
  */
 export async function getRiskLevelCounts(options: {
   packageId?: string | null;
+  network?: string | null;
 } = {}): Promise<{
   success: boolean;
   counts: Record<'critical' | 'high' | 'moderate' | 'low', number>;
@@ -747,7 +818,7 @@ export async function getRiskLevelCounts(options: {
       };
     }
 
-    const { packageId = null } = options;
+    const { packageId = null, network = null } = options;
     const levels: Array<'critical' | 'high' | 'moderate' | 'low'> = ['critical', 'high', 'moderate', 'low'];
     const counts: Record<'critical' | 'high' | 'moderate' | 'low', number> = {
       critical: 0,
@@ -766,6 +837,11 @@ export async function getRiskLevelCounts(options: {
 
         if (packageId) {
           query = query.eq('package_id', packageId);
+        }
+
+        // Apply network filter if provided
+        if (network && (network === 'mainnet' || network === 'testnet')) {
+          query = query.eq('network', network);
         }
 
         const { count, error } = await query;
@@ -802,6 +878,7 @@ export async function getRiskLevelCounts(options: {
  */
 export async function getHighRiskAnalyses(options: {
   limit?: number;
+  network?: string | null;
 } = {}): Promise<{
   success: boolean;
   analyses: any[];
@@ -816,12 +893,20 @@ export async function getHighRiskAnalyses(options: {
       };
     }
 
-    const { limit = 50 } = options;
+    const { limit = 50, network = null } = options;
 
-    const { data, error } = await supabase
+    let query = supabase
       .from('contract_analyses')
       .select('*')
       .in('risk_level', ['high', 'critical'])
+      .eq('analysis_status', 'completed'); // Exclude failed analyses for consistency
+
+    // Apply network filter if provided
+    if (network && (network === 'mainnet' || network === 'testnet')) {
+      query = query.eq('network', network);
+    }
+
+    const { data, error } = await query
       .order('risk_score', { ascending: false })
       .limit(limit);
 

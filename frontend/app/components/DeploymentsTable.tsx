@@ -17,6 +17,7 @@ import {
   calculateStats,
   fetchDeployments,
   fetchDeploymentStats,
+  getDeploymentKey,
   type Deployment,
   type DeploymentsResponse,
 } from '@/lib/deployments';
@@ -24,6 +25,7 @@ import {
 interface DeploymentsTableProps {
   autoRefresh?: boolean;
   refreshInterval?: number;
+  networkFilter?: 'all' | 'mainnet' | 'testnet';
 }
 
 const ITEMS_PER_PAGE = 20;
@@ -45,6 +47,7 @@ const CONNECTION_STATUS_CONFIG: Record<ConnectionStatus, { label: string; color:
 export default function DeploymentsTable({
   autoRefresh = true,
   refreshInterval = 30000,
+  networkFilter = 'all',
 }: DeploymentsTableProps) {
   const [deployments, setDeployments] = useState<Deployment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,7 +59,6 @@ export default function DeploymentsTable({
   const [sortBy, setSortBy] = useState<'timestamp' | 'checkpoint'>('timestamp');
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [showTypeahead, setShowTypeahead] = useState(false);
-  const [network, setNetwork] = useState<'mainnet' | 'testnet' | undefined>(undefined);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Single time tick for all cards (prevents N intervals)
@@ -102,7 +104,8 @@ export default function DeploymentsTable({
 
   const loadDeploymentStats = useCallback(async () => {
     try {
-      const stats = await fetchDeploymentStats();
+      const networkParam = networkFilter !== 'all' ? networkFilter : null;
+      const stats = await fetchDeploymentStats(networkParam);
       if (stats.success) {
         setDbStats({
           total: stats.total,
@@ -118,7 +121,7 @@ export default function DeploymentsTable({
     } finally {
       pendingStatsRefreshRef.current = false;
     }
-  }, []);
+  }, [networkFilter]);
 
   // Debounced stats refresh to prevent spam when multiple deployments arrive quickly
   const debouncedStatsRefresh = useCallback(() => {
@@ -154,7 +157,8 @@ export default function DeploymentsTable({
         setLoadingMore(true);
       }
 
-      const response: DeploymentsResponse = await fetchDeployments(ITEMS_PER_PAGE, offset, controller.signal);
+      const networkParam = networkFilter !== 'all' ? networkFilter : null;
+      const response: DeploymentsResponse = await fetchDeployments(ITEMS_PER_PAGE, offset, controller.signal, networkParam);
 
       if (!response.success) {
         throw new Error(response.message || 'Failed to fetch deployments');
@@ -169,8 +173,8 @@ export default function DeploymentsTable({
         }
         if (isAutoRefresh && prev.length > 0) {
           // Merge new items: prepend truly new ones, keep existing loaded data
-          const existingIds = new Set(prev.map(d => d.package_id + d.tx_digest));
-          const trulyNew = newDeployments.filter(d => !existingIds.has(d.package_id + d.tx_digest));
+          const existingIds = new Set(prev.map(d => getDeploymentKey(d)));
+          const trulyNew = newDeployments.filter(d => !existingIds.has(getDeploymentKey(d)));
           const updated = [...trulyNew, ...prev];
           // Cap the array
           return updated.length > MAX_DEPLOYMENTS ? updated.slice(0, MAX_DEPLOYMENTS) : updated;
@@ -181,9 +185,6 @@ export default function DeploymentsTable({
         setHasMore(newDeployments.length === ITEMS_PER_PAGE);
       }
       setLastUpdate(new Date());
-      if (response.network) {
-        setNetwork(response.network);
-      }
     } catch (err) {
       // Ignore abort errors
       if (err instanceof Error && err.name === 'AbortError') {
@@ -201,16 +202,16 @@ export default function DeploymentsTable({
         setLoadingMore(false);
       }
     }
-  }, []);
+  }, [networkFilter]);
 
   // Handle new deployment from realtime subscription
   const handleNewDeployment = useCallback((deployment: Deployment) => {
-    const deploymentKey = deployment.package_id + deployment.tx_digest;
+    const deploymentKey = getDeploymentKey(deployment);
 
     // Add to deployments list (prepend) with cap
     setDeployments((prev) => {
       // Check if already exists
-      const exists = prev.some(d => d.package_id + d.tx_digest === deploymentKey);
+      const exists = prev.some(d => getDeploymentKey(d) === deploymentKey);
       if (exists) return prev;
 
       const updated = [deployment, ...prev];
@@ -249,7 +250,15 @@ export default function DeploymentsTable({
   const { status: connectionStatus, reconnect } = useRealtimeDeployments({
     enabled: autoRefresh,
     onNewDeployment: handleNewDeployment,
+    networkFilter,
   });
+
+  // Reset deployments when network filter changes
+  useEffect(() => {
+    setDeployments([]);
+    setError(null);
+    setHasMore(true);
+  }, [networkFilter]);
 
   // Initial load and stats refresh (no more deployment polling - realtime handles it)
   useEffect(() => {
@@ -728,7 +737,7 @@ export default function DeploymentsTable({
             <p className="max-w-md text-sm text-muted-foreground dark:text-zinc-400">
               {searchTerm
                 ? 'Try adjusting your search terms or clearing the search box.'
-                : 'Deployments will appear here as soon as they are detected on the Sui testnet.'}
+                : `Deployments will appear here as soon as they are detected on Sui ${networkFilter === 'all' ? 'mainnet and testnet' : networkFilter}.`}
             </p>
             {searchTerm && (
               <Button
@@ -745,7 +754,7 @@ export default function DeploymentsTable({
             <div className="grid gap-4">
               <AnimatePresence initial={false}>
                 {sortedDeployments.map((deployment) => {
-                  const deploymentKey = deployment.package_id + deployment.tx_digest;
+                  const deploymentKey = getDeploymentKey(deployment);
                   const isNew = newDeploymentIds.has(deploymentKey);
 
                   return (
@@ -771,7 +780,7 @@ export default function DeploymentsTable({
                       )}
                     >
                       <ErrorBoundary>
-                        <DeploymentCard deployment={deployment} network={network} tick={tick} />
+                        <DeploymentCard deployment={deployment} network={networkFilter !== 'all' ? networkFilter : undefined} tick={tick} />
                       </ErrorBoundary>
                     </motion.div>
                   );

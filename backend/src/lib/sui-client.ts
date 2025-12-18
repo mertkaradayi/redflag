@@ -32,6 +32,7 @@ export interface RecentPublishOptions {
   limit?: number;
   cursor?: string | null;
   afterCheckpoint?: number;
+  client?: SuiClient;
 }
 
 type QueryMode = {
@@ -86,7 +87,8 @@ export function getSuiKeypair(): Ed25519Keypair | null {
 export async function getRecentPublishTransactions({
   limit = 3,
   cursor: initialCursor = null,
-  afterCheckpoint
+  afterCheckpoint,
+  client: providedClient
 }: RecentPublishOptions = {}): Promise<SuiClientResult> {
   const effectiveRpcUrl = process.env.SUI_RPC_URL?.trim() || 'https://fullnode.testnet.sui.io:443';
   const hasCustomRpcUrl = Boolean(process.env.SUI_RPC_URL);
@@ -111,7 +113,8 @@ export async function getRecentPublishTransactions({
   }
 
   try {
-    const client = createSuiClient();
+    // Use provided client if available, otherwise create default client
+    const client = providedClient || createSuiClient();
     const normalizedLimit = Number.isFinite(limit) ? Math.max(1, Math.floor(limit)) : 3;
 
     const deployments: ContractDeployment[] = [];

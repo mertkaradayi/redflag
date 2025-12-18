@@ -48,6 +48,12 @@ ANALYSIS REQUIREMENTS:
 4. Find evidence in disassembled code that proves the vulnerability
 5. Note contextual factors (mitigations, complexity, access controls)
 
+CRITICAL OUTPUT LIMIT:
+- Return ONLY the TOP 15 most critical findings (prioritize Critical > High > Medium > Low)
+- If there are more than 15 findings, include only the most severe ones
+- Combine similar findings (e.g., multiple admin functions with same risk pattern) into a single finding
+- Keep evidence_code_snippet SHORT (max 200 chars) - just the key bytecode evidence
+
 CRITICAL - EVIDENCE CODE SNIPPETS:
 For evidence_code_snippet, you MUST include actual bytecode with line numbers from the disassembled code.
 FORMAT: "LINE_NUM: INSTRUCTION ... LINE_NUM: INSTRUCTION"
@@ -121,6 +127,9 @@ RULES:
 - Do NOT change the score
 - Translate technical language to plain language
 - Be clear and direct about risks
+- LIMIT risky_functions to TOP 10 most critical (combine similar ones if needed)
+- LIMIT rug_pull_indicators to TOP 5 most critical patterns
+- Keep each reason/evidence field SHORT (max 300 chars)
 
 CRITICAL - BYTECODE EVIDENCE REQUIRED:
 For EVERY risky_functions.reason and rug_pull_indicators.evidence, you MUST include actual bytecode evidence from the technical findings.

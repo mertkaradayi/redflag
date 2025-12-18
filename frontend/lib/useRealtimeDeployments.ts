@@ -12,6 +12,7 @@ interface RealtimeDeploymentPayload {
   checkpoint: number;
   timestamp: string;
   first_seen_at: string;
+  network?: 'mainnet' | 'testnet';
 }
 
 export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
@@ -19,6 +20,7 @@ export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'er
 interface UseRealtimeDeploymentsOptions {
   enabled?: boolean;
   onNewDeployment?: (deployment: Deployment) => void;
+  networkFilter?: 'all' | 'mainnet' | 'testnet';
 }
 
 interface UseRealtimeDeploymentsReturn {
@@ -32,12 +34,14 @@ const MAX_RECONNECT_ATTEMPTS = 5;
 export function useRealtimeDeployments({
   enabled = true,
   onNewDeployment,
+  networkFilter = 'all',
 }: UseRealtimeDeploymentsOptions = {}): UseRealtimeDeploymentsReturn {
   const channelRef = useRef<RealtimeChannel | null>(null);
   const onNewDeploymentRef = useRef(onNewDeployment);
   const reconnectAttemptsRef = useRef(0);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const enabledRef = useRef(enabled);
+  const networkFilterRef = useRef(networkFilter);
   const [status, setStatus] = useState<ConnectionStatus>('disconnected');
 
   // Keep refs updated
@@ -48,6 +52,10 @@ export function useRealtimeDeployments({
   useEffect(() => {
     enabledRef.current = enabled;
   }, [enabled]);
+
+  useEffect(() => {
+    networkFilterRef.current = networkFilter;
+  }, [networkFilter]);
 
   const clearReconnectTimeout = useCallback(() => {
     if (reconnectTimeoutRef.current) {
@@ -111,6 +119,13 @@ export function useRealtimeDeployments({
         (payload: RealtimePostgresInsertPayload<RealtimeDeploymentPayload>) => {
           const newRecord = payload.new;
           if (newRecord && onNewDeploymentRef.current) {
+            // Filter by network if a specific network is selected
+            const currentFilter = networkFilterRef.current;
+            if (currentFilter !== 'all' && newRecord.network && newRecord.network !== currentFilter) {
+              // Skip deployments that don't match the network filter
+              return;
+            }
+
             const deployment: Deployment = {
               package_id: newRecord.package_id,
               deployer_address: newRecord.deployer_address,
@@ -118,6 +133,7 @@ export function useRealtimeDeployments({
               checkpoint: newRecord.checkpoint,
               timestamp: newRecord.timestamp,
               first_seen_at: newRecord.first_seen_at,
+              network: newRecord.network,
             };
             onNewDeploymentRef.current(deployment);
           }

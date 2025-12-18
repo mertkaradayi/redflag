@@ -287,12 +287,18 @@ app.get('/api/sui/health', async (req, res) => {
 // Deployment statistics endpoint - calculates stats from all database records
 app.get('/api/sui/deployment-stats', async (req, res) => {
   try {
-    const result = await getDeploymentStats();
+    const networkParam = Array.isArray(req.query.network) ? req.query.network[0] : req.query.network;
+    const network = networkParam === 'mainnet' ? 'mainnet'
+      : networkParam === 'testnet' ? 'testnet'
+      : null; // null means "all networks"
+
+    const result = await getDeploymentStats({ network });
 
     if (result.success) {
       res.json({
         success: true,
         timestamp: new Date().toISOString(),
+        network: network || 'all',
         total: result.total,
         last24h: result.last24h,
         previous24h: result.previous24h,
@@ -320,17 +326,20 @@ app.get('/api/sui/deployments', async (req, res) => {
   try {
     const limitParam = Array.isArray(req.query.limit) ? req.query.limit[0] : req.query.limit;
     const offsetParam = Array.isArray(req.query.offset) ? req.query.offset[0] : req.query.offset;
+    const networkParam = Array.isArray(req.query.network) ? req.query.network[0] : req.query.network;
 
     const parsedLimit = typeof limitParam === 'string' ? Number.parseInt(limitParam, 10) : Number.NaN;
     const parsedOffset = typeof offsetParam === 'string' ? Number.parseInt(offsetParam, 10) : Number.NaN;
 
     const limit = Number.isNaN(parsedLimit) ? undefined : Math.min(Math.max(parsedLimit, 1), 100); // Cap at 100
     const offset = Number.isNaN(parsedOffset) ? undefined : Math.max(parsedOffset, 0);
+    const network = networkParam === 'mainnet' ? 'mainnet'
+      : networkParam === 'testnet' ? 'testnet'
+      : null; // null means "all networks"
 
-    const result = await getDeployments({ limit, offset });
+    const result = await getDeployments({ limit, offset, network });
 
     if (result.success) {
-      const network = getNetwork();
       res.json({
         success: true,
         message: `Retrieved ${result.deployments.length} deployments`,
@@ -339,7 +348,7 @@ app.get('/api/sui/deployments', async (req, res) => {
         totalCount: result.totalCount,
         limit: limit || 50,
         offset: offset || 0,
-        network
+        network: network || 'all'
       });
     } else {
       res.status(500).json({
@@ -580,20 +589,25 @@ app.get('/api/llm/recent-analyses', async (req, res) => {
   try {
     const limitParam = Array.isArray(req.query.limit) ? req.query.limit[0] : req.query.limit;
     const offsetParam = Array.isArray(req.query.offset) ? req.query.offset[0] : req.query.offset;
+    const networkParam = Array.isArray(req.query.network) ? req.query.network[0] : req.query.network;
 
     const parsedLimit = typeof limitParam === 'string' ? Number.parseInt(limitParam, 10) : Number.NaN;
     const parsedOffset = typeof offsetParam === 'string' ? Number.parseInt(offsetParam, 10) : Number.NaN;
 
     const limit = Number.isNaN(parsedLimit) ? undefined : Math.min(Math.max(parsedLimit, 1), 100);
     const offset = Number.isNaN(parsedOffset) ? undefined : Math.max(parsedOffset, 0);
+    const network = networkParam === 'mainnet' ? 'mainnet'
+      : networkParam === 'testnet' ? 'testnet'
+      : null; // null means "all networks"
 
-    const result = await getRecentAnalyses({ limit, offset });
+    const result = await getRecentAnalyses({ limit, offset, network });
 
     if (result.success) {
       res.json({
         success: true,
         message: `Retrieved ${result.analyses.length} analyses`,
         timestamp: new Date().toISOString(),
+        network: network || 'all',
         analyses: result.analyses,
         totalCount: result.totalCount,
         limit: limit || 50,
@@ -620,16 +634,22 @@ app.get('/api/llm/recent-analyses', async (req, res) => {
 app.get('/api/llm/high-risk', async (req, res) => {
   try {
     const limitParam = Array.isArray(req.query.limit) ? req.query.limit[0] : req.query.limit;
+    const networkParam = Array.isArray(req.query.network) ? req.query.network[0] : req.query.network;
+
     const parsedLimit = typeof limitParam === 'string' ? Number.parseInt(limitParam, 10) : Number.NaN;
     const limit = Number.isNaN(parsedLimit) ? undefined : Math.min(Math.max(parsedLimit, 1), 100);
+    const network = networkParam === 'mainnet' ? 'mainnet'
+      : networkParam === 'testnet' ? 'testnet'
+      : null; // null means "all networks"
 
-    const result = await getHighRiskAnalyses({ limit });
+    const result = await getHighRiskAnalyses({ limit, network });
 
     if (result.success) {
       res.json({
         success: true,
         message: `Retrieved ${result.analyses.length} high-risk analyses`,
         timestamp: new Date().toISOString(),
+        network: network || 'all',
         analyses: result.analyses
       });
     } else {
@@ -689,7 +709,15 @@ app.get('/api/llm/analyzed-contracts', async (req, res) => {
 
     const { limit, offset, packageId, riskLevels } = validation.params;
 
-    const result = await getRecentAnalyses({ limit, offset, packageId, riskLevels });
+    // Parse network parameter
+    const networkParam = Array.isArray(req.query.network)
+      ? req.query.network[0]
+      : req.query.network;
+    const network = networkParam === 'mainnet' ? 'mainnet'
+      : networkParam === 'testnet' ? 'testnet'
+      : null; // null means "all networks"
+
+    const result = await getRecentAnalyses({ limit, offset, packageId, riskLevels, network });
 
     if (result.success) {
       const contracts = result.analyses.map(analysis => ({
@@ -707,13 +735,13 @@ app.get('/api/llm/analyzed-contracts', async (req, res) => {
         analyzed_at: analysis.analyzed_at
       }));
 
-      const riskCountsResult = await getRiskLevelCounts({ packageId });
+      const riskCountsResult = await getRiskLevelCounts({ packageId, network });
       const riskCounts = riskCountsResult.success ? riskCountsResult.counts : undefined;
-      
+
       // Always fetch the most recent analysis timestamp regardless of pagination offset
-      const mostRecentResult = await getRecentAnalyses({ limit: 1, offset: 0, packageId, riskLevels });
-      const lastAnalyzed = mostRecentResult.success && mostRecentResult.analyses.length > 0 
-        ? mostRecentResult.analyses[0].analyzed_at 
+      const mostRecentResult = await getRecentAnalyses({ limit: 1, offset: 0, packageId, riskLevels, network });
+      const lastAnalyzed = mostRecentResult.success && mostRecentResult.analyses.length > 0
+        ? mostRecentResult.analyses[0].analyzed_at
         : null;
 
       res.json({
@@ -723,6 +751,7 @@ app.get('/api/llm/analyzed-contracts', async (req, res) => {
         total: result.totalCount,
         limit,
         offset,
+        network: network || 'all',
         contracts,
         risk_counts: riskCounts,
         last_updated: lastAnalyzed
@@ -761,8 +790,8 @@ app.get('/api/llm/package-status/:packageId', async (req, res) => {
       });
     }
 
-    // Fetch deployment info
-    const deploymentResult = await getDeploymentByPackageId(packageId);
+    // Fetch deployment info (with network filter to handle composite primary key)
+    const deploymentResult = await getDeploymentByPackageId(packageId, network);
     
     // Fetch analysis info
     const analysisResult = await getAnalysisResult(packageId, network);

@@ -76,7 +76,8 @@ export function createLLM(config: LLMConfig): ChatOpenAI {
 
 // Model presets for each agent
 // PRIMARY: Free model (mistralai/devstral-2512:free via Mistral)
-// FALLBACK: Paid model (openai/gpt-oss-120b via DeepInfra) - used on rate limits/errors
+// FALLBACK 1: Free model (xiaomi/mimo-v2-flash:free via Xiaomi)
+// FALLBACK 2: Paid model (openai/gpt-oss-120b via DeepInfra) - last resort
 export const MODEL_PRESETS = {
   analyzer: {
     // Primary: Free model
@@ -97,8 +98,16 @@ export const MODEL_PRESETS = {
     maxTokens: 4000,
     providerOrder: ['mistral'],
   },
-  // Paid fallback used when free model hits rate limits or errors
+  // First fallback: Xiaomi's free model
   fallback: {
+    model: 'xiaomi/mimo-v2-flash:free',
+    temperature: 0.5,
+    maxTokens: 6000,
+    providerOrder: ['xiaomi'],
+    quantizations: ['fp8'],
+  },
+  // Second fallback: Paid model (last resort)
+  fallback2: {
     model: 'openai/gpt-oss-120b',
     temperature: 0.5,
     maxTokens: 8000,
@@ -121,7 +130,7 @@ export function getModelConfig(agentName: keyof typeof MODEL_PRESETS): LLMConfig
   };
 }
 
-// Get fallback model config (paid model for when free model fails)
+// Get first fallback model config (Xiaomi free model)
 export function getFallbackConfig(agentName: keyof typeof MODEL_PRESETS): LLMConfig {
   const fallback = MODEL_PRESETS.fallback;
   const primary = MODEL_PRESETS[agentName];
@@ -132,6 +141,20 @@ export function getFallbackConfig(agentName: keyof typeof MODEL_PRESETS): LLMCon
     maxTokens: fallback.maxTokens,
     providerOrder: [...fallback.providerOrder],
     quantizations: [...fallback.quantizations],
+  };
+}
+
+// Get second fallback model config (OpenAI paid model - last resort)
+export function getSecondFallbackConfig(agentName: keyof typeof MODEL_PRESETS): LLMConfig {
+  const fallback2 = MODEL_PRESETS.fallback2;
+  const primary = MODEL_PRESETS[agentName];
+
+  return {
+    model: fallback2.model,
+    temperature: primary.temperature, // Use agent's preferred temperature
+    maxTokens: fallback2.maxTokens,
+    providerOrder: [...fallback2.providerOrder],
+    quantizations: [...fallback2.quantizations],
   };
 }
 
@@ -151,13 +174,15 @@ export function shouldFallback(error: unknown): boolean {
   return FALLBACK_ERROR_MESSAGES.some(pattern => message.includes(pattern));
 }
 
-// Create LLM with fallback capability
+// Create LLM with two-tier fallback capability
 export function createLLMWithFallback(
   primaryConfig: LLMConfig,
-  fallbackConfig: LLMConfig
-): { primary: ChatOpenAI; fallback: ChatOpenAI } {
+  fallbackConfig: LLMConfig,
+  fallback2Config?: LLMConfig
+): { primary: ChatOpenAI; fallback: ChatOpenAI; fallback2?: ChatOpenAI } {
   return {
     primary: createLLM(primaryConfig),
     fallback: createLLM(fallbackConfig),
+    fallback2: fallback2Config ? createLLM(fallback2Config) : undefined,
   };
 }

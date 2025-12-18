@@ -1,6 +1,6 @@
 import { RunnableSequence } from "@langchain/core/runnables";
 import { StringOutputParser } from "@langchain/core/output_parsers";
-import { createLLM, getModelConfig, getFallbackConfig, shouldFallback, MODEL_PRESETS } from './langchain-llm';
+import { createLLM, getModelConfig, getFallbackConfig, getSecondFallbackConfig, shouldFallback, MODEL_PRESETS } from './langchain-llm';
 import { analyzerPromptTemplate, scorerPromptTemplate, reporterPromptTemplate } from './langchain-prompts';
 import { analyzerParser, scorerParser, reporterParser } from './langchain-schemas';
 import type { AnalyzerResponse, ScorerResponse, ReporterResponse } from './langchain-schemas';
@@ -21,7 +21,7 @@ import {
 } from './confidence-calculator';
 
 // Track which model is being used for logging
-let currentModelType: 'free' | 'paid' = 'free';
+let currentModelType: 'primary' | 'fallback1' | 'fallback2' = 'primary';
 
 // Helper: Strip markdown code blocks from JSON responses
 function stripMarkdownJson(text: string): string {
@@ -51,13 +51,14 @@ function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Helper: Retry with exponential backoff and fallback support
+// Helper: Retry with exponential backoff and two-tier fallback support
 async function retryWithBackoff<T>(
   fn: () => Promise<T>,
   maxRetries: number = 3,
   initialDelayMs: number = 1000,
   operationName: string = 'operation',
-  fallbackFn?: () => Promise<T>  // Optional fallback function using paid model
+  fallbackFn?: () => Promise<T>,   // First fallback (Xiaomi free model)
+  fallback2Fn?: () => Promise<T>   // Second fallback (OpenAI paid model)
 ): Promise<T> {
   let lastError: Error | undefined;
 
@@ -67,18 +68,44 @@ async function retryWithBackoff<T>(
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
 
-      // Check if we should fallback to paid model
+      // Check if we should fallback to first fallback model (Xiaomi)
       if (fallbackFn && shouldFallback(error)) {
-        console.warn(`[Fallback] ${operationName} hit rate limit or error, switching to paid model...`);
-        currentModelType = 'paid';
+        console.warn(`[Fallback] ${operationName} hit rate limit or error, trying Xiaomi free model...`);
+        currentModelType = 'fallback1';
 
-        // Try fallback with its own retry logic
+        // Try first fallback with its own retry logic
         try {
-          const result = await retryWithBackoff(fallbackFn, maxRetries, initialDelayMs, `${operationName} (fallback)`);
+          const result = await retryWithBackoff(
+            fallbackFn,
+            maxRetries,
+            initialDelayMs,
+            `${operationName} (fallback1)`,
+            fallback2Fn  // Pass second fallback for if first fallback also fails
+          );
           return result;
-        } catch (fallbackError) {
-          console.error(`[Fallback] Paid model also failed:`, fallbackError instanceof Error ? fallbackError.message : fallbackError);
-          throw fallbackError;
+        } catch (fallback1Error) {
+          console.warn(`[Fallback] Xiaomi model failed:`, fallback1Error instanceof Error ? fallback1Error.message : fallback1Error);
+
+          // Try second fallback (OpenAI paid) if available
+          if (fallback2Fn && shouldFallback(fallback1Error)) {
+            console.warn(`[Fallback] Trying OpenAI paid model as last resort...`);
+            currentModelType = 'fallback2';
+
+            try {
+              const result = await retryWithBackoff(
+                fallback2Fn,
+                maxRetries,
+                initialDelayMs,
+                `${operationName} (fallback2)`
+              );
+              return result;
+            } catch (fallback2Error) {
+              console.error(`[Fallback] OpenAI paid model also failed:`, fallback2Error instanceof Error ? fallback2Error.message : fallback2Error);
+              throw fallback2Error;
+            }
+          }
+
+          throw fallback1Error;
         }
       }
 
@@ -253,10 +280,11 @@ async function analyzeModulesInParallel(
   riskPatterns: string
 ): Promise<AnalyzerResponse> {
   console.log(`[MapReduce] Starting parallel analysis of ${chunks.length} modules...`);
-  console.log(`[MapReduce] Using free model (${MODEL_PRESETS.analyzer.model}), fallback: ${MODEL_PRESETS.fallback.model}`);
+  console.log(`[MapReduce] Primary: ${MODEL_PRESETS.analyzer.model}, Fallback1: ${MODEL_PRESETS.fallback.model}, Fallback2: ${MODEL_PRESETS.fallback2.model}`);
 
-  const analyzerChain = await createAnalyzerChain(false);
-  const fallbackChain = await createAnalyzerChain(true);
+  const analyzerChain = await createAnalyzerChain(0);
+  const fallback1Chain = await createAnalyzerChain(1);
+  const fallback2Chain = await createAnalyzerChain(2);
 
   // Create analysis tasks for each module
   const analysisPromises = chunks.map(async (chunk, index) => {
@@ -277,7 +305,8 @@ async function analyzeModulesInParallel(
         3,
         2000,
         `Analyzer for ${chunk.moduleName}`,
-        () => fallbackChain.invoke(moduleInput)  // Fallback function
+        () => fallback1Chain.invoke(moduleInput),  // First fallback (Xiaomi)
+        () => fallback2Chain.invoke(moduleInput)   // Second fallback (OpenAI)
       );
 
       const findings = await safeParseAnalyzerResponse(rawResponse);
@@ -400,7 +429,66 @@ function truncateDisassembledCode(
   return result;
 }
 
-// Safe parser wrapper with validation and logging
+// Helper: Try to fix truncated JSON by closing brackets
+function tryFixTruncatedJson(text: string): string {
+  let fixed = text.trim();
+
+  // Count open brackets
+  const openBraces = (fixed.match(/\{/g) || []).length;
+  const closeBraces = (fixed.match(/\}/g) || []).length;
+  const openBrackets = (fixed.match(/\[/g) || []).length;
+  const closeBrackets = (fixed.match(/\]/g) || []).length;
+
+  // Remove trailing incomplete object (ending with comma or incomplete field)
+  fixed = fixed.replace(/,\s*"[^"]*"?\s*:?\s*"?[^"{}[\]]*$/, '');
+  fixed = fixed.replace(/,\s*\{[^}]*$/, '');
+  fixed = fixed.replace(/,\s*$/, '');
+
+  // Close missing brackets
+  const missingBrackets = openBrackets - closeBrackets;
+  const missingBraces = openBraces - closeBraces;
+
+  for (let i = 0; i < missingBrackets; i++) {
+    fixed += ']';
+  }
+  for (let i = 0; i < missingBraces; i++) {
+    fixed += '}';
+  }
+
+  return fixed;
+}
+
+// Helper: Extract partial findings from truncated JSON
+function extractPartialFindings(text: string): any[] {
+  const findings: any[] = [];
+
+  // Try to extract complete finding objects using regex
+  const findingPattern = /\{\s*"function_name"\s*:\s*"([^"]+)"\s*,\s*"technical_reason"\s*:\s*"([^"]+)"\s*,\s*"matched_pattern_id"\s*:\s*"([^"]+)"\s*,\s*"severity"\s*:\s*"(Critical|High|Medium|Low)"[^}]*\}/g;
+
+  let match;
+  while ((match = findingPattern.exec(text)) !== null) {
+    try {
+      const findingStr = match[0];
+      // Try to fix the finding object if it has issues
+      const finding = JSON.parse(findingStr);
+      if (finding.function_name && finding.matched_pattern_id) {
+        findings.push(finding);
+      }
+    } catch {
+      // If full object fails, extract key fields
+      findings.push({
+        function_name: match[1],
+        technical_reason: match[2],
+        matched_pattern_id: match[3],
+        severity: match[4],
+      });
+    }
+  }
+
+  return findings;
+}
+
+// Safe parser wrapper with validation, logging, and truncation recovery
 async function safeParseAnalyzerResponse(text: string): Promise<AnalyzerResponse> {
   const cleaned = stripMarkdownJson(text);
 
@@ -425,30 +513,56 @@ async function safeParseAnalyzerResponse(text: string): Promise<AnalyzerResponse
 
     return parsed;
   } catch (parseError) {
-    console.error('[Parser] Failed to parse analyzer response:', parseError);
-    console.error('[Parser] Raw text (first 500 chars):', text?.substring(0, 500));
+    console.warn('[Parser] Standard parsing failed, attempting recovery...');
+    console.warn('[Parser] Error:', parseError instanceof Error ? parseError.message : parseError);
 
-    // Try to extract JSON from the response
+    // Strategy 1: Try to fix truncated JSON by closing brackets
+    try {
+      const fixed = tryFixTruncatedJson(cleaned);
+      const parsed = JSON.parse(fixed);
+      if (parsed.technical_findings && Array.isArray(parsed.technical_findings)) {
+        console.log(`[Parser] Recovery: Fixed truncated JSON, found ${parsed.technical_findings.length} findings`);
+        return parsed as AnalyzerResponse;
+      }
+    } catch {
+      console.warn('[Parser] Recovery: Bracket-fixing failed');
+    }
+
+    // Strategy 2: Try to extract complete JSON object
     try {
       const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const extracted = JSON.parse(jsonMatch[0]);
         if (extracted.technical_findings && Array.isArray(extracted.technical_findings)) {
-          console.log('[Parser] Successfully extracted JSON manually');
+          console.log(`[Parser] Recovery: Extracted JSON object, found ${extracted.technical_findings.length} findings`);
           return extracted as AnalyzerResponse;
         }
       }
     } catch {
-      // Ignore extraction error
+      console.warn('[Parser] Recovery: JSON extraction failed');
     }
 
+    // Strategy 3: Extract individual findings using regex (last resort)
+    const partialFindings = extractPartialFindings(cleaned);
+    if (partialFindings.length > 0) {
+      console.log(`[Parser] Recovery: Extracted ${partialFindings.length} partial findings via regex`);
+      return { technical_findings: partialFindings };
+    }
+
+    console.error('[Parser] All recovery strategies failed');
+    console.error('[Parser] Raw text (first 1000 chars):', text?.substring(0, 1000));
     return { technical_findings: [] };
   }
 }
 
 // Agent 1: Analyzer Chain
-async function createAnalyzerChain(useFallback: boolean = false) {
-  const config = useFallback ? getFallbackConfig('analyzer') : getModelConfig('analyzer');
+// fallbackLevel: 0 = primary (Mistral), 1 = fallback1 (Xiaomi), 2 = fallback2 (OpenAI)
+async function createAnalyzerChain(fallbackLevel: 0 | 1 | 2 = 0) {
+  const config = fallbackLevel === 2
+    ? getSecondFallbackConfig('analyzer')
+    : fallbackLevel === 1
+      ? getFallbackConfig('analyzer')
+      : getModelConfig('analyzer');
   const llm = createLLM(config);
   const stringParser = new StringOutputParser();
 
@@ -510,8 +624,13 @@ async function safeParseScorerResponse(text: string): Promise<ScorerResponse> {
 }
 
 // Agent 2: Scorer Chain
-async function createScorerChain(useFallback: boolean = false) {
-  const config = useFallback ? getFallbackConfig('scorer') : getModelConfig('scorer');
+// fallbackLevel: 0 = primary (Mistral), 1 = fallback1 (Xiaomi), 2 = fallback2 (OpenAI)
+async function createScorerChain(fallbackLevel: 0 | 1 | 2 = 0) {
+  const config = fallbackLevel === 2
+    ? getSecondFallbackConfig('scorer')
+    : fallbackLevel === 1
+      ? getFallbackConfig('scorer')
+      : getModelConfig('scorer');
   const llm = createLLM(config);
   const stringParser = new StringOutputParser();
 
@@ -535,7 +654,23 @@ async function createScorerChain(useFallback: boolean = false) {
   ]);
 }
 
-// Safe parser wrapper for reporter
+// Helper: Extract risky functions from truncated reporter response
+function extractRiskyFunctions(text: string): Array<{ function_name: string; reason: string }> {
+  const functions: Array<{ function_name: string; reason: string }> = [];
+  const pattern = /\{\s*"function_name"\s*:\s*"([^"]+)"\s*,\s*"reason"\s*:\s*"([^"]+)"/g;
+
+  let match;
+  while ((match = pattern.exec(text)) !== null) {
+    functions.push({
+      function_name: match[1],
+      reason: match[2].substring(0, 300), // Limit reason length
+    });
+  }
+
+  return functions;
+}
+
+// Safe parser wrapper for reporter with truncation recovery
 async function safeParseReporterResponse(text: string): Promise<ReporterResponse> {
   const cleaned = stripMarkdownJson(text);
 
@@ -549,27 +684,65 @@ async function safeParseReporterResponse(text: string): Promise<ReporterResponse
 
     return parsed;
   } catch (parseError) {
-    console.error('[Parser] Failed to parse reporter response:', parseError);
+    console.warn('[Parser] Reporter parsing failed, attempting recovery...');
 
-    // Try manual extraction
+    // Strategy 1: Try to fix truncated JSON
+    try {
+      const fixed = tryFixTruncatedJson(cleaned);
+      const extracted = JSON.parse(fixed);
+      if (extracted.summary) {
+        console.log('[Parser] Recovery: Fixed truncated reporter JSON');
+        return {
+          summary: extracted.summary,
+          risky_functions: (extracted.risky_functions || []).slice(0, 10),
+          rug_pull_indicators: (extracted.rug_pull_indicators || []).slice(0, 5),
+          impact_on_user: extracted.impact_on_user || 'See risky functions for details',
+          why_risky_one_liner: extracted.why_risky_one_liner || 'Multiple security concerns detected',
+        };
+      }
+    } catch {
+      console.warn('[Parser] Recovery: Bracket-fixing failed for reporter');
+    }
+
+    // Strategy 2: Try manual extraction
     try {
       const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const extracted = JSON.parse(jsonMatch[0]);
         if (extracted.summary) {
+          console.log('[Parser] Recovery: Extracted reporter JSON object');
           return {
             summary: extracted.summary,
-            risky_functions: extracted.risky_functions || [],
-            rug_pull_indicators: extracted.rug_pull_indicators || [],
-            impact_on_user: extracted.impact_on_user || 'Unable to determine impact',
-            why_risky_one_liner: extracted.why_risky_one_liner || 'Analysis incomplete',
+            risky_functions: (extracted.risky_functions || []).slice(0, 10),
+            rug_pull_indicators: (extracted.rug_pull_indicators || []).slice(0, 5),
+            impact_on_user: extracted.impact_on_user || 'See risky functions for details',
+            why_risky_one_liner: extracted.why_risky_one_liner || 'Multiple security concerns detected',
           };
         }
       }
     } catch {
-      // Ignore extraction error
+      console.warn('[Parser] Recovery: JSON extraction failed for reporter');
     }
 
+    // Strategy 3: Extract partial data using regex
+    const riskyFunctions = extractRiskyFunctions(cleaned);
+    if (riskyFunctions.length > 0) {
+      console.log(`[Parser] Recovery: Extracted ${riskyFunctions.length} risky functions via regex`);
+
+      // Try to extract summary
+      const summaryMatch = cleaned.match(/"summary"\s*:\s*"([^"]+)"/);
+      const summary = summaryMatch ? summaryMatch[1] : 'Contract security analysis (partial recovery)';
+
+      return {
+        summary,
+        risky_functions: riskyFunctions.slice(0, 10),
+        rug_pull_indicators: [],
+        impact_on_user: 'Review the risky functions identified above',
+        why_risky_one_liner: 'Multiple potential security risks detected',
+      };
+    }
+
+    console.error('[Parser] All reporter recovery strategies failed');
     return getDefaultReporterResponse();
   }
 }
@@ -585,8 +758,13 @@ function getDefaultReporterResponse(): ReporterResponse {
 }
 
 // Agent 3: Reporter Chain
-async function createReporterChain(useFallback: boolean = false) {
-  const config = useFallback ? getFallbackConfig('reporter') : getModelConfig('reporter');
+// fallbackLevel: 0 = primary (Mistral), 1 = fallback1 (Xiaomi), 2 = fallback2 (OpenAI)
+async function createReporterChain(fallbackLevel: 0 | 1 | 2 = 0) {
+  const config = fallbackLevel === 2
+    ? getSecondFallbackConfig('reporter')
+    : fallbackLevel === 1
+      ? getFallbackConfig('reporter')
+      : getModelConfig('reporter');
   const llm = createLLM(config);
   const stringParser = new StringOutputParser();
 
@@ -626,15 +804,15 @@ export async function runLangChainAnalysis(input: ContractAnalysisInput): Promis
   const fallbackModel = MODEL_PRESETS.fallback.model;
 
   // Reset model tracking for this analysis run
-  currentModelType = 'free';
+  currentModelType = 'primary';
 
   // Initialize metrics collector for confidence scoring
   const metrics = createMetricsCollector();
 
   try {
     console.log('[LangChain] Starting 3-agent analysis...');
-    console.log(`[LangChain] Primary model: ${primaryModel} (free)`);
-    console.log(`[LangChain] Fallback model: ${fallbackModel} (paid)`);
+    console.log(`[LangChain] Primary model: ${primaryModel}`);
+    console.log(`[LangChain] Fallback1: ${MODEL_PRESETS.fallback.model}, Fallback2: ${fallbackModel}`);
 
     // Update metrics from input data
     updateFromBytecode(metrics, input.disassembledCode, input.publicFunctions);
@@ -662,14 +840,16 @@ export async function runLangChainAnalysis(input: ContractAnalysisInput): Promis
       console.log(`[LangChain] Small contract: ${chunks.length} module(s), using single-pass analysis`);
       console.log(`[Agent 1] Running Analyzer (${primaryModel})...`);
 
-      const analyzerChain = await createAnalyzerChain(false);
-      const fallbackAnalyzerChain = await createAnalyzerChain(true);
+      const analyzerChain = await createAnalyzerChain(0);
+      const fallback1AnalyzerChain = await createAnalyzerChain(1);
+      const fallback2AnalyzerChain = await createAnalyzerChain(2);
       const rawAnalyzerResponse = await retryWithBackoff(
         () => analyzerChain.invoke(input),
         3,
         2000,
         'Analyzer LLM call',
-        () => fallbackAnalyzerChain.invoke(input)  // Fallback to paid model
+        () => fallback1AnalyzerChain.invoke(input),  // Fallback 1 (Xiaomi)
+        () => fallback2AnalyzerChain.invoke(input)   // Fallback 2 (OpenAI)
       );
 
       console.log(`[Agent 1] Raw response received (${currentModelType} model), parsing...`);
@@ -743,15 +923,17 @@ export async function runLangChainAnalysis(input: ContractAnalysisInput): Promis
 
     // Agent 2: Score with retry and fallback
     console.log(`[Agent 2] Running Scorer (${primaryModel})...`);
-    const scorerChain = await createScorerChain(false);
-    const fallbackScorerChain = await createScorerChain(true);
+    const scorerChain = await createScorerChain(0);
+    const fallback1ScorerChain = await createScorerChain(1);
+    const fallback2ScorerChain = await createScorerChain(2);
 
     const rawScorerResponse = await retryWithBackoff(
       () => scorerChain.invoke({ findings }),
       3,
       2000,
       'Scorer LLM call',
-      () => fallbackScorerChain.invoke({ findings })  // Fallback to paid model
+      () => fallback1ScorerChain.invoke({ findings }),  // Fallback 1 (Xiaomi)
+      () => fallback2ScorerChain.invoke({ findings })   // Fallback 2 (OpenAI)
     );
 
     console.log(`[Agent 2] Raw response received (${currentModelType} model), parsing...`);
@@ -760,15 +942,17 @@ export async function runLangChainAnalysis(input: ContractAnalysisInput): Promis
 
     // Agent 3: Report with retry and fallback
     console.log(`[Agent 3] Running Reporter (${primaryModel})...`);
-    const reporterChain = await createReporterChain(false);
-    const fallbackReporterChain = await createReporterChain(true);
+    const reporterChain = await createReporterChain(0);
+    const fallback1ReporterChain = await createReporterChain(1);
+    const fallback2ReporterChain = await createReporterChain(2);
 
     const rawReporterResponse = await retryWithBackoff(
       () => reporterChain.invoke({ findings, score }),
       3,
       2000,
       'Reporter LLM call',
-      () => fallbackReporterChain.invoke({ findings, score })  // Fallback to paid model
+      () => fallback1ReporterChain.invoke({ findings, score }),  // Fallback 1 (Xiaomi)
+      () => fallback2ReporterChain.invoke({ findings, score })   // Fallback 2 (OpenAI)
     );
 
     console.log(`[Agent 3] Raw response received (${currentModelType} model), parsing...`);

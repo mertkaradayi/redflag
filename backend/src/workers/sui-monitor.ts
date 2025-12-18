@@ -3,21 +3,16 @@ import { upsertDeployments, getLastProcessedCheckpoint, getAnalysisResult } from
 import { runFullAnalysisChain } from '../lib/llm-analyzer';
 import { SuiClient } from '@mysten/sui/client';
 import { envFlag } from '../lib/env-utils';
+import { getNetworkConfigs, type NetworkConfig, type SuiNetwork } from '../lib/network-config';
 
-// Singleton pattern to prevent multiple monitors
-let monitorInterval: NodeJS.Timeout | null = null;
-let isMonitoring = false;
+// Map to track monitor instances per network
+const monitors = new Map<SuiNetwork, { interval: NodeJS.Timeout | null; isRunning: boolean }>();
 
 /**
- * Start the Sui deployment monitoring background worker
- * Polls for new deployments every POLL_INTERVAL_MS milliseconds
+ * Start monitoring for all configured networks
+ * Each network runs independently with its own polling interval
  */
 export async function startMonitoring(): Promise<void> {
-  if (isMonitoring) {
-    console.warn('Sui deployment monitor is already running');
-    return;
-  }
-
   if (!envFlag('ENABLE_AUTO_ANALYSIS', true)) {
     console.log('⚠️ ENABLE_AUTO_ANALYSIS=false, skipping deployment monitor startup');
     return;
@@ -28,195 +23,216 @@ export async function startMonitoring(): Promise<void> {
     return;
   }
 
-  const pollIntervalMs = Number.parseInt(process.env.POLL_INTERVAL_MS ?? '', 10);
-  const intervalMs = Number.isFinite(pollIntervalMs) && pollIntervalMs > 0 ? pollIntervalMs : 15000;
+  const configs = getNetworkConfigs();
 
-  console.log(`🚀 Starting Sui deployment monitor (polling every ${intervalMs}ms)`);
-  
-  isMonitoring = true;
+  console.log(`🚀 Starting multi-network monitoring for: ${configs.map(c => c.network).join(', ')}`);
 
-  // Initial check
-  await performMonitoringCheck();
-
-  // Set up interval for continuous monitoring
-  monitorInterval = setInterval(async () => {
-    await performMonitoringCheck();
-  }, intervalMs);
-
-  console.log('✅ Sui deployment monitor started successfully');
+  for (const config of configs) {
+    await startNetworkMonitor(config);
+  }
 }
 
 /**
- * Stop the Sui deployment monitoring background worker
+ * Start monitoring for a specific network
  */
-export function stopMonitoring(): void {
-  if (!isMonitoring) {
-    console.warn('Sui deployment monitor is not running');
+async function startNetworkMonitor(config: NetworkConfig): Promise<void> {
+  const { network } = config;
+
+  if (monitors.has(network) && monitors.get(network)?.isRunning) {
+    console.warn(`⚠️ ${network} monitor is already running`);
     return;
   }
 
-  if (monitorInterval) {
-    clearInterval(monitorInterval);
-    monitorInterval = null;
-  }
+  console.log(`🚀 Starting ${network} monitor (polling every ${config.pollIntervalMs}ms)`);
 
-  isMonitoring = false;
-  console.log('🛑 Sui deployment monitor stopped');
+  // Initialize monitor state
+  monitors.set(network, { interval: null, isRunning: true });
+
+  // Initial check
+  await performMonitoringCheck(config);
+
+  // Set up interval for continuous monitoring
+  const interval = setInterval(async () => {
+    await performMonitoringCheck(config);
+  }, config.pollIntervalMs);
+
+  // Update monitor state with interval
+  monitors.set(network, { interval, isRunning: true });
+
+  console.log(`✅ ${network} monitor started successfully`);
 }
 
 /**
- * Check if the monitor is currently running
+ * Stop monitoring for all networks
+ */
+export function stopMonitoring(): void {
+  console.log('🛑 Stopping all network monitors...');
+
+  for (const [network, monitor] of monitors.entries()) {
+    if (monitor.interval) {
+      clearInterval(monitor.interval);
+    }
+    monitors.set(network, { interval: null, isRunning: false });
+    console.log(`🛑 ${network} monitor stopped`);
+  }
+}
+
+/**
+ * Check if any monitor is running
  */
 export function isMonitorRunning(): boolean {
-  return isMonitoring;
+  return Array.from(monitors.values()).some(m => m.isRunning);
 }
 
 /**
- * Perform a single monitoring check cycle
- * 1. Get last processed checkpoint from database
- * 2. Fetch new deployments from Sui
- * 3. Persist new deployments to database
+ * Perform a single monitoring check cycle for a specific network
+ * 1. Get last processed checkpoint from database for this network
+ * 2. Fetch new deployments from Sui RPC for this network
+ * 3. Persist new deployments to database with network tag
+ * 4. Trigger LLM analysis for new deployments
  */
-async function performMonitoringCheck(): Promise<void> {
+async function performMonitoringCheck(config: NetworkConfig): Promise<void> {
+  const { network, rpcUrl } = config;
+
   if (!envFlag('ENABLE_SUI_RPC', true)) {
-    console.log('⚠️ ENABLE_SUI_RPC=false, skipping monitoring check');
     return;
   }
 
   try {
-    // Get the last checkpoint we processed
-    const checkpointResult = await getLastProcessedCheckpoint();
-    
+    // Get the last checkpoint we processed for THIS network
+    const checkpointResult = await getLastProcessedCheckpoint(network);
+
     if (!checkpointResult.success) {
-      console.error('Failed to get last processed checkpoint:', checkpointResult.error);
+      console.error(`[${network}] Failed to get last processed checkpoint:`, checkpointResult.error);
       return;
     }
 
     const lastCheckpoint = checkpointResult.checkpoint;
     const afterCheckpoint = lastCheckpoint ? lastCheckpoint + 1 : undefined;
 
-    // Fetch new deployments from Sui
+    // Create network-specific Sui client
+    const suiClient = new SuiClient({ url: rpcUrl });
+
+    // Fetch new deployments from Sui RPC using network-specific client
     const suiResult = await getRecentPublishTransactions({
-      limit: 100, // Get up to 100 new deployments per check
-      afterCheckpoint
+      limit: 100,
+      afterCheckpoint,
+      client: suiClient
     });
 
     if (!suiResult.success) {
-      console.error('Failed to fetch deployments from Sui:', suiResult.message);
+      console.error(`[${network}] Failed to fetch deployments from Sui:`, suiResult.message);
       return;
     }
 
     const deployments = suiResult.deployments || [];
-    
+
     if (deployments.length === 0) {
       // No new deployments found - this is normal
       return;
     }
 
-    console.log(`📦 Found ${deployments.length} new deployment(s) since checkpoint ${lastCheckpoint || 'start'}`);
+    console.log(`[${network}] 📦 Found ${deployments.length} new deployment(s) since checkpoint ${lastCheckpoint || 'start'}`);
 
-    // Persist deployments to database
-    const upsertResult = await upsertDeployments(deployments);
-    
+    // Persist deployments to database WITH network tag
+    const upsertResult = await upsertDeployments(deployments, network);
+
     if (upsertResult.success) {
-      console.log(`✅ Successfully stored ${upsertResult.count} deployment(s) to database`);
-      
+      console.log(`[${network}] ✅ Successfully stored ${upsertResult.count} deployment(s) to database`);
+
       // Trigger LLM analysis for new deployments
-      await analyzeNewDeployments(deployments);
+      await analyzeNewDeployments(deployments, network, suiClient);
     } else {
-      console.error('❌ Failed to store deployments:', upsertResult.message);
+      console.error(`[${network}] ❌ Failed to store deployments:`, upsertResult.message);
     }
 
   } catch (error) {
-    console.error('💥 Unexpected error in monitoring check:', error);
+    console.error(`[${network}] 💥 Unexpected error in monitoring check:`, error);
   }
 }
 
 /**
  * Analyze new deployments with LLM
  */
-async function analyzeNewDeployments(deployments: any[]): Promise<void> {
+async function analyzeNewDeployments(
+  deployments: any[],
+  network: string,
+  suiClient: SuiClient
+): Promise<void> {
   if (!envFlag('ENABLE_AUTO_ANALYSIS', true)) {
-    console.log('⚠️ ENABLE_AUTO_ANALYSIS=false, skipping LLM analysis step');
     return;
   }
 
   if (!process.env.OPEN_ROUTER_KEY) {
-    console.log('⚠️  OPEN_ROUTER_KEY not configured, skipping LLM analysis');
+    console.log(`[${network}] ⚠️ OPEN_ROUTER_KEY not configured, skipping LLM analysis`);
     return;
   }
 
-  console.log(`🤖 Starting LLM analysis for ${deployments.length} new deployment(s)...`);
-  
-  // Determine network based on RPC URL
-  const rpcUrl = process.env.SUI_RPC_URL || 'https://fullnode.testnet.sui.io:443';
-  const network = rpcUrl.includes('testnet') ? 'testnet' : 'mainnet';
-  
-  // Create Sui client
-  const suiClient = new SuiClient({ url: rpcUrl });
-  
+  console.log(`[${network}] 🤖 Starting LLM analysis for ${deployments.length} new deployment(s)...`);
+
   // Analyze each deployment
   for (const deployment of deployments) {
     try {
       const packageId = deployment.packageId;
       if (!packageId) {
-        console.log(`⚠️  Skipping deployment without packageId: ${deployment.digest}`);
+        console.log(`[${network}] ⚠️ Skipping deployment without packageId: ${deployment.digest}`);
         continue;
       }
-      
+
       // Check if already analyzed in database
       const dbResult = await getAnalysisResult(packageId, network);
       if (dbResult.success && dbResult.analysis) {
-        console.log(`📋 Package ${packageId} already analyzed, skipping...`);
+        console.log(`[${network}] 📋 Package ${packageId} already analyzed, skipping...`);
         continue;
       }
-      
-      console.log(`🔍 Analyzing package ${packageId}...`);
+
+      console.log(`[${network}] 🔍 Analyzing package ${packageId}...`);
 
       try {
         // Run LLM analysis (will save to database or save as failed)
         const analysisResult = await runFullAnalysisChain(packageId, network, suiClient);
 
-        // Log risk level (only if successful)
         const riskLevel = analysisResult.risk_level;
         const riskScore = analysisResult.risk_score;
 
         if (riskLevel === 'critical' || riskLevel === 'high') {
-          console.log(`🚨 HIGH RISK DETECTED: Package ${packageId} - Risk Level: ${riskLevel} (Score: ${riskScore})`);
-          console.log(`   Summary: ${analysisResult.summary}`);
-          console.log(`   Risk: ${analysisResult.why_risky_one_liner}`);
+          console.log(`[${network}] 🚨 HIGH RISK DETECTED: Package ${packageId} - Risk Level: ${riskLevel} (Score: ${riskScore})`);
+          console.log(`[${network}]    Summary: ${analysisResult.summary}`);
+          console.log(`[${network}]    Risk: ${analysisResult.why_risky_one_liner}`);
         } else {
-          console.log(`✅ Package ${packageId} analyzed - Risk Level: ${riskLevel} (Score: ${riskScore})`);
+          console.log(`[${network}] ✅ Package ${packageId} analyzed - Risk Level: ${riskLevel} (Score: ${riskScore})`);
         }
 
       } catch (analysisError) {
-        // Analysis failed but was saved as 'failed' status - just log and continue
         const errorMsg = analysisError instanceof Error ? analysisError.message : String(analysisError);
-        console.error(`⚠️  Package ${packageId} analysis failed (saved as failed): ${errorMsg}`);
+        console.error(`[${network}] ⚠️ Package ${packageId} analysis failed (saved as failed): ${errorMsg}`);
       }
 
     } catch (error) {
-      // Unexpected error
-      console.error(`❌ Unexpected error analyzing package ${deployment.packageId}:`, error);
+      console.error(`[${network}] ❌ Unexpected error analyzing package ${deployment.packageId}:`, error);
     }
   }
-  
-  console.log(`🤖 LLM analysis complete for ${deployments.length} deployment(s)`);
+
+  console.log(`[${network}] 🤖 LLM analysis complete for ${deployments.length} deployment(s)`);
 }
 
 /**
- * Get monitoring status information
+ * Get monitoring status information for all networks
  */
 export function getMonitoringStatus(): {
-  isRunning: boolean;
-  pollIntervalMs: number;
-  lastCheck?: Date;
+  networks: Array<{
+    network: string;
+    isRunning: boolean;
+    pollIntervalMs: number;
+  }>;
 } {
-  const pollIntervalMs = Number.parseInt(process.env.POLL_INTERVAL_MS ?? '', 10);
-  const intervalMs = Number.isFinite(pollIntervalMs) && pollIntervalMs > 0 ? pollIntervalMs : 15000;
+  const configs = getNetworkConfigs();
 
   return {
-    isRunning: isMonitoring,
-    pollIntervalMs: intervalMs
+    networks: configs.map(config => ({
+      network: config.network,
+      isRunning: monitors.get(config.network)?.isRunning || false,
+      pollIntervalMs: config.pollIntervalMs
+    }))
   };
 }
