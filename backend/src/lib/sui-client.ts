@@ -193,6 +193,30 @@ export async function getRecentPublishTransactions({
             break;
           }
 
+          // Handle pruned transaction errors - public RPCs have limited history
+          if (errorMsg.includes('Could not find the referenced transaction')) {
+            // Signal caller that checkpoint data is pruned so it can reset
+            if (typeof afterCheckpoint === 'number') {
+              return {
+                success: false,
+                message: `Transaction data pruned on RPC node. Checkpoint ${afterCheckpoint} is too old.`,
+                error: 'CHECKPOINT_PRUNED',
+                connectionInfo: {
+                  url: effectiveRpcUrl,
+                  hasRpcUrl: hasCustomRpcUrl
+                },
+                latestCheckpoint: undefined,
+                nextCursor: null,
+                pollIntervalMs,
+                queryStrategy: mode.name
+              };
+            }
+            // If no checkpoint filter, just skip this batch
+            console.warn(`RPC returned pruned transaction error, skipping batch.`);
+            hasNextPage = false;
+            break;
+          }
+
           modeFailed = true;
           if (mode.name === 'transaction-kind') {
             if (supportsTransactionKindFilter) {

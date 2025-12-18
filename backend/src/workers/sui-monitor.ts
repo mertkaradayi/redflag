@@ -114,11 +114,23 @@ async function performMonitoringCheck(config: NetworkConfig): Promise<void> {
     const suiClient = new SuiClient({ url: rpcUrl });
 
     // Fetch new deployments from Sui RPC using network-specific client
-    const suiResult = await getRecentPublishTransactions({
+    let suiResult = await getRecentPublishTransactions({
       limit: 100,
       afterCheckpoint,
       client: suiClient
     });
+
+    // Handle pruned checkpoint - retry without checkpoint filter to get recent transactions
+    if (!suiResult.success && suiResult.error === 'CHECKPOINT_PRUNED') {
+      console.warn(`[${network}] ⚠️ Checkpoint ${afterCheckpoint} is pruned on public RPC. Fetching most recent transactions instead.`);
+      console.warn(`[${network}] ℹ️ Some deployments between checkpoint ${afterCheckpoint} and now may be missed.`);
+
+      // Retry without checkpoint filter - just get the most recent deployments
+      suiResult = await getRecentPublishTransactions({
+        limit: 100,
+        client: suiClient
+      });
+    }
 
     if (!suiResult.success) {
       console.error(`[${network}] Failed to fetch deployments from Sui:`, suiResult.message);
