@@ -18,12 +18,12 @@ export function AnalysisQualityCard({ quality, validationSummary }: AnalysisQual
     : Math.round(quality.validation_rate * 100);
 
   return (
-    <div className="rounded-lg border border-zinc-200 dark:border-white/10 bg-[hsl(var(--surface-muted))]/50 dark:bg-black/20 p-4 sm:p-5 transition-colors duration-200">
+    <div className="rounded-lg border border-zinc-200 dark:border-white/10 bg-[hsl(var(--surface-muted))]/50 dark:bg-black/20 p-4 transition-colors duration-200 w-full max-w-full overflow-x-hidden">
       <div className="mb-3 flex items-center gap-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[hsl(var(--surface-muted))] dark:bg-black/40">
-          <BarChart3 className="h-4 w-4 text-muted-foreground dark:text-zinc-400" />
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[hsl(var(--surface-muted))] dark:bg-black/40 shrink-0">
+          <BarChart3 className="h-3.5 w-3.5 text-muted-foreground dark:text-zinc-400" />
         </div>
-        <h6 className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.3em] text-foreground dark:text-white">
+        <h6 className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-foreground dark:text-white">
           Analysis Quality
         </h6>
       </div>
@@ -31,7 +31,7 @@ export function AnalysisQualityCard({ quality, validationSummary }: AnalysisQual
       <div className="space-y-2">
         {/* Modules coverage */}
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-muted-foreground dark:text-zinc-400">Modules</span>
+          <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground dark:text-zinc-500">Modules</span>
           <div className="flex items-center gap-2">
             <span className="text-xs font-medium text-foreground dark:text-white tabular-nums">
               {quality.modules_analyzed}/{quality.modules_total}
@@ -42,7 +42,7 @@ export function AnalysisQualityCard({ quality, validationSummary }: AnalysisQual
 
         {/* Functions coverage */}
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-muted-foreground dark:text-zinc-400">Functions</span>
+          <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground dark:text-zinc-500">Functions</span>
           <div className="flex items-center gap-2">
             <span className="text-xs font-medium text-foreground dark:text-white tabular-nums">
               {quality.functions_analyzed}/{quality.functions_total}
@@ -53,7 +53,7 @@ export function AnalysisQualityCard({ quality, validationSummary }: AnalysisQual
 
         {/* Validation rate */}
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-muted-foreground dark:text-zinc-400">Validation</span>
+          <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground dark:text-zinc-500">Validation</span>
           <div className="flex items-center gap-2">
             <span className={cn('text-xs font-medium tabular-nums', getValidationRateColor(validationRate))}>
               {validationRate}%
@@ -66,7 +66,7 @@ export function AnalysisQualityCard({ quality, validationSummary }: AnalysisQual
 
         {/* Truncation status */}
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-muted-foreground dark:text-zinc-400">Truncated</span>
+          <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground dark:text-zinc-500">Truncated</span>
           <div className="flex items-center gap-2">
             <span className={cn(
               'text-xs font-medium',

@@ -6,7 +6,6 @@ import { Copy, Check, ExternalLink, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { AnalyzedContract } from '@/app/dashboard/types';
 import { getSuiPackageExplorerUrl } from '@/lib/deployments';
-import { getRiskBarColor } from '@/app/dashboard/risk-utils';
 import { RiskScoreCircle } from './RiskScoreCircle';
 
 interface CompactContractCardProps {
@@ -110,6 +109,9 @@ export function CompactContractCard({
   const riskScore = contract.analysis.risk_score;
   const riskColors = getRiskLevelColor(riskLevel);
 
+  // Alternating row colors for better differentiation
+  const isEvenRow = index % 2 === 0;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -119,30 +121,19 @@ export function CompactContractCard({
       className={cn(
         'group relative',
         'cursor-pointer transition-all duration-200',
+        // Alternating row backgrounds - high contrast for clear differentiation
+        isEvenRow
+          ? 'bg-[hsl(var(--surface-muted))]/80 dark:bg-black/70'
+          : 'bg-[hsl(var(--surface-elevated))] dark:bg-white/5',
         // Expanded state - highlighted with subtle glow
         isExpanded
           ? cn(
               'bg-gradient-to-r from-[hsl(var(--surface-muted))] to-transparent',
-              'dark:from-white/[0.04] dark:to-transparent',
+              'dark:from-white/4 dark:to-transparent',
             )
-          : 'hover:bg-[hsl(var(--surface-muted))]/40 dark:hover:bg-white/[0.02]'
+          : 'hover:bg-[hsl(var(--surface-muted))]/90 dark:hover:bg-white/8'
       )}
     >
-      {/* Left color bar - thicker when expanded */}
-      <motion.div
-        className={cn(
-          'absolute left-0 top-0 bottom-0 rounded-l',
-          getRiskBarColor(riskLevel)
-        )}
-        initial={false}
-        animate={{
-          width: isExpanded ? 4 : 3,
-          boxShadow: isExpanded
-            ? `0 0 12px ${riskLevel === 'critical' ? 'rgba(209,34,38,0.5)' : riskLevel === 'high' ? 'rgba(249,115,22,0.5)' : riskLevel === 'moderate' ? 'rgba(234,179,8,0.4)' : 'rgba(16,185,129,0.4)'}`
-            : 'none',
-        }}
-        transition={{ duration: 0.2 }}
-      />
 
       {/* Desktop row */}
       <div className="hidden md:flex items-center gap-4 pl-6 pr-4 py-4">

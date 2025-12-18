@@ -82,7 +82,7 @@ function highlightCode(code: string): React.ReactNode[] {
     }
 
     return (
-      <div key={lineIndex} className="leading-relaxed">
+      <div key={lineIndex} className="leading-relaxed break-words whitespace-pre-wrap min-w-0">
         {tokens}
       </div>
     );
@@ -105,11 +105,11 @@ export function CodeSnippet({ code, language = 'move', className, showLineNumber
   const highlightedCode = highlightCode(code);
 
   return (
-    <div className={cn('group relative rounded-lg bg-zinc-900 dark:bg-black/60 border border-zinc-800 dark:border-zinc-700/50', className)}>
+    <div className={cn('group relative rounded-lg bg-zinc-900 dark:bg-black/60 border border-zinc-800 dark:border-zinc-700/50 overflow-hidden w-full min-w-0', className)}>
       {/* Copy button */}
       <button
         onClick={handleCopy}
-        className="absolute right-2 top-2 p-1.5 rounded-md bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 opacity-0 group-hover:opacity-100 transition-all duration-150"
+        className="absolute right-2 top-2 p-1.5 rounded-md bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 active:scale-95 transition-all duration-150 z-10"
         aria-label="Copy code"
       >
         {copied ? (
@@ -120,8 +120,8 @@ export function CodeSnippet({ code, language = 'move', className, showLineNumber
       </button>
 
       {/* Code content */}
-      <pre className="p-3 pr-10 overflow-x-auto text-xs font-mono">
-        <code>{highlightedCode}</code>
+      <pre className="p-3 md:p-4 pr-10 md:pr-12 overflow-x-hidden text-xs md:text-sm font-mono max-w-full w-full min-w-0">
+        <code className="block max-w-full break-words whitespace-pre-wrap overflow-wrap-anywhere break-all">{highlightedCode}</code>
       </pre>
     </div>
   );

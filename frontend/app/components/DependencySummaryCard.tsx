@@ -12,12 +12,12 @@ export function DependencySummaryCard({ summary }: DependencySummaryCardProps) {
   const hasRisk = summary.unaudited_count > 0 || summary.high_risk_count > 0;
 
   return (
-    <div className="rounded-lg border border-zinc-200 dark:border-white/10 bg-[hsl(var(--surface-muted))]/50 dark:bg-black/20 p-4 sm:p-5 transition-colors duration-200">
+    <div className="rounded-lg border border-zinc-200 dark:border-white/10 bg-[hsl(var(--surface-muted))]/50 dark:bg-black/20 p-4 transition-colors duration-200 w-full max-w-full overflow-x-hidden">
       <div className="mb-3 flex items-center gap-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[hsl(var(--surface-muted))] dark:bg-black/40">
-          <Package className="h-4 w-4 text-muted-foreground dark:text-zinc-400" />
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[hsl(var(--surface-muted))] dark:bg-black/40 shrink-0">
+          <Package className="h-3.5 w-3.5 text-muted-foreground dark:text-zinc-400" />
         </div>
-        <h6 className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.3em] text-foreground dark:text-white">
+        <h6 className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-foreground dark:text-white">
           Dependencies
         </h6>
       </div>
@@ -25,7 +25,7 @@ export function DependencySummaryCard({ summary }: DependencySummaryCardProps) {
       <div className="space-y-2">
         {/* Total dependencies */}
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-muted-foreground dark:text-zinc-400">Total</span>
+          <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground dark:text-zinc-500">Total</span>
           <span className="text-xs font-medium text-foreground dark:text-white tabular-nums">
             {summary.total_dependencies}
           </span>
@@ -33,7 +33,7 @@ export function DependencySummaryCard({ summary }: DependencySummaryCardProps) {
 
         {/* Audited count */}
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-muted-foreground dark:text-zinc-400">Audited</span>
+          <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground dark:text-zinc-500">Audited</span>
           <div className="flex items-center gap-2">
             <span className="text-xs font-medium text-foreground dark:text-white tabular-nums">
               {summary.audited_count}
@@ -44,7 +44,7 @@ export function DependencySummaryCard({ summary }: DependencySummaryCardProps) {
 
         {/* Unaudited count */}
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-muted-foreground dark:text-zinc-400">Unaudited</span>
+          <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground dark:text-zinc-500">Unaudited</span>
           <div className="flex items-center gap-2">
             <span className={cn(
               'text-xs font-medium tabular-nums',
@@ -60,7 +60,7 @@ export function DependencySummaryCard({ summary }: DependencySummaryCardProps) {
 
         {/* High risk count */}
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-muted-foreground dark:text-zinc-400">High Risk</span>
+          <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground dark:text-zinc-500">High Risk</span>
           <div className="flex items-center gap-2">
             <span className={cn(
               'text-xs font-medium tabular-nums',

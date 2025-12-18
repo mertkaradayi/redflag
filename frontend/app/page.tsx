@@ -12,7 +12,6 @@ import { BackgroundBeams } from "@/components/ui/background-beams";
 import { WarRoom, Radar, Autopsy, InputScanner, ReportGen, Gauge } from "@/components/ui/bento-visuals";
 
 import { StatsPulse } from "@/components/ui/stats-pulse";
-import { SingularitySection } from "@/components/ui/singularity-section";
 
 
 
@@ -154,13 +153,6 @@ export default function Home() {
             ))}
           </BentoGrid>
         </div>
-
-
-
-        {/* Singularity Section */}
-        <SingularitySection />
-
-
       </div>
     </div>
   );
