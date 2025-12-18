@@ -146,7 +146,7 @@ const riskLevelTokens: Record<
     emphasis: "text-emerald-700 dark:text-emerald-200",
     subtle: "border-emerald-500/40 bg-emerald-500/10 dark:bg-emerald-500/10",
     subtleText: "text-emerald-900 dark:text-emerald-100",
-    icon: "✅",
+    icon: "🏳️‍🌿",
   },
 };
 

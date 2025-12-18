@@ -80,7 +80,7 @@ export function QuickStatsBar({
               <div className="mb-1.5 flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground dark:text-zinc-400">
                   <span className="text-sm">{getRiskLevelIcon(level)}</span>
-                  {getRiskLevelName(level)}
+                  {getRiskLevelName(level).split(' ')[0]}
                 </div>
                 {!isLoading && total > 0 && (
                   <span className="text-[10px] font-medium text-muted-foreground dark:text-zinc-500 tabular-nums">

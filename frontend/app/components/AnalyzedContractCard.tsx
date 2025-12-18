@@ -320,15 +320,14 @@ export function AnalyzedContractCard({ contract, index = 0, onAutoRefreshPause, 
                       <div
                         key={functionKey}
                         className={cn(
-                          'rounded-lg bg-[hsl(var(--surface-muted))]/30 dark:bg-black/40 border border-border/50 dark:border-white/5 px-3 py-2 transition-all duration-150 w-full max-w-full overflow-x-hidden',
-                          'hover:bg-[hsl(var(--surface-muted))]/50 dark:hover:bg-black/60 hover:border-border/70 dark:hover:border-white/10',
+                          'rounded-lg bg-[hsl(var(--surface-muted))]/30 dark:bg-black/40 border border-border/50 dark:border-white/5 px-3 py-2 transition-colors duration-150 w-full max-w-full overflow-x-hidden',
                           isExpanded && 'border-border/60 dark:border-white/10 bg-[hsl(var(--surface-muted))]/40 dark:bg-black/50',
                         )}
                       >
                         <button
                           type="button"
                           onClick={() => handleToggleFunctionContent(functionKey)}
-                          className="flex w-full flex-wrap items-start gap-2 text-left sm:flex-nowrap sm:items-center sm:justify-between min-w-0 cursor-pointer"
+                          className="flex w-full flex-wrap items-start gap-2 text-left sm:flex-nowrap sm:items-center sm:justify-between min-w-0"
                           aria-expanded={isExpanded}
                         >
                           <span className="flex min-w-0 flex-1 items-start gap-2">

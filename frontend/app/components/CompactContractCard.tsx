@@ -79,16 +79,6 @@ function getRiskLevelColor(level: string) {
   return colors[level] || { bg: 'bg-zinc-500/10', text: 'text-zinc-500', border: 'border-zinc-500/30', icon: '?' };
 }
 
-function getRiskLevelBorderColor(level: string): string {
-  const colors: Record<string, string> = {
-    critical: 'border-[#D12226]/60 dark:border-[#D12226]/40',
-    high: 'border-orange-500/60 dark:border-orange-500/40',
-    moderate: 'border-yellow-500/60 dark:border-yellow-500/40',
-    low: 'border-emerald-500/60 dark:border-emerald-500/40',
-  };
-  return colors[level] || 'border-zinc-500/60 dark:border-zinc-500/40';
-}
-
 export function CompactContractCard({
   contract,
   index = 0,
@@ -131,33 +121,40 @@ export function CompactContractCard({
       className={cn(
         'group relative',
         'cursor-pointer transition-all duration-200',
-        // Expanded state - matches expanded section background for cohesive feel
+        // Alternating row backgrounds - high contrast for clear differentiation
+        isEvenRow
+          ? 'bg-[hsl(var(--surface-muted))]/80 dark:bg-black/70'
+          : 'bg-[hsl(var(--surface-elevated))] dark:bg-white/5',
+        // Expanded state - highlighted with subtle glow
         isExpanded
           ? cn(
-              'bg-[hsl(var(--surface-muted))]/50 dark:bg-white/2',
-              'border-l-2',
-              getRiskLevelBorderColor(riskLevel)
+              'bg-gradient-to-r from-[hsl(var(--surface-muted))] to-transparent',
+              'dark:from-white/4 dark:to-transparent',
             )
-          : cn(
-              // Alternating row backgrounds - high contrast for clear differentiation
-              isEvenRow
-                ? 'bg-[hsl(var(--surface-muted))]/80 dark:bg-black/70'
-                : 'bg-[hsl(var(--surface-elevated))] dark:bg-white/5',
-              'hover:bg-[hsl(var(--surface-muted))]/90 dark:hover:bg-white/8'
-            )
+          : 'hover:bg-[hsl(var(--surface-muted))]/90 dark:hover:bg-white/8'
       )}
     >
 
       {/* Desktop row */}
-      <div className="hidden md:flex items-center gap-4 pl-6 pr-4 py-4 relative">
-        {/* Risk level icon - top left */}
-        <div className="absolute left-2 top-2 text-base leading-none">
-          {riskColors.icon}
-        </div>
-
+      <div className="hidden md:flex items-center gap-4 pl-6 pr-4 py-4">
         {/* Score circle - fixed width */}
         <div className="w-11 shrink-0 flex justify-center">
           <RiskScoreCircle score={riskScore} size={44} animate={index < 10} />
+        </div>
+
+        {/* Risk level pill - fixed width */}
+        <div className="w-[100px] shrink-0">
+          <div
+            className={cn(
+              'inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide border',
+              riskColors.bg,
+              riskColors.text,
+              riskColors.border
+            )}
+          >
+            <span className="text-[10px] leading-none">{riskColors.icon}</span>
+            <span>{getRiskLevelLabel(riskLevel)}</span>
+          </div>
         </div>
 
         {/* Package ID - fixed width with icons inside */}
@@ -191,28 +188,28 @@ export function CompactContractCard({
           </div>
         </div>
 
-        {/* Summary - flex to fill remaining, more compact */}
+        {/* Summary - flex to fill remaining */}
         <div className="flex-1 min-w-0">
-          <p className="text-xs text-foreground/80 dark:text-white/80 truncate leading-tight">
+          <p className="text-sm text-foreground/90 dark:text-white/90 truncate leading-relaxed">
             {contract.analysis.why_risky_one_liner}
           </p>
         </div>
 
-        {/* Network badge - minimal */}
-        <div className="w-10 shrink-0 flex justify-center">
-          <span
+        {/* Network badge - fixed width */}
+        <div className="w-12 shrink-0 flex justify-center">
+          <div
             className={cn(
-              'text-[10px] font-medium uppercase tracking-wide',
+              'px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wide',
               contract.network === 'mainnet'
-                ? 'text-emerald-500 dark:text-emerald-400'
-                : 'text-muted-foreground/60 dark:text-zinc-500'
+                ? 'bg-emerald-500/8 text-emerald-400'
+                : 'bg-sky-500/8 text-sky-400'
             )}
           >
             {contract.network === 'mainnet' ? 'Main' : 'Test'}
-          </span>
+          </div>
         </div>
 
-        {/* Time - minimal */}
+        {/* Time - fixed width */}
         <span className="w-10 shrink-0 text-xs text-muted-foreground/70 dark:text-zinc-500 tabular-nums text-right">
           {relativeTime}
         </span>
@@ -234,12 +231,7 @@ export function CompactContractCard({
       </div>
 
       {/* Mobile row */}
-      <div className="md:hidden pl-5 pr-3 py-4 relative">
-        {/* Risk level icon - top left */}
-        <div className="absolute left-2 top-2 text-base leading-none">
-          {riskColors.icon}
-        </div>
-
+      <div className="md:hidden pl-5 pr-3 py-4">
         <div className="flex items-center gap-3">
           {/* Score circle - smaller on mobile */}
           <div className="shrink-0">
@@ -249,6 +241,18 @@ export function CompactContractCard({
           {/* Main content */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
+              {/* Risk level pill */}
+              <div
+                className={cn(
+                  'inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wide border',
+                  riskColors.bg,
+                  riskColors.text,
+                  riskColors.border
+                )}
+              >
+                <span className="text-[9px] leading-none">{riskColors.icon}</span>
+                <span>{getRiskLevelLabel(riskLevel)}</span>
+              </div>
               {/* Network */}
               <span
                 className={cn(
@@ -284,8 +288,8 @@ export function CompactContractCard({
           />
         </div>
 
-        {/* Summary below on mobile - more compact */}
-        <p className="mt-2 text-xs text-muted-foreground dark:text-zinc-400 line-clamp-2 leading-tight">
+        {/* Summary below on mobile */}
+        <p className="mt-2 text-xs text-muted-foreground dark:text-zinc-400 line-clamp-2 leading-relaxed">
           {contract.analysis.why_risky_one_liner}
         </p>
       </div>
