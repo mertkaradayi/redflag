@@ -4,6 +4,7 @@ import cors from 'cors';
 import { testSupabaseConnection, getDeployments, getDeploymentStats, getAnalysisResult, getRecentAnalyses, getHighRiskAnalyses, getRiskLevelCounts, getDeploymentByPackageId, getAllMonitorCheckpoints } from './lib/supabase';
 import { testSuiConnection } from './lib/sui-client';
 import { startMonitoring, stopMonitoring, getMonitoringStatus } from './workers/sui-monitor';
+import { startHistoricalMonitoring, stopHistoricalMonitoring, getHistoricalMonitoringStatus } from './workers/historical-monitor';
 import { startAnalysisWorker, stopAnalysisWorker, getAnalysisWorkerStatus } from './workers/analysis-worker';
 import { runFullAnalysisChain, getAnalysis } from './lib/llm-analyzer';
 import { SuiClient } from '@mysten/sui/client';
@@ -372,6 +373,17 @@ app.get('/api/analysis/worker-status', (req, res) => {
   });
 });
 
+// Historical monitor status endpoint
+app.get('/api/historical/monitor-status', (req, res) => {
+  const status = getHistoricalMonitoringStatus();
+  res.json({
+    success: true,
+    message: 'Historical monitor status retrieved',
+    timestamp: new Date().toISOString(),
+    historical: status
+  });
+});
+
 // Debug endpoint to see what transactions we're getting
 app.get('/api/sui/debug', async (req, res) => {
   try {
@@ -709,7 +721,15 @@ app.get('/api/llm/analyzed-contracts', async (req, res) => {
       : networkParam === 'testnet' ? 'testnet'
       : null; // null means "all networks"
 
-    const result = await getRecentAnalyses({ limit, offset, packageId, riskLevels, network });
+    // Parse deployedAfter parameter (ISO 8601 timestamp filter)
+    const deployedAfterParam = Array.isArray(req.query.deployedAfter)
+      ? req.query.deployedAfter[0]
+      : req.query.deployedAfter;
+    const deployedAfter = typeof deployedAfterParam === 'string' && deployedAfterParam.trim()
+      ? deployedAfterParam.trim()
+      : null;
+
+    const result = await getRecentAnalyses({ limit, offset, packageId, riskLevels, network, deployedAfter });
 
     if (result.success) {
       const contracts = result.analyses.map(analysis => ({
@@ -724,14 +744,21 @@ app.get('/api/llm/analyzed-contracts', async (req, res) => {
           risk_score: analysis.risk_score,
           risk_level: analysis.risk_level
         },
-        analyzed_at: analysis.analyzed_at
+        analyzed_at: analysis.analyzed_at,
+        // Include deployment metadata from JOIN
+        deployment: analysis.sui_package_deployments ? {
+          timestamp: analysis.sui_package_deployments.timestamp,
+          deployer_address: analysis.sui_package_deployments.deployer_address,
+          tx_digest: analysis.sui_package_deployments.tx_digest,
+          checkpoint: analysis.sui_package_deployments.checkpoint
+        } : null
       }));
 
       const riskCountsResult = await getRiskLevelCounts({ packageId, network });
       const riskCounts = riskCountsResult.success ? riskCountsResult.counts : undefined;
 
       // Always fetch the most recent analysis timestamp regardless of pagination offset
-      const mostRecentResult = await getRecentAnalyses({ limit: 1, offset: 0, packageId, riskLevels, network });
+      const mostRecentResult = await getRecentAnalyses({ limit: 1, offset: 0, packageId, riskLevels, network, deployedAfter });
       const lastAnalyzed = mostRecentResult.success && mostRecentResult.analyses.length > 0
         ? mostRecentResult.analyses[0].analyzed_at
         : null;
@@ -855,16 +882,21 @@ app.listen(PORT, async () => {
   console.log(`📚 Historical deployments: http://localhost:${PORT}/api/sui/deployments`);
   console.log(`📊 Monitor status: http://localhost:${PORT}/api/sui/monitor-status`);
 
-  // Start the Sui deployment monitor and analysis worker
+  // Start the Sui monitoring system (live + historical + analysis)
   const autoAnalysisEnabled = envFlag('ENABLE_AUTO_ANALYSIS', true);
   const suiRpcEnabled = envFlag('ENABLE_SUI_RPC', true);
 
   if (autoAnalysisEnabled && suiRpcEnabled) {
     try {
-      // Start checkpoint monitor
+      // Start live checkpoint monitor (real-time tracking)
+      console.log('🚀 Starting LIVE monitor (real-time deployments)...');
       await startMonitoring();
 
-      // Start analysis worker (runs independently)
+      // Start historical backfill monitor (background catch-up)
+      console.log('📚 Starting HISTORICAL monitor (backfill old deployments)...');
+      await startHistoricalMonitoring();
+
+      // Start analysis worker (processes both live and historical deployments)
       startAnalysisWorker();
 
     } catch (error) {
@@ -886,6 +918,7 @@ app.listen(PORT, async () => {
 process.on('SIGTERM', () => {
   console.log('🛑 SIGTERM received, shutting down gracefully...');
   stopMonitoring();
+  stopHistoricalMonitoring();
   stopAnalysisWorker();
   process.exit(0);
 });
@@ -893,6 +926,7 @@ process.on('SIGTERM', () => {
 process.on('SIGINT', () => {
   console.log('🛑 SIGINT received, shutting down gracefully...');
   stopMonitoring();
+  stopHistoricalMonitoring();
   stopAnalysisWorker();
   process.exit(0);
 });

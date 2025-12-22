@@ -92,10 +92,18 @@ const MAX_CHECKPOINTS_PER_POLL = 100; // Sui RPC hard limit
 const CATCHUP_THRESHOLD = 200; // Log catchup warning if gap > this
 
 /**
- * Bootstrap: on first run, start from near-current (not historical)
- * This avoids hours of catch-up on fresh deployments
+ * Bootstrap configuration for different monitor types
+ *
+ * LIVE_BOOTSTRAP_OFFSET: For live monitor (real-time tracking)
+ * - Production: 4000 checkpoints (~15 minutes at 4 ckpt/sec)
+ * - Ensures immediate visibility of fresh deployments
+ *
+ * HISTORICAL_BOOTSTRAP_OFFSET: For historical monitor (backfill)
+ * - Starts from checkpoint 0 or configured start
+ * - Catches up old deployments in background
  */
-const BOOTSTRAP_CHECKPOINT_OFFSET = 50;
+const LIVE_BOOTSTRAP_OFFSET = parseInt(process.env.LIVE_BOOTSTRAP_OFFSET || '4000', 10);
+const HISTORICAL_START = 0; // Historical always starts from beginning (or configured)
 
 /**
  * Log throttling: avoid spamming logs when persistently behind
@@ -113,14 +121,16 @@ const GAP_WARNING_INTERVAL_MS = 60_000; // Only warn once per minute per network
  * @param fromCheckpoint - Checkpoint sequence number to start from (exclusive)
  * @param maxCheckpoints - Maximum checkpoints to process per call (default: 100)
  * @param network - Network name for logging (optional)
+ * @param bootstrapOffset - How far back to start on first run (default: LIVE_BOOTSTRAP_OFFSET)
  */
 export async function getDeploymentsFromCheckpoints(options: {
   client: SuiClient;
   fromCheckpoint?: string | null;
   maxCheckpoints?: number;
   network?: string;
+  bootstrapOffset?: number;
 }): Promise<CheckpointDeploymentResult> {
-  const { client, fromCheckpoint, network = 'unknown' } = options;
+  const { client, fromCheckpoint, network = 'unknown', bootstrapOffset = LIVE_BOOTSTRAP_OFFSET } = options;
   const logPrefix = `[${network}]`;
 
   if (!envFlag('ENABLE_SUI_RPC', true)) {
@@ -146,10 +156,11 @@ export async function getDeploymentsFromCheckpoints(options: {
       // Start from the checkpoint after the last processed one
       startCheckpoint = BigInt(fromCheckpoint) + 1n;
     } else {
-      // First run: bootstrap from near-current (avoid long catch-up)
-      const bootstrapStart = BigInt(latestCheckpointSeq) - BigInt(BOOTSTRAP_CHECKPOINT_OFFSET);
+      // First run: bootstrap from configured offset (live=recent, historical=start)
+      const bootstrapStart = BigInt(latestCheckpointSeq) - BigInt(bootstrapOffset);
       startCheckpoint = bootstrapStart > 0n ? bootstrapStart : 1n;
-      console.info(`${logPrefix} First run: bootstrapping from checkpoint ${startCheckpoint} (${BOOTSTRAP_CHECKPOINT_OFFSET} behind current)`);
+      const monitorType = bootstrapOffset === LIVE_BOOTSTRAP_OFFSET ? 'LIVE' : 'HISTORICAL';
+      console.info(`${logPrefix} [${monitorType}] First run: bootstrapping from checkpoint ${startCheckpoint} (${bootstrapOffset} behind current)`);
     }
 
     // If we're already at the latest, nothing to do

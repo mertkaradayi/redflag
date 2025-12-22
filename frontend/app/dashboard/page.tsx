@@ -78,6 +78,7 @@ function DashboardContent() {
   const [expandedCompactCard, setExpandedCompactCard] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [networkFilter, setNetworkFilter] = useState<NetworkFilter>('all');
+  const [timeFilter, setTimeFilter] = useState<'24h' | '7d' | '30d' | 'all'>('all');
 
   // Load viewMode from localStorage on mount
   useEffect(() => {
@@ -180,6 +181,14 @@ function DashboardContent() {
     [goToPage],
   );
 
+  const handleTimeFilterChange = useCallback(
+    (filter: '24h' | '7d' | '30d' | 'all') => {
+      setTimeFilter(filter);
+      goToPage(1);
+    },
+    [goToPage],
+  );
+
   const fetchAnalyzedContracts = useCallback(async ({ silent }: { silent?: boolean } = {}) => {
     try {
       if (!silent) {
@@ -207,6 +216,14 @@ function DashboardContent() {
       // Add network parameter for server-side filtering
       if (networkFilter !== 'all') {
         params.append('network', networkFilter);
+      }
+
+      // Add deployment time filter
+      if (timeFilter !== 'all') {
+        const now = new Date();
+        const hoursAgo = timeFilter === '24h' ? 24 : timeFilter === '7d' ? 168 : 720; // 24h, 7d (168h), 30d (720h)
+        const deployedAfter = new Date(now.getTime() - hoursAgo * 3600000).toISOString();
+        params.append('deployedAfter', deployedAfter);
       }
 
       const response = await fetch(`${backendUrl}/api/llm/analyzed-contracts?${params}`, {
@@ -241,7 +258,7 @@ function DashboardContent() {
         setIsRefreshing(false);
       }
     }
-  }, [activeRiskFilters, debouncedSearchQuery, networkFilter, offset, pageSize]);
+  }, [activeRiskFilters, debouncedSearchQuery, networkFilter, timeFilter, offset, pageSize]);
 
   const fetchPackageStatus = useCallback(async (packageId: string, networkOverride?: 'mainnet' | 'testnet') => {
     const requestKey = buildRequestKey(packageId, networkOverride);
@@ -603,6 +620,24 @@ function DashboardContent() {
                 ))}
               </div>
 
+              {/* Time Filter */}
+              <div className="inline-flex items-center gap-1 rounded-full border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-black/40 p-1">
+                {(['24h', '7d', '30d', 'all'] as const).map((filter) => (
+                  <button
+                    key={filter}
+                    onClick={() => handleTimeFilterChange(filter)}
+                    className={cn(
+                      'px-3 py-1 rounded-full text-xs font-medium transition-all',
+                      timeFilter === filter
+                        ? 'bg-foreground dark:bg-white text-background dark:text-black'
+                        : 'text-muted-foreground hover:text-foreground dark:hover:text-white'
+                    )}
+                  >
+                    {filter === 'all' ? 'All Time' : filter.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+
               {/* Sort Dropdown */}
               <div className="relative">
                 <select
@@ -843,7 +878,10 @@ function DashboardContent() {
               <div className="w-[140px] shrink-0">Package</div>
               <div className="flex-1">Summary</div>
               <div className="w-12 shrink-0 text-center">Net</div>
-              <div className="w-10 shrink-0 text-right">Time</div>
+              <div className="w-12 shrink-0 text-right">
+                <div className="text-[10px]">Deploy</div>
+                <div className="text-[9px] opacity-50">Analyze</div>
+              </div>
               <div className="w-4 shrink-0" />
             </div>
 

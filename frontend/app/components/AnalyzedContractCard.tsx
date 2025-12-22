@@ -98,6 +98,17 @@ export function AnalyzedContractCard({ contract, index = 0, onAutoRefreshPause, 
 
   const relativeAnalyzedAt = useMemo(() => formatRelativeTime(contract.analyzed_at), [contract.analyzed_at]);
   const absoluteAnalyzedAt = useMemo(() => new Date(contract.analyzed_at).toLocaleString(), [contract.analyzed_at]);
+
+  // Deployment time calculations
+  const relativeDeployedAt = useMemo(
+    () => (contract.deployment?.timestamp ? formatRelativeTime(contract.deployment.timestamp) : null),
+    [contract.deployment?.timestamp],
+  );
+  const absoluteDeployedAt = useMemo(
+    () => (contract.deployment?.timestamp ? new Date(contract.deployment.timestamp).toLocaleString() : null),
+    [contract.deployment?.timestamp],
+  );
+
   const explorerUrl = useMemo(() => getSuiPackageExplorerUrl(contract.package_id, contract.network), [contract.package_id, contract.network]);
   const allRiskyFunctions = useMemo(
     () =>
@@ -540,12 +551,23 @@ export function AnalyzedContractCard({ contract, index = 0, onAutoRefreshPause, 
                     {contract.network}
                   </dd>
                 </div>
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-3 rounded-lg px-2 py-1.5 w-full min-w-0">
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Clock className="h-3 w-3 text-muted-foreground dark:text-zinc-500 shrink-0" />
-                    <dt className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground dark:text-zinc-500 whitespace-nowrap">Generated</dt>
+                {relativeDeployedAt && (
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-3 rounded-lg px-2 py-2 w-full min-w-0 bg-foreground/5 dark:bg-white/5">
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Package className="h-3.5 w-3.5 text-foreground dark:text-white shrink-0" />
+                      <dt className="text-[11px] font-semibold uppercase tracking-wide text-foreground dark:text-white whitespace-nowrap">Deployed</dt>
+                    </div>
+                    <dd className="text-sm text-foreground dark:text-white font-semibold sm:text-right tabular-nums" title={absoluteDeployedAt || undefined}>
+                      {relativeDeployedAt}
+                    </dd>
                   </div>
-                  <dd className="text-[11px] text-foreground/80 dark:text-zinc-300 sm:text-right" title={absoluteAnalyzedAt}>
+                )}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-3 rounded-lg px-2 py-1 w-full min-w-0">
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Clock className="h-2.5 w-2.5 text-muted-foreground dark:text-zinc-600 shrink-0" />
+                    <dt className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground dark:text-zinc-600 whitespace-nowrap">Analyzed</dt>
+                  </div>
+                  <dd className="text-[10px] text-muted-foreground/70 dark:text-zinc-500 sm:text-right tabular-nums" title={absoluteAnalyzedAt}>
                     {relativeAnalyzedAt}
                   </dd>
                 </div>

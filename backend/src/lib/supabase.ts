@@ -712,6 +712,7 @@ export async function getRecentAnalyses(options: {
   riskLevels?: RiskLevel[] | null;
   network?: string | null;
   includeFailed?: boolean;
+  deployedAfter?: string | null;
 } = {}): Promise<{
   success: boolean;
   analyses: any[];
@@ -734,50 +735,142 @@ export async function getRecentAnalyses(options: {
       packageId = null,
       riskLevels = null,
       network = null,
-      includeFailed = false
+      includeFailed = false,
+      deployedAfter = null
     } = options;
 
-    // Build base query
-    let query = supabase
+    // Build base query for analyses
+    let analysesQuery = supabase
       .from('contract_analyses')
       .select('*', { count: 'exact', head: false })
       .order('analyzed_at', { ascending: false });
 
     // Exclude failed analyses by default
     if (!includeFailed) {
-      query = query.eq('analysis_status', 'completed');
+      analysesQuery = analysesQuery.eq('analysis_status', 'completed');
     }
 
     // Apply packageId filter if provided (exact match, case-sensitive)
     if (packageId) {
-      query = query.eq('package_id', packageId);
+      analysesQuery = analysesQuery.eq('package_id', packageId);
     }
 
     if (riskLevels && riskLevels.length > 0) {
-      query = query.in('risk_level', riskLevels);
+      analysesQuery = analysesQuery.in('risk_level', riskLevels);
     }
 
     // Apply network filter if provided
     if (network && (network === 'mainnet' || network === 'testnet')) {
-      query = query.eq('network', network);
+      analysesQuery = analysesQuery.eq('network', network);
     }
 
-    // Get paginated analyses with accurate total count in one query
-    const { data, error, count } = await query.range(offset, offset + limit - 1);
+    // If deployedAfter filter is provided, we need to fetch deployments first
+    // to filter by timestamp, then filter analyses
+    if (deployedAfter) {
+      // Fetch deployments that match the time filter
+      let deploymentsQuery = supabase
+        .from('sui_package_deployments')
+        .select('package_id, network')
+        .gte('timestamp', deployedAfter);
 
-    if (error) {
-      console.error('Failed to get analyses:', error);
+      if (network && (network === 'mainnet' || network === 'testnet')) {
+        deploymentsQuery = deploymentsQuery.eq('network', network);
+      }
+
+      const { data: deployments, error: deploymentsError } = await deploymentsQuery;
+
+      if (deploymentsError) {
+        console.error('Failed to fetch deployments for time filter:', deploymentsError);
+        return {
+          success: false,
+          analyses: [],
+          totalCount: 0,
+          error: deploymentsError.message
+        };
+      }
+
+      // If no deployments match the time filter, return empty
+      if (!deployments || deployments.length === 0) {
+        return {
+          success: true,
+          analyses: [],
+          totalCount: 0
+        };
+      }
+
+      // Filter analyses to only include those with matching deployments
+      // Create an array of conditions for OR filtering
+      const packageNetworkPairs = deployments.map(d => `(package_id.eq.${d.package_id},network.eq.${d.network})`);
+
+      // Since we can't do complex OR conditions easily, we'll filter after fetching
+      // Get all analyses first, then filter client-side
+    }
+
+    // Get paginated analyses
+    const { data: analysesData, error: analysesError, count } = await analysesQuery.range(offset, offset + limit - 1);
+
+    if (analysesError) {
+      console.error('Failed to get analyses:', analysesError);
       return {
         success: false,
         analyses: [],
         totalCount: 0,
-        error: error.message
+        error: analysesError.message
       };
     }
 
+    if (!analysesData || analysesData.length === 0) {
+      return {
+        success: true,
+        analyses: [],
+        totalCount: count || 0
+      };
+    }
+
+    // Fetch corresponding deployments for these analyses
+    const packageIds = [...new Set(analysesData.map(a => a.package_id))];
+    const networks = [...new Set(analysesData.map(a => a.network))];
+
+    // Fetch deployments for these specific packages
+    const { data: deploymentsData, error: deploymentsError } = await supabase
+      .from('sui_package_deployments')
+      .select('package_id, network, timestamp, deployer_address, tx_digest, checkpoint')
+      .in('package_id', packageIds)
+      .in('network', networks);
+
+    if (deploymentsError) {
+      console.warn('Failed to fetch deployments:', deploymentsError);
+      // Continue without deployment data
+      return {
+        success: true,
+        analyses: analysesData,
+        totalCount: count || 0
+      };
+    }
+
+    // Create a map for quick lookup: key = `${package_id}_${network}`
+    const deploymentsMap = new Map();
+    if (deploymentsData) {
+      for (const deployment of deploymentsData) {
+        const key = `${deployment.package_id}_${deployment.network}`;
+        deploymentsMap.set(key, deployment);
+      }
+    }
+
+    // Attach deployment data to each analysis
+    const enrichedAnalyses = analysesData.map(analysis => {
+      const key = `${analysis.package_id}_${analysis.network}`;
+      const deployment = deploymentsMap.get(key);
+
+      return {
+        ...analysis,
+        sui_package_deployments: deployment || null
+      };
+    });
+
     return {
       success: true,
-      analyses: data || [],
+      analyses: enrichedAnalyses,
       totalCount: count || 0
     };
 
@@ -1440,6 +1533,232 @@ export async function getUnanalyzedDeployments(options: {
     return {
       success: false,
       deployments: [],
+      error: errorMessage
+    };
+  }
+}
+
+// ================================================================
+// HISTORICAL CHECKPOINT OPERATIONS (For Backfill Monitor)
+// ================================================================
+
+/**
+ * Get historical backfill checkpoint for a network
+ * Used by the historical monitor to track backfill progress
+ */
+export async function getHistoricalCheckpoint(network: string): Promise<{
+  success: boolean;
+  checkpoint: string | null;
+  enabled: boolean;
+  startCheckpoint: string;
+  lastProcessedAt: string | null;
+  error?: string;
+}> {
+  try {
+    if (!supabase) {
+      return {
+        success: false,
+        checkpoint: null,
+        enabled: false,
+        startCheckpoint: '0',
+        lastProcessedAt: null,
+        error: 'Supabase client not initialized'
+      };
+    }
+
+    const { data, error } = await supabase
+      .from('historical_checkpoints')
+      .select('last_processed_checkpoint, backfill_enabled, backfill_start_checkpoint, last_processed_at')
+      .eq('network', network)
+      .single();
+
+    if (error) {
+      // PGRST116 = no rows found
+      if (error.code === 'PGRST116') {
+        return {
+          success: true,
+          checkpoint: null,
+          enabled: true,
+          startCheckpoint: '0',
+          lastProcessedAt: null
+        };
+      }
+
+      console.error(`Failed to get historical checkpoint for ${network}:`, error);
+      return {
+        success: false,
+        checkpoint: null,
+        enabled: false,
+        startCheckpoint: '0',
+        lastProcessedAt: null,
+        error: error.message
+      };
+    }
+
+    return {
+      success: true,
+      checkpoint: data?.last_processed_checkpoint?.toString() ?? null,
+      enabled: data?.backfill_enabled ?? true,
+      startCheckpoint: data?.backfill_start_checkpoint?.toString() ?? '0',
+      lastProcessedAt: data?.last_processed_at ?? null
+    };
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Unexpected error in getHistoricalCheckpoint:', error);
+    return {
+      success: false,
+      checkpoint: null,
+      enabled: false,
+      startCheckpoint: '0',
+      lastProcessedAt: null,
+      error: errorMessage
+    };
+  }
+}
+
+/**
+ * Update historical backfill checkpoint
+ */
+export async function updateHistoricalCheckpoint(
+  network: string,
+  checkpoint: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!supabase) {
+      return {
+        success: false,
+        error: 'Supabase client not initialized'
+      };
+    }
+
+    const checkpointNum = BigInt(checkpoint);
+
+    const { error } = await supabase
+      .from('historical_checkpoints')
+      .upsert({
+        network,
+        last_processed_checkpoint: checkpointNum.toString(),
+        last_processed_at: new Date().toISOString()
+      }, {
+        onConflict: 'network'
+      });
+
+    if (error) {
+      console.error(`Failed to update historical checkpoint for ${network}:`, error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+
+    return { success: true };
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Unexpected error in updateHistoricalCheckpoint:', error);
+    return {
+      success: false,
+      error: errorMessage
+    };
+  }
+}
+
+/**
+ * Enable or disable historical backfill for a network
+ */
+export async function setHistoricalBackfillEnabled(
+  network: string,
+  enabled: boolean
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!supabase) {
+      return {
+        success: false,
+        error: 'Supabase client not initialized'
+      };
+    }
+
+    const { error } = await supabase
+      .from('historical_checkpoints')
+      .update({ backfill_enabled: enabled })
+      .eq('network', network);
+
+    if (error) {
+      console.error(`Failed to set backfill enabled for ${network}:`, error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+
+    console.log(`Historical backfill ${enabled ? 'enabled' : 'disabled'} for ${network}`);
+    return { success: true };
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Unexpected error in setHistoricalBackfillEnabled:', error);
+    return {
+      success: false,
+      error: errorMessage
+    };
+  }
+}
+
+/**
+ * Get all historical checkpoint statuses
+ */
+export async function getAllHistoricalCheckpoints(): Promise<{
+  success: boolean;
+  checkpoints: Array<{
+    network: string;
+    lastProcessedCheckpoint: string;
+    enabled: boolean;
+    startCheckpoint: string;
+    lastProcessedAt: string;
+  }>;
+  error?: string;
+}> {
+  try {
+    if (!supabase) {
+      return {
+        success: false,
+        checkpoints: [],
+        error: 'Supabase client not initialized'
+      };
+    }
+
+    const { data, error } = await supabase
+      .from('historical_checkpoints')
+      .select('network, last_processed_checkpoint, backfill_enabled, backfill_start_checkpoint, last_processed_at')
+      .order('network');
+
+    if (error) {
+      console.error('Failed to get all historical checkpoints:', error);
+      return {
+        success: false,
+        checkpoints: [],
+        error: error.message
+      };
+    }
+
+    return {
+      success: true,
+      checkpoints: (data || []).map(row => ({
+        network: row.network,
+        lastProcessedCheckpoint: row.last_processed_checkpoint?.toString() ?? '0',
+        enabled: row.backfill_enabled ?? true,
+        startCheckpoint: row.backfill_start_checkpoint?.toString() ?? '0',
+        lastProcessedAt: row.last_processed_at ?? ''
+      }))
+    };
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Unexpected error in getAllHistoricalCheckpoints:', error);
+    return {
+      success: false,
+      checkpoints: [],
       error: errorMessage
     };
   }

@@ -105,6 +105,9 @@ export function CompactContractCard({
   }, [contract.package_id, contract.network]);
 
   const relativeTime = formatRelativeTime(contract.analyzed_at);
+  const deploymentTime = contract.deployment?.timestamp
+    ? formatRelativeTime(contract.deployment.timestamp)
+    : null;
   const riskLevel = contract.analysis.risk_level;
   const riskScore = contract.analysis.risk_score;
   const riskColors = getRiskLevelColor(riskLevel);
@@ -209,10 +212,23 @@ export function CompactContractCard({
           </div>
         </div>
 
-        {/* Time - fixed width */}
-        <span className="w-10 shrink-0 text-xs text-muted-foreground/70 dark:text-zinc-500 tabular-nums text-right">
-          {relativeTime}
-        </span>
+        {/* Time - fixed width with deployment (primary) and analysis (secondary) */}
+        <div className="w-12 shrink-0 text-right space-y-0.5">
+          {deploymentTime ? (
+            <>
+              <div className="text-sm font-semibold text-foreground dark:text-white tabular-nums">
+                {deploymentTime}
+              </div>
+              <div className="text-[8px] text-muted-foreground/40 dark:text-zinc-700 tabular-nums">
+                {relativeTime}
+              </div>
+            </>
+          ) : (
+            <div className="text-xs text-muted-foreground/70 dark:text-zinc-500 tabular-nums">
+              {relativeTime}
+            </div>
+          )}
+        </div>
 
         {/* Chevron - fixed width */}
         <motion.div
@@ -264,9 +280,9 @@ export function CompactContractCard({
               >
                 {contract.network === 'mainnet' ? 'main' : 'test'}
               </span>
-              {/* Time */}
-              <span className="text-[10px] text-muted-foreground/60 tabular-nums ml-auto">
-                {relativeTime}
+              {/* Time - deployment primarily on mobile */}
+              <span className="text-xs font-semibold text-foreground dark:text-white tabular-nums ml-auto">
+                {deploymentTime || relativeTime}
               </span>
             </div>
             {/* Package ID */}
