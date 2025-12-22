@@ -58,3 +58,6 @@ AGENTS.md
 
 # Local-only files (not tracked in git)
 .local-*.md
+
+# Auto Claude data directory
+.auto-claude/

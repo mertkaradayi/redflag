@@ -12,36 +12,19 @@ export interface ContractDeployment {
   checkpoint: number;
 }
 
+/**
+ * Result type for Sui RPC connection tests
+ */
 export interface SuiClientResult {
   success: boolean;
   message: string;
-  deployments?: ContractDeployment[];
   error?: string;
   disabled?: boolean;
   connectionInfo?: {
     url: string;
     hasRpcUrl: boolean;
   };
-  latestCheckpoint?: number;
-  nextCursor?: string | null;
-  pollIntervalMs?: number;
-  queryStrategy?: 'transaction-kind' | 'move-function' | 'unfiltered';
 }
-
-export interface RecentPublishOptions {
-  limit?: number;
-  cursor?: string | null;
-  afterCheckpoint?: number;
-  client?: SuiClient;
-}
-
-type QueryMode = {
-  name: 'transaction-kind' | 'move-function' | 'unfiltered';
-  filter?: Parameters<SuiClient['queryTransactionBlocks']>[0]['filter'];
-};
-
-let supportsTransactionKindFilter = true;
-let supportsMoveFunctionFilter = true;
 
 /**
  * Initialize Sui client for testnet
@@ -80,91 +63,171 @@ export function getSuiKeypair(): Ed25519Keypair | null {
   }
 }
 
+// ================================================================
+// CHECKPOINT-BASED DEPLOYMENT MONITORING
+// ================================================================
+
+export interface CheckpointDeploymentResult {
+  success: boolean;
+  message: string;
+  deployments: ContractDeployment[];
+  lastProcessedCheckpoint: string;
+  checkpointsProcessed: number;
+  latestCheckpoint: string;
+  error?: string;
+}
+
 /**
- * Get recent package publish transactions from Sui
- * These represent new smart contract deployments
+ * Checkpoint processing configuration
+ *
+ * Sui RPC limit: max 100 checkpoints per getCheckpoints call
+ * Sui produces ~4 checkpoints/second, so with 15s polling:
+ * - 60 checkpoints created between polls
+ * - Processing 100 per poll keeps us ahead
+ *
+ * When behind, we can't fetch more per call, but we CAN poll more frequently
+ * by returning faster (no sleep) when in catchup mode
  */
-export async function getRecentPublishTransactions({
-  limit = 3,
-  cursor: initialCursor = null,
-  afterCheckpoint,
-  client: providedClient
-}: RecentPublishOptions = {}): Promise<SuiClientResult> {
-  const effectiveRpcUrl = process.env.SUI_RPC_URL?.trim() || 'https://fullnode.testnet.sui.io:443';
-  const hasCustomRpcUrl = Boolean(process.env.SUI_RPC_URL);
-  const parsedPollInterval = Number.parseInt(process.env.POLL_INTERVAL_MS ?? '', 10);
-  const pollIntervalMs = Number.isFinite(parsedPollInterval) ? parsedPollInterval : 3000;
+const MAX_CHECKPOINTS_PER_POLL = 100; // Sui RPC hard limit
+const CATCHUP_THRESHOLD = 200; // Log catchup warning if gap > this
+
+/**
+ * Bootstrap: on first run, start from near-current (not historical)
+ * This avoids hours of catch-up on fresh deployments
+ */
+const BOOTSTRAP_CHECKPOINT_OFFSET = 50;
+
+/**
+ * Log throttling: avoid spamming logs when persistently behind
+ */
+const gapWarningState = new Map<string, { lastWarned: number; lastGap: number }>();
+const GAP_WARNING_INTERVAL_MS = 60_000; // Only warn once per minute per network
+
+/**
+ * Get package deployments by iterating through checkpoints sequentially
+ * This approach works on all public Sui RPC nodes without filter support
+ *
+ * Features adaptive batching: processes more checkpoints when behind to catch up
+ *
+ * @param client - SuiClient instance
+ * @param fromCheckpoint - Checkpoint sequence number to start from (exclusive)
+ * @param maxCheckpoints - Maximum checkpoints to process per call (default: 100)
+ * @param network - Network name for logging (optional)
+ */
+export async function getDeploymentsFromCheckpoints(options: {
+  client: SuiClient;
+  fromCheckpoint?: string | null;
+  maxCheckpoints?: number;
+  network?: string;
+}): Promise<CheckpointDeploymentResult> {
+  const { client, fromCheckpoint, network = 'unknown' } = options;
+  const logPrefix = `[${network}]`;
 
   if (!envFlag('ENABLE_SUI_RPC', true)) {
     return {
       success: false,
       message: 'Sui RPC access disabled by configuration (ENABLE_SUI_RPC=false)',
-      disabled: true,
-      connectionInfo: {
-        url: effectiveRpcUrl,
-        hasRpcUrl: hasCustomRpcUrl
-      },
       deployments: [],
-      latestCheckpoint: undefined,
-      nextCursor: null,
-      pollIntervalMs,
-      queryStrategy: undefined
+      lastProcessedCheckpoint: fromCheckpoint || '0',
+      checkpointsProcessed: 0,
+      latestCheckpoint: '0',
+      error: 'RPC_DISABLED'
     };
   }
 
   try {
-    // Use provided client if available, otherwise create default client
-    const client = providedClient || createSuiClient();
-    const normalizedLimit = Number.isFinite(limit) ? Math.max(1, Math.floor(limit)) : 3;
+    // Get the latest checkpoint sequence number
+    const latestCheckpointSeq = await client.getLatestCheckpointSequenceNumber();
+    const latestCheckpoint = latestCheckpointSeq.toString();
+
+    // Determine starting checkpoint
+    let startCheckpoint: bigint;
+    if (fromCheckpoint) {
+      // Start from the checkpoint after the last processed one
+      startCheckpoint = BigInt(fromCheckpoint) + 1n;
+    } else {
+      // First run: bootstrap from near-current (avoid long catch-up)
+      const bootstrapStart = BigInt(latestCheckpointSeq) - BigInt(BOOTSTRAP_CHECKPOINT_OFFSET);
+      startCheckpoint = bootstrapStart > 0n ? bootstrapStart : 1n;
+      console.info(`${logPrefix} First run: bootstrapping from checkpoint ${startCheckpoint} (${BOOTSTRAP_CHECKPOINT_OFFSET} behind current)`);
+    }
+
+    // If we're already at the latest, nothing to do
+    if (startCheckpoint > BigInt(latestCheckpointSeq)) {
+      return {
+        success: true,
+        message: 'Already at latest checkpoint',
+        deployments: [],
+        lastProcessedCheckpoint: fromCheckpoint || latestCheckpoint,
+        checkpointsProcessed: 0,
+        latestCheckpoint
+      };
+    }
+
+    // Calculate gap (always process max allowed by RPC: 100)
+    const gap = Number(BigInt(latestCheckpointSeq) - startCheckpoint) + 1;
+
+    // Calculate end checkpoint (don't exceed latest or RPC limit of 100)
+    const maxEndCheckpoint = startCheckpoint + BigInt(MAX_CHECKPOINTS_PER_POLL) - 1n;
+    const endCheckpoint = maxEndCheckpoint > BigInt(latestCheckpointSeq)
+      ? BigInt(latestCheckpointSeq)
+      : maxEndCheckpoint;
+
+    const checkpointsToProcess = Number(endCheckpoint - startCheckpoint) + 1;
+
+    // Throttled gap warning: only log once per minute per network when significantly behind
+    if (gap > CATCHUP_THRESHOLD) {
+      const now = Date.now();
+      const state = gapWarningState.get(network) || { lastWarned: 0, lastGap: 0 };
+      const timeSinceLastWarn = now - state.lastWarned;
+
+      // Log if: first time, been a minute, or gap changed significantly
+      if (timeSinceLastWarn > GAP_WARNING_INTERVAL_MS || Math.abs(gap - state.lastGap) > 500) {
+        const eta = Math.ceil(gap / MAX_CHECKPOINTS_PER_POLL); // polls needed to catch up
+        console.warn(`${logPrefix} ${gap} checkpoints behind (processing ${checkpointsToProcess}, ~${eta} polls to catch up)`);
+        gapWarningState.set(network, { lastWarned: now, lastGap: gap });
+      }
+    }
+
+    // Fetch checkpoints in range
+    const checkpoints = await client.getCheckpoints({
+      cursor: (startCheckpoint - 1n).toString(), // cursor is exclusive
+      limit: checkpointsToProcess,
+      descendingOrder: false
+    });
+
+    if (!checkpoints.data || checkpoints.data.length === 0) {
+      return {
+        success: true,
+        message: 'No checkpoints to process',
+        deployments: [],
+        lastProcessedCheckpoint: fromCheckpoint || latestCheckpoint,
+        checkpointsProcessed: 0,
+        latestCheckpoint
+      };
+    }
+
+    // Collect all transaction digests from all checkpoints
+    const allTxDigests: string[] = [];
+    for (const checkpoint of checkpoints.data) {
+      if (checkpoint.transactions && checkpoint.transactions.length > 0) {
+        allTxDigests.push(...checkpoint.transactions);
+      }
+    }
 
     const deployments: ContractDeployment[] = [];
     const seenPackageIds = new Set<string>();
-    const seenTransactionDigests = new Set<string>();
-    let latestCheckpoint = 0;
 
-    const pageSize = Math.min(Math.max(normalizedLimit * 2, 10), 50);
-    let pageCount = 0;
-    const MAX_PAGES = 200;
+    if (allTxDigests.length > 0) {
+      // Batch fetch transactions (max 50 per call per Sui API limits)
+      const BATCH_SIZE = 50;
+      for (let i = 0; i < allTxDigests.length; i += BATCH_SIZE) {
+        const batch = allTxDigests.slice(i, i + BATCH_SIZE);
 
-    const queryModes: QueryMode[] = [];
-
-    if (supportsTransactionKindFilter) {
-      queryModes.push({
-        name: 'transaction-kind',
-        filter: {
-          TransactionKindIn: ['Publish']
-        }
-      });
-    }
-
-    if (supportsMoveFunctionFilter) {
-      queryModes.push({
-        name: 'move-function',
-        filter: {
-          MoveFunction: {
-            package: '0x2',
-            module: 'package',
-            function: 'publish'
-          }
-        }
-      });
-    }
-
-    queryModes.push({ name: 'unfiltered' });
-
-    let nextCursorValue: string | null = null;
-    let queryStrategy: QueryMode['name'] | undefined;
-
-    for (const mode of queryModes) {
-      let cursor: string | null | undefined = initialCursor;
-      let hasNextPage = true;
-      let modeFailed = false;
-
-      while (deployments.length < normalizedLimit && hasNextPage && pageCount < MAX_PAGES) {
-        let page;
+        let txBlocks;
         try {
-          page = await client.queryTransactionBlocks({
-            filter: mode.filter,
+          txBlocks = await client.multiGetTransactionBlocks({
+            digests: batch,
             options: {
               showEffects: true,
               showObjectChanges: true,
@@ -173,183 +236,85 @@ export async function getRecentPublishTransactions({
               showEvents: false,
               showRawInput: false,
               showRawEffects: false
-            },
-            cursor: cursor ?? undefined,
-            order: 'descending',
-            limit: pageSize
+            }
           });
-          pageCount += 1;
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);
-
-          // Handle "effect is empty" errors by skipping to next page/mode
-          if (errorMsg.includes('effect is empty') || errorMsg.includes('balance/object changes')) {
-            console.warn(`RPC returned empty effects error, skipping batch. Cursor: ${cursor}`);
-            // Try next cursor if available, otherwise try next mode
-            if (cursor) {
-              // Skip this batch and continue - the monitor will retry on next poll
-              hasNextPage = false;
-            }
-            break;
+          // Handle pruned transaction data gracefully
+          if (errorMsg.includes('Could not find the referenced transaction') ||
+              errorMsg.includes('effect is empty')) {
+            console.warn(`${logPrefix} Some transactions in batch are pruned, skipping batch`);
+            continue;
           }
-
-          // Handle pruned transaction errors - public RPCs have limited history
-          if (errorMsg.includes('Could not find the referenced transaction')) {
-            // Signal caller that checkpoint data is pruned so it can reset
-            if (typeof afterCheckpoint === 'number') {
-              return {
-                success: false,
-                message: `Transaction data pruned on RPC node. Checkpoint ${afterCheckpoint} is too old.`,
-                error: 'CHECKPOINT_PRUNED',
-                connectionInfo: {
-                  url: effectiveRpcUrl,
-                  hasRpcUrl: hasCustomRpcUrl
-                },
-                latestCheckpoint: undefined,
-                nextCursor: null,
-                pollIntervalMs,
-                queryStrategy: mode.name
-              };
-            }
-            // If no checkpoint filter, just skip this batch
-            console.warn(`RPC returned pruned transaction error, skipping batch.`);
-            hasNextPage = false;
-            break;
-          }
-
-          modeFailed = true;
-          if (mode.name === 'transaction-kind') {
-            if (supportsTransactionKindFilter) {
-              supportsTransactionKindFilter = false;
-              console.warn('Transaction kind filter not supported on this RPC; disabling for future queries.');
-            }
-          } else if (mode.name === 'move-function') {
-            if (supportsMoveFunctionFilter) {
-              supportsMoveFunctionFilter = false;
-              console.warn('Move function filter not supported on this RPC; disabling for future queries.');
-            }
-          } else {
-            throw error;
-          }
-          break;
+          throw error;
         }
 
-        if (!page.data.length) {
-          hasNextPage = false;
-          break;
-        }
-
-        for (const tx of page.data) {
-          const checkpointValue = tx.checkpoint ? Number(tx.checkpoint) : 0;
-          if (!Number.isNaN(checkpointValue)) {
-            latestCheckpoint = Math.max(latestCheckpoint, checkpointValue);
-          }
-
-          if (typeof afterCheckpoint === 'number' && checkpointValue <= afterCheckpoint) {
+        // Filter for successful transactions with published packages
+        for (const tx of txBlocks) {
+          if (!tx || tx.effects?.status.status !== 'success') {
             continue;
           }
 
-          if (tx.effects?.status.status !== 'success') {
+          if (!tx.objectChanges) {
             continue;
           }
-
-          if (!tx.objectChanges?.length) {
-            continue;
-          }
-
-          const initialCount = deployments.length;
 
           for (const change of tx.objectChanges) {
             if (change.type !== 'published' || !change.packageId) {
               continue;
             }
 
-            if (seenPackageIds.has(change.packageId) || seenTransactionDigests.has(tx.digest)) {
+            // Deduplicate by packageId
+            if (seenPackageIds.has(change.packageId)) {
               continue;
             }
-
             seenPackageIds.add(change.packageId);
-            seenTransactionDigests.add(tx.digest);
 
             const timestamp = tx.timestampMs ? Number(tx.timestampMs) : 0;
+            const checkpointNum = tx.checkpoint ? Number(tx.checkpoint) : 0;
 
             deployments.push({
               packageId: change.packageId,
               deployer: tx.transaction?.data.sender || 'unknown',
               txDigest: tx.digest,
               timestamp,
-              checkpoint: checkpointValue
+              checkpoint: checkpointNum
             });
-
-            if (deployments.length >= normalizedLimit) {
-              nextCursorValue = page.nextCursor ?? null;
-              if (!queryStrategy) {
-                queryStrategy = mode.name;
-              }
-              break;
-            }
-          }
-
-          if (deployments.length >= normalizedLimit) {
-            nextCursorValue = page.nextCursor ?? null;
-            break;
-          }
-
-          if (!queryStrategy && deployments.length > initialCount) {
-            queryStrategy = mode.name;
           }
         }
-
-        if (!page.hasNextPage || !page.nextCursor) {
-          hasNextPage = false;
-          cursor = null;
-        } else {
-          cursor = page.nextCursor;
-          nextCursorValue = page.nextCursor;
-        }
-      }
-
-      if (deployments.length >= normalizedLimit) {
-        break;
-      }
-
-      if (modeFailed) {
-        continue;
       }
     }
 
+    // Get the actual last processed checkpoint from the data
+    const lastProcessedCheckpoint = checkpoints.data.length > 0
+      ? checkpoints.data[checkpoints.data.length - 1].sequenceNumber
+      : fromCheckpoint || latestCheckpoint;
+
+    // Sort deployments by timestamp descending
     deployments.sort((a, b) => b.timestamp - a.timestamp || b.checkpoint - a.checkpoint);
-    const limitedDeployments = deployments.slice(0, normalizedLimit);
 
     return {
       success: true,
-      message: limitedDeployments.length
-        ? `Found ${limitedDeployments.length} recent contract deployments after inspecting ${pageCount} page(s)`
-        : `No recent contract deployments found after inspecting ${pageCount} page(s)` ,
-      deployments: limitedDeployments,
-      connectionInfo: {
-        url: effectiveRpcUrl,
-        hasRpcUrl: hasCustomRpcUrl
-      },
-      latestCheckpoint,
-      nextCursor: deployments.length >= normalizedLimit ? nextCursorValue : null,
-      pollIntervalMs,
-      queryStrategy
+      message: deployments.length > 0
+        ? `Found ${deployments.length} deployment(s) in ${checkpoints.data.length} checkpoint(s)`
+        : `Processed ${checkpoints.data.length} checkpoint(s), no new deployments`,
+      deployments,
+      lastProcessedCheckpoint,
+      checkpointsProcessed: checkpoints.data.length,
+      latestCheckpoint
     };
 
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`${logPrefix} Error fetching deployments:`, error);
     return {
       success: false,
-      message: `Failed to query Sui RPC: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      connectionInfo: {
-        url: effectiveRpcUrl,
-        hasRpcUrl: hasCustomRpcUrl
-      },
-      latestCheckpoint: undefined,
-      nextCursor: null,
-      pollIntervalMs,
-      queryStrategy: undefined
+      message: `Failed to fetch deployments from checkpoints: ${errorMessage}`,
+      deployments: [],
+      lastProcessedCheckpoint: fromCheckpoint || '0',
+      checkpointsProcessed: 0,
+      latestCheckpoint: '0',
+      error: errorMessage
     };
   }
 }

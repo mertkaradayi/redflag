@@ -8,6 +8,7 @@ export interface DeploymentRow {
   tx_digest: string;
   checkpoint: number;
   timestamp: string;
+  network: string;
   first_seen_at?: string | null;
 }
 
@@ -1341,5 +1342,276 @@ export async function getAuditLogStats(
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('Unexpected error in getAuditLogStats:', error);
     return { success: false, error: errorMessage };
+  }
+}
+
+// ================================================================
+// ANALYSIS QUEUE OPERATIONS
+// ================================================================
+
+/**
+ * Get deployments that haven't been analyzed yet
+ *
+ * Strategy: Query deployments and filter out those with existing analyses
+ * This creates a "pending queue" from the database
+ *
+ * @param options.limit - Max deployments to return (default: 5)
+ * @param options.network - Filter by network (mainnet/testnet/null for all)
+ * @returns Unanalyzed deployments in FIFO order (oldest first)
+ */
+export async function getUnanalyzedDeployments(options: {
+  limit?: number;
+  network?: string | null;
+} = {}): Promise<{
+  success: boolean;
+  deployments: DeploymentRow[];
+  error?: string;
+}> {
+  try {
+    if (!supabase) {
+      return {
+        success: false,
+        deployments: [],
+        error: 'Supabase client not initialized'
+      };
+    }
+
+    const { limit = 5, network = null } = options;
+
+    // Step 1: Get oldest deployments (FIFO - First In First Out)
+    let query = supabase
+      .from('sui_package_deployments')
+      .select('*')
+      .order('checkpoint', { ascending: true }); // Oldest first
+
+    // Apply network filter if specified
+    if (network && (network === 'mainnet' || network === 'testnet')) {
+      query = query.eq('network', network);
+    }
+
+    // Fetch more than needed to account for already-analyzed ones
+    const { data: deployments, error: deploymentsError } = await query.limit(limit * 10);
+
+    if (deploymentsError) {
+      console.error('Failed to get deployments:', deploymentsError);
+      return {
+        success: false,
+        deployments: [],
+        error: deploymentsError.message
+      };
+    }
+
+    if (!deployments || deployments.length === 0) {
+      return {
+        success: true,
+        deployments: []
+      };
+    }
+
+    // Step 2: Filter out those that already have analyses
+    const unanalyzed: DeploymentRow[] = [];
+
+    for (const deployment of deployments) {
+      // Check if this deployment has been analyzed
+      const analysisResult = await getAnalysisResult(
+        deployment.package_id,
+        deployment.network
+      );
+
+      // If no analysis exists, it's pending
+      if (!analysisResult.analysis) {
+        unanalyzed.push(deployment as DeploymentRow);
+
+        // Stop when we have enough
+        if (unanalyzed.length >= limit) {
+          break;
+        }
+      }
+    }
+
+    return {
+      success: true,
+      deployments: unanalyzed
+    };
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Unexpected error in getUnanalyzedDeployments:', error);
+    return {
+      success: false,
+      deployments: [],
+      error: errorMessage
+    };
+  }
+}
+
+// ================================================================
+// MONITOR CHECKPOINT OPERATIONS
+// ================================================================
+
+/**
+ * Get the last processed checkpoint for a network from monitor_checkpoints table
+ * Returns null if no checkpoint has been processed yet (first run)
+ */
+export async function getMonitorCheckpoint(network: string): Promise<{
+  success: boolean;
+  checkpoint: string | null;
+  lastProcessedAt: string | null;
+  error?: string;
+}> {
+  try {
+    if (!supabase) {
+      return {
+        success: false,
+        checkpoint: null,
+        lastProcessedAt: null,
+        error: 'Supabase client not initialized'
+      };
+    }
+
+    const { data, error } = await supabase
+      .from('monitor_checkpoints')
+      .select('last_processed_checkpoint, last_processed_at')
+      .eq('network', network)
+      .single();
+
+    if (error) {
+      // PGRST116 = no rows found, which is expected on first run
+      if (error.code === 'PGRST116') {
+        return {
+          success: true,
+          checkpoint: null,
+          lastProcessedAt: null
+        };
+      }
+
+      console.error(`Failed to get monitor checkpoint for ${network}:`, error);
+      return {
+        success: false,
+        checkpoint: null,
+        lastProcessedAt: null,
+        error: error.message
+      };
+    }
+
+    return {
+      success: true,
+      checkpoint: data?.last_processed_checkpoint?.toString() ?? null,
+      lastProcessedAt: data?.last_processed_at ?? null
+    };
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Unexpected error in getMonitorCheckpoint:', error);
+    return {
+      success: false,
+      checkpoint: null,
+      lastProcessedAt: null,
+      error: errorMessage
+    };
+  }
+}
+
+/**
+ * Update the last processed checkpoint for a network
+ * Uses upsert to handle both insert (first run) and update cases
+ */
+export async function updateMonitorCheckpoint(
+  network: string,
+  checkpoint: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!supabase) {
+      return {
+        success: false,
+        error: 'Supabase client not initialized'
+      };
+    }
+
+    const checkpointNum = BigInt(checkpoint);
+
+    const { error } = await supabase
+      .from('monitor_checkpoints')
+      .upsert({
+        network,
+        last_processed_checkpoint: checkpointNum.toString(),
+        last_processed_at: new Date().toISOString()
+      }, {
+        onConflict: 'network'
+      });
+
+    if (error) {
+      console.error(`Failed to update monitor checkpoint for ${network}:`, error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+
+    return { success: true };
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Unexpected error in updateMonitorCheckpoint:', error);
+    return {
+      success: false,
+      error: errorMessage
+    };
+  }
+}
+
+/**
+ * Get monitor checkpoint status for all networks
+ * Used by status endpoints to show monitoring progress
+ */
+export async function getAllMonitorCheckpoints(): Promise<{
+  success: boolean;
+  checkpoints: Array<{
+    network: string;
+    lastProcessedCheckpoint: string;
+    lastProcessedAt: string;
+  }>;
+  error?: string;
+}> {
+  try {
+    if (!supabase) {
+      return {
+        success: false,
+        checkpoints: [],
+        error: 'Supabase client not initialized'
+      };
+    }
+
+    const { data, error } = await supabase
+      .from('monitor_checkpoints')
+      .select('network, last_processed_checkpoint, last_processed_at')
+      .order('network');
+
+    if (error) {
+      console.error('Failed to get all monitor checkpoints:', error);
+      return {
+        success: false,
+        checkpoints: [],
+        error: error.message
+      };
+    }
+
+    return {
+      success: true,
+      checkpoints: (data || []).map(row => ({
+        network: row.network,
+        lastProcessedCheckpoint: row.last_processed_checkpoint?.toString() ?? '0',
+        lastProcessedAt: row.last_processed_at ?? ''
+      }))
+    };
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Unexpected error in getAllMonitorCheckpoints:', error);
+    return {
+      success: false,
+      checkpoints: [],
+      error: errorMessage
+    };
   }
 }

@@ -1,9 +1,10 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import { testSupabaseConnection, getDeployments, getDeploymentStats, getAnalysisResult, getRecentAnalyses, getHighRiskAnalyses, getRiskLevelCounts, getDeploymentByPackageId } from './lib/supabase';
-import { getRecentPublishTransactions, testSuiConnection } from './lib/sui-client';
+import { testSupabaseConnection, getDeployments, getDeploymentStats, getAnalysisResult, getRecentAnalyses, getHighRiskAnalyses, getRiskLevelCounts, getDeploymentByPackageId, getAllMonitorCheckpoints } from './lib/supabase';
+import { testSuiConnection } from './lib/sui-client';
 import { startMonitoring, stopMonitoring, getMonitoringStatus } from './workers/sui-monitor';
+import { startAnalysisWorker, stopAnalysisWorker, getAnalysisWorkerStatus } from './workers/analysis-worker';
 import { runFullAnalysisChain, getAnalysis } from './lib/llm-analyzer';
 import { SuiClient } from '@mysten/sui/client';
 import { envFlag } from './lib/env-utils';
@@ -116,64 +117,53 @@ app.get('/api/supabase/health', async (req, res) => {
   }
 });
 
-// Sui contract deployments endpoint
+// Sui contract deployments endpoint (database-backed)
+// Data is kept in sync by the checkpoint-based background monitor
 app.get('/api/sui/recent-deployments', async (req, res) => {
   try {
     const limitParam = Array.isArray(req.query.limit) ? req.query.limit[0] : req.query.limit;
-    const cursorParam = Array.isArray(req.query.cursor) ? req.query.cursor[0] : req.query.cursor;
-    const checkpointParam = Array.isArray(req.query.afterCheckpoint)
-      ? req.query.afterCheckpoint[0]
-      : req.query.afterCheckpoint;
+    const offsetParam = Array.isArray(req.query.offset) ? req.query.offset[0] : req.query.offset;
+    const networkParam = Array.isArray(req.query.network) ? req.query.network[0] : req.query.network;
 
     const parsedLimit = typeof limitParam === 'string' ? Number.parseInt(limitParam, 10) : Number.NaN;
-    const parsedCheckpoint = typeof checkpointParam === 'string' ? Number.parseInt(checkpointParam, 10) : Number.NaN;
-    const parsedCursor = typeof cursorParam === 'string' ? cursorParam : undefined;
+    const parsedOffset = typeof offsetParam === 'string' ? Number.parseInt(offsetParam, 10) : Number.NaN;
 
-    const limit = Number.isNaN(parsedLimit) ? undefined : parsedLimit;
-    const afterCheckpoint = Number.isNaN(parsedCheckpoint) ? undefined : parsedCheckpoint;
+    const limit = Number.isNaN(parsedLimit) ? 50 : Math.min(parsedLimit, 100);
+    const offset = Number.isNaN(parsedOffset) ? 0 : parsedOffset;
+    const network = (networkParam === 'mainnet' || networkParam === 'testnet') ? networkParam : null;
 
-    const result = await getRecentPublishTransactions({
-      limit,
-      cursor: parsedCursor ?? null,
-      afterCheckpoint
-    });
-
-    if (result.disabled) {
-      return res.status(503).json({
-        success: false,
-        message: result.message,
-        disabled: true,
-        timestamp: new Date().toISOString(),
-        connectionInfo: result.connectionInfo,
-        pollIntervalMs: result.pollIntervalMs,
-        queryStrategy: result.queryStrategy ?? null
-      });
-    }
+    // Query from database instead of RPC
+    const result = await getDeployments({ limit, offset, network });
 
     if (result.success) {
+      // Transform database rows to match expected API format
+      const deployments = result.deployments.map(d => ({
+        packageId: d.package_id,
+        deployer: d.deployer_address,
+        txDigest: d.tx_digest,
+        timestamp: new Date(d.timestamp).getTime(),
+        checkpoint: d.checkpoint,
+        network: d.network
+      }));
+
       res.json({
         success: true,
-        message: result.message,
+        message: `Found ${deployments.length} deployment(s) from database`,
         timestamp: new Date().toISOString(),
-        connectionInfo: result.connectionInfo,
-        deployments: result.deployments || [],
-        totalDeployments: result.deployments?.length || 0,
-        latestCheckpoint: result.latestCheckpoint ?? null,
-        nextCursor: result.nextCursor ?? null,
-        pollIntervalMs: result.pollIntervalMs,
-        queryStrategy: result.queryStrategy ?? null
+        deployments,
+        totalDeployments: result.totalCount,
+        network: network || 'all',
+        pagination: {
+          limit,
+          offset,
+          hasMore: offset + deployments.length < result.totalCount
+        }
       });
     } else {
       res.status(400).json({
         success: false,
-        message: result.message,
-        error: result.error,
-        timestamp: new Date().toISOString(),
-        connectionInfo: result.connectionInfo,
-        latestCheckpoint: result.latestCheckpoint ?? null,
-        nextCursor: result.nextCursor ?? null,
-        pollIntervalMs: result.pollIntervalMs,
-        queryStrategy: result.queryStrategy ?? null
+        message: result.error || 'Failed to fetch deployments from database',
+        timestamp: new Date().toISOString()
       });
     }
   } catch (error) {
@@ -185,27 +175,25 @@ app.get('/api/sui/recent-deployments', async (req, res) => {
   }
 });
 
+// Latest deployment endpoint (database-backed)
 app.get('/api/sui/latest-deployment', async (req, res) => {
   try {
-    const result = await getRecentPublishTransactions({ limit: 1 });
+    const networkParam = Array.isArray(req.query.network) ? req.query.network[0] : req.query.network;
+    const network = (networkParam === 'mainnet' || networkParam === 'testnet') ? networkParam : null;
 
-    if (result.disabled) {
-      return res.status(503).json({
-        success: false,
-        message: result.message,
-        disabled: true,
-        timestamp: new Date().toISOString(),
-        connectionInfo: result.connectionInfo,
-        latestCheckpoint: result.latestCheckpoint ?? null,
-        nextCursor: result.nextCursor ?? null,
-        pollIntervalMs: result.pollIntervalMs,
-        queryStrategy: result.queryStrategy ?? null
-      });
-    }
+    // Query latest deployment from database
+    const result = await getDeployments({ limit: 1, offset: 0, network });
 
     if (result.success) {
-      const latestDeployment = result.deployments && result.deployments.length > 0
-        ? result.deployments[0]
+      const latestDeployment = result.deployments.length > 0
+        ? {
+            packageId: result.deployments[0].package_id,
+            deployer: result.deployments[0].deployer_address,
+            txDigest: result.deployments[0].tx_digest,
+            timestamp: new Date(result.deployments[0].timestamp).getTime(),
+            checkpoint: result.deployments[0].checkpoint,
+            network: result.deployments[0].network
+          }
         : null;
 
       res.json({
@@ -214,24 +202,14 @@ app.get('/api/sui/latest-deployment', async (req, res) => {
           ? 'Latest deployment retrieved successfully'
           : 'No deployments found',
         timestamp: new Date().toISOString(),
-        connectionInfo: result.connectionInfo,
         deployment: latestDeployment,
-        latestCheckpoint: result.latestCheckpoint ?? null,
-        nextCursor: result.nextCursor ?? null,
-        pollIntervalMs: result.pollIntervalMs,
-        queryStrategy: result.queryStrategy ?? null
+        network: network || 'all'
       });
     } else {
       res.status(400).json({
         success: false,
-        message: result.message,
-        error: result.error,
-        timestamp: new Date().toISOString(),
-        connectionInfo: result.connectionInfo,
-        latestCheckpoint: result.latestCheckpoint ?? null,
-        nextCursor: result.nextCursor ?? null,
-        pollIntervalMs: result.pollIntervalMs,
-        queryStrategy: result.queryStrategy ?? null
+        message: result.error || 'Failed to fetch latest deployment from database',
+        timestamp: new Date().toISOString()
       });
     }
   } catch (error) {
@@ -367,16 +345,30 @@ app.get('/api/sui/deployments', async (req, res) => {
 });
 
 // Monitor status endpoint
-app.get('/api/sui/monitor-status', (req, res) => {
+app.get('/api/sui/monitor-status', async (req, res) => {
   const status = getMonitoringStatus();
+  const checkpointsResult = await getAllMonitorCheckpoints();
+
   res.json({
     success: true,
     message: 'Monitor status retrieved',
     timestamp: new Date().toISOString(),
     monitor: {
       ...status,
-      enabled: envFlag('ENABLE_AUTO_ANALYSIS', true)
+      enabled: envFlag('ENABLE_AUTO_ANALYSIS', true),
+      checkpoints: checkpointsResult.success ? checkpointsResult.checkpoints : []
     }
+  });
+});
+
+// Analysis worker status endpoint
+app.get('/api/analysis/worker-status', (req, res) => {
+  const status = getAnalysisWorkerStatus();
+  res.json({
+    success: true,
+    message: 'Analysis worker status retrieved',
+    timestamp: new Date().toISOString(),
+    worker: status
   });
 });
 
@@ -863,15 +855,20 @@ app.listen(PORT, async () => {
   console.log(`📚 Historical deployments: http://localhost:${PORT}/api/sui/deployments`);
   console.log(`📊 Monitor status: http://localhost:${PORT}/api/sui/monitor-status`);
 
-  // Start the Sui deployment monitor
+  // Start the Sui deployment monitor and analysis worker
   const autoAnalysisEnabled = envFlag('ENABLE_AUTO_ANALYSIS', true);
   const suiRpcEnabled = envFlag('ENABLE_SUI_RPC', true);
 
   if (autoAnalysisEnabled && suiRpcEnabled) {
     try {
+      // Start checkpoint monitor
       await startMonitoring();
+
+      // Start analysis worker (runs independently)
+      startAnalysisWorker();
+
     } catch (error) {
-      console.error('❌ Failed to start Sui deployment monitor:', error);
+      console.error('❌ Failed to start monitoring services:', error);
     }
   } else {
     const reasons: string[] = [];
@@ -881,7 +878,7 @@ app.listen(PORT, async () => {
     if (!suiRpcEnabled) {
       reasons.push('ENABLE_SUI_RPC=false');
     }
-    console.log(`⚠️ Sui deployment monitor not started (${reasons.join(', ') || 'no reason provided'})`);
+    console.log(`⚠️ Monitoring services not started (${reasons.join(', ') || 'no reason provided'})`);
   }
 });
 
@@ -889,12 +886,14 @@ app.listen(PORT, async () => {
 process.on('SIGTERM', () => {
   console.log('🛑 SIGTERM received, shutting down gracefully...');
   stopMonitoring();
+  stopAnalysisWorker();
   process.exit(0);
 });
 
 process.on('SIGINT', () => {
   console.log('🛑 SIGINT received, shutting down gracefully...');
   stopMonitoring();
+  stopAnalysisWorker();
   process.exit(0);
 });
 

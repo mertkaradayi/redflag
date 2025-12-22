@@ -1,6 +1,5 @@
-import { getRecentPublishTransactions } from '../lib/sui-client';
-import { upsertDeployments, getLastProcessedCheckpoint, getAnalysisResult } from '../lib/supabase';
-import { runFullAnalysisChain } from '../lib/llm-analyzer';
+import { getDeploymentsFromCheckpoints } from '../lib/sui-client';
+import { upsertDeployments, getMonitorCheckpoint, updateMonitorCheckpoint } from '../lib/supabase';
 import { SuiClient } from '@mysten/sui/client';
 import { envFlag } from '../lib/env-utils';
 import { getNetworkConfigs, type NetworkConfig, type SuiNetwork } from '../lib/network-config';
@@ -86,10 +85,13 @@ export function isMonitorRunning(): boolean {
 
 /**
  * Perform a single monitoring check cycle for a specific network
- * 1. Get last processed checkpoint from database for this network
- * 2. Fetch new deployments from Sui RPC for this network
+ * Uses checkpoint-based sequential monitoring for reliable coverage
+ *
+ * 1. Get last processed checkpoint from monitor_checkpoints table
+ * 2. Fetch checkpoints sequentially and extract deployments
  * 3. Persist new deployments to database with network tag
- * 4. Trigger LLM analysis for new deployments
+ * 4. Update checkpoint cursor
+ * 5. Trigger LLM analysis for new deployments
  */
 async function performMonitoringCheck(config: NetworkConfig): Promise<void> {
   const { network, rpcUrl } = config;
@@ -99,61 +101,57 @@ async function performMonitoringCheck(config: NetworkConfig): Promise<void> {
   }
 
   try {
-    // Get the last checkpoint we processed for THIS network
-    const checkpointResult = await getLastProcessedCheckpoint(network);
+    // Get the last checkpoint we processed for THIS network from dedicated tracking table
+    const checkpointResult = await getMonitorCheckpoint(network);
 
     if (!checkpointResult.success) {
-      console.error(`[${network}] Failed to get last processed checkpoint:`, checkpointResult.error);
+      console.error(`[${network}] Failed to get monitor checkpoint:`, checkpointResult.error);
       return;
     }
 
     const lastCheckpoint = checkpointResult.checkpoint;
-    const afterCheckpoint = lastCheckpoint ? lastCheckpoint + 1 : undefined;
 
     // Create network-specific Sui client
     const suiClient = new SuiClient({ url: rpcUrl });
 
-    // Fetch new deployments from Sui RPC using network-specific client
-    let suiResult = await getRecentPublishTransactions({
-      limit: 100,
-      afterCheckpoint,
-      client: suiClient
+    // Fetch new deployments using checkpoint-based approach
+    // Note: maxCheckpoints is determined adaptively inside the function based on gap size
+    const result = await getDeploymentsFromCheckpoints({
+      client: suiClient,
+      fromCheckpoint: lastCheckpoint,
+      network // Pass network for logging
     });
 
-    // Handle pruned checkpoint - retry without checkpoint filter to get recent transactions
-    if (!suiResult.success && suiResult.error === 'CHECKPOINT_PRUNED') {
-      console.warn(`[${network}] ⚠️ Checkpoint ${afterCheckpoint} is pruned on public RPC. Fetching most recent transactions instead.`);
-      console.warn(`[${network}] ℹ️ Some deployments between checkpoint ${afterCheckpoint} and now may be missed.`);
-
-      // Retry without checkpoint filter - just get the most recent deployments
-      suiResult = await getRecentPublishTransactions({
-        limit: 100,
-        client: suiClient
-      });
-    }
-
-    if (!suiResult.success) {
-      console.error(`[${network}] Failed to fetch deployments from Sui:`, suiResult.message);
+    if (!result.success) {
+      console.error(`[${network}] Failed to fetch deployments from checkpoints:`, result.message);
       return;
     }
 
-    const deployments = suiResult.deployments || [];
+    // Update checkpoint cursor even if no deployments found
+    // This ensures we don't re-process the same checkpoints
+    if (result.checkpointsProcessed > 0) {
+      const updateResult = await updateMonitorCheckpoint(network, result.lastProcessedCheckpoint);
+      if (!updateResult.success) {
+        console.error(`[${network}] Failed to update checkpoint cursor:`, updateResult.error);
+        // Continue anyway - we'll re-process these checkpoints next time
+      }
+    }
+
+    const deployments = result.deployments;
 
     if (deployments.length === 0) {
       // No new deployments found - this is normal
       return;
     }
 
-    console.log(`[${network}] 📦 Found ${deployments.length} new deployment(s) since checkpoint ${lastCheckpoint || 'start'}`);
+    console.log(`[${network}] 📦 Found ${deployments.length} new deployment(s) in ${result.checkpointsProcessed} checkpoint(s) (${lastCheckpoint || 'bootstrap'} → ${result.lastProcessedCheckpoint})`);
 
     // Persist deployments to database WITH network tag
     const upsertResult = await upsertDeployments(deployments, network);
 
     if (upsertResult.success) {
-      console.log(`[${network}] ✅ Successfully stored ${upsertResult.count} deployment(s) to database`);
-
-      // Trigger LLM analysis for new deployments
-      await analyzeNewDeployments(deployments, network, suiClient);
+      console.log(`[${network}] ✅ Stored ${upsertResult.count} deployment(s) - analysis worker will process them`);
+      // No longer calling analyzeNewDeployments - analysis worker handles this asynchronously
     } else {
       console.error(`[${network}] ❌ Failed to store deployments:`, upsertResult.message);
     }
@@ -163,70 +161,8 @@ async function performMonitoringCheck(config: NetworkConfig): Promise<void> {
   }
 }
 
-/**
- * Analyze new deployments with LLM
- */
-async function analyzeNewDeployments(
-  deployments: any[],
-  network: string,
-  suiClient: SuiClient
-): Promise<void> {
-  if (!envFlag('ENABLE_AUTO_ANALYSIS', true)) {
-    return;
-  }
-
-  if (!process.env.OPEN_ROUTER_KEY) {
-    console.log(`[${network}] ⚠️ OPEN_ROUTER_KEY not configured, skipping LLM analysis`);
-    return;
-  }
-
-  console.log(`[${network}] 🤖 Starting LLM analysis for ${deployments.length} new deployment(s)...`);
-
-  // Analyze each deployment
-  for (const deployment of deployments) {
-    try {
-      const packageId = deployment.packageId;
-      if (!packageId) {
-        console.log(`[${network}] ⚠️ Skipping deployment without packageId: ${deployment.digest}`);
-        continue;
-      }
-
-      // Check if already analyzed in database
-      const dbResult = await getAnalysisResult(packageId, network);
-      if (dbResult.success && dbResult.analysis) {
-        console.log(`[${network}] 📋 Package ${packageId} already analyzed, skipping...`);
-        continue;
-      }
-
-      console.log(`[${network}] 🔍 Analyzing package ${packageId}...`);
-
-      try {
-        // Run LLM analysis (will save to database or save as failed)
-        const analysisResult = await runFullAnalysisChain(packageId, network, suiClient);
-
-        const riskLevel = analysisResult.risk_level;
-        const riskScore = analysisResult.risk_score;
-
-        if (riskLevel === 'critical' || riskLevel === 'high') {
-          console.log(`[${network}] 🚨 HIGH RISK DETECTED: Package ${packageId} - Risk Level: ${riskLevel} (Score: ${riskScore})`);
-          console.log(`[${network}]    Summary: ${analysisResult.summary}`);
-          console.log(`[${network}]    Risk: ${analysisResult.why_risky_one_liner}`);
-        } else {
-          console.log(`[${network}] ✅ Package ${packageId} analyzed - Risk Level: ${riskLevel} (Score: ${riskScore})`);
-        }
-
-      } catch (analysisError) {
-        const errorMsg = analysisError instanceof Error ? analysisError.message : String(analysisError);
-        console.error(`[${network}] ⚠️ Package ${packageId} analysis failed (saved as failed): ${errorMsg}`);
-      }
-
-    } catch (error) {
-      console.error(`[${network}] ❌ Unexpected error analyzing package ${deployment.packageId}:`, error);
-    }
-  }
-
-  console.log(`[${network}] 🤖 LLM analysis complete for ${deployments.length} deployment(s)`);
-}
+// analyzeNewDeployments function removed - analysis now handled by separate worker
+// See: backend/src/workers/analysis-worker.ts
 
 /**
  * Get monitoring status information for all networks
