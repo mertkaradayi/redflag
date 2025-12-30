@@ -11,10 +11,17 @@ export interface CostData {
 
 // OpenRouter pricing per 1M tokens
 export const MODEL_PRICING: { [key: string]: { input: number; output: number } } = {
-  // Primary model - gpt-oss-120b via DeepInfra (ultra cheap + reliable)
-  'openai/gpt-oss-120b': { input: 0.039, output: 0.19 },
+  // Primary model - Nvidia Nemotron (FREE)
+  'nvidia/nemotron-3-nano-30b-a3b:free': { input: 0.00, output: 0.00 },
 
-  // Backup models
+  // Fallback 1 - Xiaomi (FREE)
+  'xiaomi/mimo-v2-flash:free': { input: 0.00, output: 0.00 },
+
+  // Fallback 2 - Mistral (FREE)
+  'mistralai/devstral-2512:free': { input: 0.00, output: 0.00 },
+
+  // Legacy models (kept for historical tracking)
+  'openai/gpt-oss-120b': { input: 0.039, output: 0.19 },
   'meta-llama/llama-3.3-70b-instruct': { input: 0.10, output: 0.32 },
   'meta-llama/llama-3.3-70b-instruct:free': { input: 0.00, output: 0.00 },
 

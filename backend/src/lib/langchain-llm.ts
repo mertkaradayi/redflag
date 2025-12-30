@@ -75,28 +75,31 @@ export function createLLM(config: LLMConfig): ChatOpenAI {
 }
 
 // Model presets for each agent
-// PRIMARY: Free model (mistralai/devstral-2512:free via Mistral)
+// PRIMARY: Free model (nvidia/nemotron-3-nano-30b-a3b:free via Nvidia)
 // FALLBACK 1: Free model (xiaomi/mimo-v2-flash:free via Xiaomi)
-// FALLBACK 2: Paid model (openai/gpt-oss-120b via DeepInfra) - last resort
+// FALLBACK 2: Free model (mistralai/devstral-2512:free via Mistral)
 export const MODEL_PRESETS = {
   analyzer: {
-    // Primary: Free model
-    model: 'mistralai/devstral-2512:free',
+    // Primary: Nvidia free model
+    model: 'nvidia/nemotron-3-nano-30b-a3b:free',
     temperature: 0.3, // Lower for technical analysis
     maxTokens: 6000,
-    providerOrder: ['mistral'],
+    providerOrder: ['nvidia'],
+    quantizations: ['bf16'],
   },
   scorer: {
-    model: 'mistralai/devstral-2512:free',
+    model: 'nvidia/nemotron-3-nano-30b-a3b:free',
     temperature: 0.2, // Very low for consistent scoring
     maxTokens: 2000,
-    providerOrder: ['mistral'],
+    providerOrder: ['nvidia'],
+    quantizations: ['bf16'],
   },
   reporter: {
-    model: 'mistralai/devstral-2512:free',
+    model: 'nvidia/nemotron-3-nano-30b-a3b:free',
     temperature: 0.7, // Higher for creative writing
     maxTokens: 4000,
-    providerOrder: ['mistral'],
+    providerOrder: ['nvidia'],
+    quantizations: ['bf16'],
   },
   // First fallback: Xiaomi's free model
   fallback: {
@@ -106,13 +109,12 @@ export const MODEL_PRESETS = {
     providerOrder: ['xiaomi'],
     quantizations: ['fp8'],
   },
-  // Second fallback: Paid model (last resort)
+  // Second fallback: Mistral's free model
   fallback2: {
-    model: 'openai/gpt-oss-120b',
+    model: 'mistralai/devstral-2512:free',
     temperature: 0.5,
-    maxTokens: 8000,
-    providerOrder: ['deepinfra'],
-    quantizations: ['fp4'],
+    maxTokens: 6000,
+    providerOrder: ['mistral'],
   }
 } as const;
 
@@ -144,7 +146,7 @@ export function getFallbackConfig(agentName: keyof typeof MODEL_PRESETS): LLMCon
   };
 }
 
-// Get second fallback model config (OpenAI paid model - last resort)
+// Get second fallback model config (Mistral free model - last resort)
 export function getSecondFallbackConfig(agentName: keyof typeof MODEL_PRESETS): LLMConfig {
   const fallback2 = MODEL_PRESETS.fallback2;
   const primary = MODEL_PRESETS[agentName];
@@ -154,7 +156,6 @@ export function getSecondFallbackConfig(agentName: keyof typeof MODEL_PRESETS): 
     temperature: primary.temperature, // Use agent's preferred temperature
     maxTokens: fallback2.maxTokens,
     providerOrder: [...fallback2.providerOrder],
-    quantizations: [...fallback2.quantizations],
   };
 }
 

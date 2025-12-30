@@ -1,20 +1,26 @@
 /**
- * Historical Monitor - Background Backfill Worker
+ * Historical Monitor - Background Backfill Worker (BACKWARD DIRECTION)
  *
- * Purpose: Catch up old deployments for data completeness
+ * Purpose: Catch up old deployments by going BACKWARD from program start
  * Priority: LOW - runs in background without blocking live monitoring
- * Bootstrap: Starts from checkpoint 0 (or configured start checkpoint)
+ * Direction: BACKWARD (current → older checkpoints)
  * Polling: Slower interval (60s) to not interfere with live monitor
  *
+ * Flow:
+ * 1. On first startup: Save current checkpoint as "origin"
+ * 2. Calculate stop point (origin - 30 days)
+ * 3. Process checkpoints in descending order (newer → older)
+ * 4. Stop when reaching the stop point
+ *
  * Coordination with Live Monitor:
- * - Both write to same `sui_package_deployments` table
+ * - Live monitor: handles NEW blocks (forward)
+ * - Historical monitor: handles OLD blocks (backward from origin)
+ * - No overlap since they go in opposite directions
  * - Database UPSERT ensures no duplicates
- * - Historical monitor pauses when caught up to live monitor
- * - Automatically resumes if gap reopens (e.g., after downtime)
  */
 
-import { getDeploymentsFromCheckpoints } from '../lib/sui-client';
-import { upsertDeployments, getHistoricalCheckpoint, updateHistoricalCheckpoint, getMonitorCheckpoint } from '../lib/supabase';
+import { getDeploymentsFromCheckpointsBackward } from '../lib/sui-client';
+import { upsertDeployments, getHistoricalCheckpoint, updateHistoricalCheckpoint, initializeHistoricalBackfill } from '../lib/supabase';
 import { SuiClient } from '@mysten/sui/client';
 import { envFlag } from '../lib/env-utils';
 import { getNetworkConfigs, type NetworkConfig, type SuiNetwork } from '../lib/network-config';
@@ -32,19 +38,13 @@ const HISTORICAL_POLL_INTERVAL_MS = parseInt(
 ); // 60 seconds default
 
 /**
- * Safety gap: pause historical when this close to live monitor
- * Prevents historical from competing with live for same checkpoints
+ * How far back to go from the origin checkpoint
+ * Default: ~30 days at ~1 checkpoint/second
  */
-const HISTORICAL_SAFETY_GAP = parseInt(
-  process.env.HISTORICAL_SAFETY_GAP || '1000',
+const HISTORICAL_BACKFILL_DEPTH = parseInt(
+  process.env.HISTORICAL_BACKFILL_DEPTH || '2592000', // ~30 days
   10
-); // 1000 checkpoints
-
-/**
- * Bootstrap: historical monitor starts from beginning (or configured checkpoint)
- * Unlike live monitor which starts from recent checkpoints
- */
-const HISTORICAL_BOOTSTRAP_OFFSET = 999999999; // Very large number = start from checkpoint 0
+);
 
 // ================================================================
 // STATE
@@ -55,6 +55,7 @@ const historicalMonitors = new Map<SuiNetwork, {
   interval: NodeJS.Timeout | null;
   isRunning: boolean;
   isPaused: boolean;
+  isComplete: boolean;
 }>();
 
 // ================================================================
@@ -63,7 +64,7 @@ const historicalMonitors = new Map<SuiNetwork, {
 
 /**
  * Start historical monitoring for all configured networks
- * Each network runs independently with historical backfill
+ * Each network runs independently with backward backfill
  */
 export async function startHistoricalMonitoring(): Promise<void> {
   if (!envFlag('ENABLE_AUTO_ANALYSIS', true)) {
@@ -95,7 +96,7 @@ export async function startHistoricalMonitoring(): Promise<void> {
  * Start historical monitoring for a specific network
  */
 async function startNetworkHistoricalMonitor(config: NetworkConfig): Promise<void> {
-  const { network } = config;
+  const { network, rpcUrl } = config;
 
   if (historicalMonitors.has(network) && historicalMonitors.get(network)?.isRunning) {
     console.warn(`⚠️  ${network} historical monitor is already running`);
@@ -109,10 +110,32 @@ async function startNetworkHistoricalMonitor(config: NetworkConfig): Promise<voi
     return;
   }
 
-  console.log(`📚 Starting ${network} historical monitor (polling every ${HISTORICAL_POLL_INTERVAL_MS}ms)`);
+  // Check if this is a fresh start (no origin checkpoint set)
+  if (!historicalCheckpoint.originCheckpoint) {
+    console.log(`[${network}] [HISTORICAL] First run - initializing backfill origin...`);
+
+    // Get current checkpoint from Sui RPC
+    const suiClient = new SuiClient({ url: rpcUrl });
+    const latestCheckpoint = await suiClient.getLatestCheckpointSequenceNumber();
+    const originCheckpoint = latestCheckpoint.toString();
+
+    // Calculate stop point (origin - depth)
+    const stopCheckpoint = Math.max(0, Number(latestCheckpoint) - HISTORICAL_BACKFILL_DEPTH).toString();
+
+    // Initialize in database
+    const initResult = await initializeHistoricalBackfill(network, originCheckpoint, stopCheckpoint);
+    if (!initResult.success) {
+      console.error(`[${network}] [HISTORICAL] Failed to initialize:`, initResult.error);
+      return;
+    }
+
+    console.log(`[${network}] [HISTORICAL] Initialized: origin=${originCheckpoint}, stop=${stopCheckpoint} (~${HISTORICAL_BACKFILL_DEPTH} checkpoints to process)`);
+  }
+
+  console.log(`📚 Starting ${network} historical monitor (polling every ${HISTORICAL_POLL_INTERVAL_MS}ms, going BACKWARD)`);
 
   // Initialize monitor state
-  historicalMonitors.set(network, { interval: null, isRunning: true, isPaused: false });
+  historicalMonitors.set(network, { interval: null, isRunning: true, isPaused: false, isComplete: false });
 
   // Initial check
   await performHistoricalMonitoringCheck(config);
@@ -128,7 +151,7 @@ async function startNetworkHistoricalMonitor(config: NetworkConfig): Promise<voi
     historicalMonitors.set(network, { ...currentState, interval });
   }
 
-  console.log(`✅ ${network} historical monitor started`);
+  console.log(`✅ ${network} historical monitor started (backward direction)`);
 }
 
 /**
@@ -141,7 +164,7 @@ export function stopHistoricalMonitoring(): void {
     if (monitor.interval) {
       clearInterval(monitor.interval);
     }
-    historicalMonitors.set(network, { interval: null, isRunning: false, isPaused: false });
+    historicalMonitors.set(network, { interval: null, isRunning: false, isPaused: false, isComplete: false });
     console.log(`🛑 ${network} historical monitor stopped`);
   }
 }
@@ -172,7 +195,7 @@ export function resumeHistoricalMonitoring(network: SuiNetwork): void {
  * Check if historical monitor is running for any network
  */
 export function isHistoricalMonitorRunning(): boolean {
-  return Array.from(historicalMonitors.values()).some(m => m.isRunning && !m.isPaused);
+  return Array.from(historicalMonitors.values()).some(m => m.isRunning && !m.isPaused && !m.isComplete);
 }
 
 /**
@@ -183,6 +206,7 @@ export function getHistoricalMonitoringStatus(): {
     network: string;
     isRunning: boolean;
     isPaused: boolean;
+    isComplete: boolean;
     pollIntervalMs: number;
   }>;
 } {
@@ -195,6 +219,7 @@ export function getHistoricalMonitoringStatus(): {
         network: config.network,
         isRunning: monitor?.isRunning || false,
         isPaused: monitor?.isPaused || false,
+        isComplete: monitor?.isComplete || false,
         pollIntervalMs: HISTORICAL_POLL_INTERVAL_MS
       };
     })
@@ -207,14 +232,16 @@ export function getHistoricalMonitoringStatus(): {
 
 /**
  * Perform a single historical monitoring check cycle for a specific network
+ * Goes BACKWARD through checkpoints (newer → older)
  *
  * Strategy:
- * 1. Check if backfill is enabled and not paused
- * 2. Get last processed historical checkpoint
- * 3. Check gap to live monitor (pause if too close)
- * 4. Fetch next batch of checkpoints
- * 5. Save deployments to database (UPSERT handles duplicates)
- * 6. Update historical cursor
+ * 1. Check if backfill is enabled and not paused/complete
+ * 2. Get current position (last_processed_checkpoint)
+ * 3. Get stop point (backfill_start_checkpoint)
+ * 4. If position <= stop, mark complete and pause
+ * 5. Fetch checkpoints going backward
+ * 6. Save deployments to database
+ * 7. Update checkpoint cursor (decrement)
  */
 async function performHistoricalMonitoringCheck(config: NetworkConfig): Promise<void> {
   const { network, rpcUrl } = config;
@@ -223,10 +250,10 @@ async function performHistoricalMonitoringCheck(config: NetworkConfig): Promise<
     return;
   }
 
-  // Check if paused
+  // Check if paused or complete
   const monitor = historicalMonitors.get(network);
-  if (monitor?.isPaused) {
-    return; // Silently skip when paused
+  if (monitor?.isPaused || monitor?.isComplete) {
+    return; // Silently skip
   }
 
   try {
@@ -244,32 +271,32 @@ async function performHistoricalMonitoringCheck(config: NetworkConfig): Promise<
       return;
     }
 
-    const lastHistoricalCheckpoint = historicalCheckpointResult.checkpoint || historicalCheckpointResult.startCheckpoint;
+    const currentPosition = historicalCheckpointResult.checkpoint;
+    const stopCheckpoint = historicalCheckpointResult.stopCheckpoint;
 
-    // Get live monitor checkpoint to check gap
-    const liveCheckpointResult = await getMonitorCheckpoint(network);
-    const liveCheckpoint = liveCheckpointResult.checkpoint;
+    if (!currentPosition) {
+      console.error(`[${network}] [HISTORICAL] No checkpoint position found`);
+      return;
+    }
 
-    if (liveCheckpoint) {
-      const gap = BigInt(liveCheckpoint) - BigInt(lastHistoricalCheckpoint);
-
-      // If caught up to live monitor (within safety gap), pause
-      if (gap <= BigInt(HISTORICAL_SAFETY_GAP)) {
-        console.log(`[${network}] [HISTORICAL] Caught up to live monitor (gap: ${gap}), pausing backfill`);
-        pauseHistoricalMonitoring(network);
-        return;
+    // Check if we've reached the stop point
+    if (BigInt(currentPosition) <= BigInt(stopCheckpoint)) {
+      console.log(`[${network}] [HISTORICAL] ✅ Backfill complete! Reached stop checkpoint ${stopCheckpoint}`);
+      if (monitor) {
+        historicalMonitors.set(network, { ...monitor, isComplete: true, isPaused: true });
       }
+      return;
     }
 
     // Create network-specific Sui client
     const suiClient = new SuiClient({ url: rpcUrl });
 
-    // Fetch deployments using checkpoint-based approach with historical bootstrap
-    const result = await getDeploymentsFromCheckpoints({
+    // Fetch deployments going BACKWARD
+    const result = await getDeploymentsFromCheckpointsBackward({
       client: suiClient,
-      fromCheckpoint: lastHistoricalCheckpoint,
-      network,
-      bootstrapOffset: HISTORICAL_BOOTSTRAP_OFFSET // Starts from beginning
+      fromCheckpoint: currentPosition,
+      stopAtCheckpoint: stopCheckpoint,
+      network
     });
 
     if (!result.success) {
@@ -277,7 +304,7 @@ async function performHistoricalMonitoringCheck(config: NetworkConfig): Promise<
       return;
     }
 
-    // Update checkpoint cursor even if no deployments found
+    // Update checkpoint cursor (now points to oldest processed checkpoint)
     if (result.checkpointsProcessed > 0) {
       const updateResult = await updateHistoricalCheckpoint(network, result.lastProcessedCheckpoint);
       if (!updateResult.success) {
@@ -293,7 +320,7 @@ async function performHistoricalMonitoringCheck(config: NetworkConfig): Promise<
       return;
     }
 
-    console.log(`[${network}] [HISTORICAL] 📚 Found ${deployments.length} deployment(s) in ${result.checkpointsProcessed} checkpoint(s) (${lastHistoricalCheckpoint} → ${result.lastProcessedCheckpoint})`);
+    console.log(`[${network}] [HISTORICAL] 📚 Found ${deployments.length} deployment(s) in ${result.checkpointsProcessed} checkpoint(s) (${currentPosition} → ${result.lastProcessedCheckpoint} backward)`);
 
     // Persist deployments to database WITH network tag
     // UPSERT ensures no duplicates if live monitor already found them

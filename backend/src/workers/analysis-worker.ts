@@ -25,12 +25,12 @@ import { envFlag } from '../lib/env-utils';
  * How many analyses can run at the same time
  * Higher = faster processing, but more memory/API usage
  */
-const MAX_CONCURRENT_ANALYSES = 3;
+const MAX_CONCURRENT_ANALYSES = 5;
 
 /**
  * How often to check for new pending deployments (milliseconds)
  */
-const POLL_INTERVAL_MS = 10_000; // 10 seconds
+const POLL_INTERVAL_MS = 5_000; // 5 seconds
 
 /**
  * Minimum time between log messages about queue status
@@ -160,9 +160,13 @@ async function processAnalysisQueue(): Promise<void> {
   }
 
   // Query for pending deployments (only as many as we have capacity for)
+  // Exclude packages already being analyzed to avoid "Already analyzing" spam
+  // Note: analyzingPackages stores "network:packageId" format, but DB expects just packageId
+  const excludeIds = Array.from(analyzingPackages).map(key => key.split(':').slice(1).join(':'));
   const result = await getUnanalyzedDeployments({
     limit: availableSlots,
-    network: null // Process all networks
+    network: null, // Process all networks
+    excludePackageIds: excludeIds
   });
 
   if (!result.success) {

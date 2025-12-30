@@ -1445,16 +1445,17 @@ export async function getAuditLogStats(
 /**
  * Get deployments that haven't been analyzed yet
  *
- * Strategy: Query deployments and filter out those with existing analyses
- * This creates a "pending queue" from the database
+ * Uses optimized database function with LEFT JOIN to find unanalyzed
+ * deployments in a single query (replaces N+1 query pattern)
  *
  * @param options.limit - Max deployments to return (default: 5)
  * @param options.network - Filter by network (mainnet/testnet/null for all)
- * @returns Unanalyzed deployments in FIFO order (oldest first)
+ * @returns Unanalyzed deployments ordered by checkpoint DESC (newest first)
  */
 export async function getUnanalyzedDeployments(options: {
   limit?: number;
   network?: string | null;
+  excludePackageIds?: string[];
 } = {}): Promise<{
   success: boolean;
   deployments: DeploymentRow[];
@@ -1469,62 +1470,28 @@ export async function getUnanalyzedDeployments(options: {
       };
     }
 
-    const { limit = 5, network = null } = options;
+    const { limit = 5, network = null, excludePackageIds = [] } = options;
 
-    // Step 1: Get oldest deployments (FIFO - First In First Out)
-    let query = supabase
-      .from('sui_package_deployments')
-      .select('*')
-      .order('checkpoint', { ascending: true }); // Oldest first
+    // Single optimized query via database function
+    // Excludes packages currently being analyzed to prevent duplicate processing
+    const { data, error } = await supabase.rpc('get_unanalyzed_deployments', {
+      p_network: network,
+      p_limit: limit,
+      p_exclude_package_ids: excludePackageIds
+    });
 
-    // Apply network filter if specified
-    if (network && (network === 'mainnet' || network === 'testnet')) {
-      query = query.eq('network', network);
-    }
-
-    // Fetch more than needed to account for already-analyzed ones
-    const { data: deployments, error: deploymentsError } = await query.limit(limit * 10);
-
-    if (deploymentsError) {
-      console.error('Failed to get deployments:', deploymentsError);
+    if (error) {
+      console.error('Failed to get unanalyzed deployments:', error);
       return {
         success: false,
         deployments: [],
-        error: deploymentsError.message
+        error: error.message
       };
-    }
-
-    if (!deployments || deployments.length === 0) {
-      return {
-        success: true,
-        deployments: []
-      };
-    }
-
-    // Step 2: Filter out those that already have analyses
-    const unanalyzed: DeploymentRow[] = [];
-
-    for (const deployment of deployments) {
-      // Check if this deployment has been analyzed
-      const analysisResult = await getAnalysisResult(
-        deployment.package_id,
-        deployment.network
-      );
-
-      // If no analysis exists, it's pending
-      if (!analysisResult.analysis) {
-        unanalyzed.push(deployment as DeploymentRow);
-
-        // Stop when we have enough
-        if (unanalyzed.length >= limit) {
-          break;
-        }
-      }
     }
 
     return {
       success: true,
-      deployments: unanalyzed
+      deployments: (data || []) as DeploymentRow[]
     };
 
   } catch (error) {
@@ -1544,13 +1511,19 @@ export async function getUnanalyzedDeployments(options: {
 
 /**
  * Get historical backfill checkpoint for a network
- * Used by the historical monitor to track backfill progress
+ * Used by the historical monitor to track backfill progress (backward direction)
+ *
+ * Fields:
+ * - checkpoint: Current position (decrements as we go backward)
+ * - originCheckpoint: Where the program started (backfill goes backward from here)
+ * - stopCheckpoint: Minimum checkpoint to stop at (how far back to go)
  */
 export async function getHistoricalCheckpoint(network: string): Promise<{
   success: boolean;
   checkpoint: string | null;
   enabled: boolean;
-  startCheckpoint: string;
+  originCheckpoint: string | null;
+  stopCheckpoint: string;
   lastProcessedAt: string | null;
   error?: string;
 }> {
@@ -1560,7 +1533,8 @@ export async function getHistoricalCheckpoint(network: string): Promise<{
         success: false,
         checkpoint: null,
         enabled: false,
-        startCheckpoint: '0',
+        originCheckpoint: null,
+        stopCheckpoint: '0',
         lastProcessedAt: null,
         error: 'Supabase client not initialized'
       };
@@ -1568,7 +1542,7 @@ export async function getHistoricalCheckpoint(network: string): Promise<{
 
     const { data, error } = await supabase
       .from('historical_checkpoints')
-      .select('last_processed_checkpoint, backfill_enabled, backfill_start_checkpoint, last_processed_at')
+      .select('last_processed_checkpoint, backfill_enabled, backfill_start_checkpoint, backfill_origin_checkpoint, last_processed_at')
       .eq('network', network)
       .single();
 
@@ -1579,7 +1553,8 @@ export async function getHistoricalCheckpoint(network: string): Promise<{
           success: true,
           checkpoint: null,
           enabled: true,
-          startCheckpoint: '0',
+          originCheckpoint: null,
+          stopCheckpoint: '0',
           lastProcessedAt: null
         };
       }
@@ -1589,7 +1564,8 @@ export async function getHistoricalCheckpoint(network: string): Promise<{
         success: false,
         checkpoint: null,
         enabled: false,
-        startCheckpoint: '0',
+        originCheckpoint: null,
+        stopCheckpoint: '0',
         lastProcessedAt: null,
         error: error.message
       };
@@ -1599,7 +1575,8 @@ export async function getHistoricalCheckpoint(network: string): Promise<{
       success: true,
       checkpoint: data?.last_processed_checkpoint?.toString() ?? null,
       enabled: data?.backfill_enabled ?? true,
-      startCheckpoint: data?.backfill_start_checkpoint?.toString() ?? '0',
+      originCheckpoint: data?.backfill_origin_checkpoint?.toString() ?? null,
+      stopCheckpoint: data?.backfill_start_checkpoint?.toString() ?? '0',
       lastProcessedAt: data?.last_processed_at ?? null
     };
 
@@ -1610,7 +1587,8 @@ export async function getHistoricalCheckpoint(network: string): Promise<{
       success: false,
       checkpoint: null,
       enabled: false,
-      startCheckpoint: '0',
+      originCheckpoint: null,
+      stopCheckpoint: '0',
       lastProcessedAt: null,
       error: errorMessage
     };
@@ -1618,7 +1596,63 @@ export async function getHistoricalCheckpoint(network: string): Promise<{
 }
 
 /**
- * Update historical backfill checkpoint
+ * Initialize historical backfill for backward processing
+ * Called on first startup to set the origin checkpoint
+ *
+ * @param network - Network to initialize
+ * @param originCheckpoint - Current checkpoint (where program started)
+ * @param stopCheckpoint - How far back to go (origin - 30 days worth)
+ */
+export async function initializeHistoricalBackfill(
+  network: string,
+  originCheckpoint: string,
+  stopCheckpoint: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!supabase) {
+      return {
+        success: false,
+        error: 'Supabase client not initialized'
+      };
+    }
+
+    const { error } = await supabase
+      .from('historical_checkpoints')
+      .upsert({
+        network,
+        backfill_origin_checkpoint: originCheckpoint,
+        backfill_start_checkpoint: stopCheckpoint, // Where to stop (going backward)
+        last_processed_checkpoint: originCheckpoint, // Start from origin, go backward
+        backfill_enabled: true,
+        last_processed_at: new Date().toISOString()
+      }, {
+        onConflict: 'network'
+      });
+
+    if (error) {
+      console.error(`Failed to initialize historical backfill for ${network}:`, error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+
+    console.log(`[${network}] [HISTORICAL] Initialized backfill: origin=${originCheckpoint}, stop=${stopCheckpoint}`);
+    return { success: true };
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Unexpected error in initializeHistoricalBackfill:', error);
+    return {
+      success: false,
+      error: errorMessage
+    };
+  }
+}
+
+/**
+ * Update historical backfill checkpoint (going backward)
+ * The checkpoint decrements as we process older blocks
  */
 export async function updateHistoricalCheckpoint(
   network: string,
@@ -1636,13 +1670,11 @@ export async function updateHistoricalCheckpoint(
 
     const { error } = await supabase
       .from('historical_checkpoints')
-      .upsert({
-        network,
+      .update({
         last_processed_checkpoint: checkpointNum.toString(),
         last_processed_at: new Date().toISOString()
-      }, {
-        onConflict: 'network'
-      });
+      })
+      .eq('network', network);
 
     if (error) {
       console.error(`Failed to update historical checkpoint for ${network}:`, error);

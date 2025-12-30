@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { X, Search, Loader2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, Clock, TrendingDown } from 'lucide-react';
+import { X, Search, Loader2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, Clock, TrendingDown, ArrowRight } from 'lucide-react';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -564,7 +564,78 @@ function DashboardContent() {
   }
 
   return (
-    <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 pb-24 transition-colors duration-200 sm:px-8 lg:gap-6 lg:px-16">
+    <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 pb-24 transition-colors duration-200 sm:px-8 lg:gap-5 lg:px-16">
+      <div className="pointer-events-none fixed inset-0 -z-10">
+        <div className="absolute inset-x-0 top-[-15%] h-[520px] bg-[radial-gradient(circle_at_center,rgba(209,34,38,0.26),transparent_60%)] dark:opacity-100 opacity-0" />
+        <div className="absolute left-1/2 top-1/2 h-[560px] w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(209,34,38,0.18),transparent_60%)] blur-3xl dark:opacity-100 opacity-0" />
+      </div>
+
+      <section className="space-y-6 transition-colors duration-200">
+        <div className="space-y-4">
+          <h1 className="text-3xl font-semibold leading-tight tracking-tight text-foreground dark:text-white sm:text-5xl">
+            Risk Intelligence Dashboard
+          </h1>
+          <p className="max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
+            Monitor threats, analyze code, and protect your protocol with our advanced multi-agent security pipeline. Track deployment risk scores in real-time.
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <Link href="/analyze" className="w-full sm:w-auto">
+            <Button className="w-full bg-[#D12226] text-white hover:bg-[#a8181b] sm:w-auto">
+              Start analysis
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </Link>
+
+          <div className="flex flex-wrap items-center gap-3 text-xs">
+            {/* Network Filter */}
+            <div className="inline-flex items-center gap-1 rounded-full border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-black/40 p-1">
+              {(['all', 'mainnet', 'testnet'] as const).map((network) => (
+                <button
+                  key={network}
+                  onClick={() => handleNetworkFilterChange(network)}
+                  className={cn(
+                    'px-3 py-1 rounded-full text-xs font-medium transition-all',
+                    networkFilter === network
+                      ? 'bg-foreground dark:bg-white text-background dark:text-black'
+                      : 'text-muted-foreground hover:text-foreground dark:hover:text-white'
+                  )}
+                >
+                  {network === 'all' ? 'All' : network.charAt(0).toUpperCase() + network.slice(1)}
+                </button>
+              ))}
+            </div>
+
+            {/* Divider */}
+            <div className="h-4 w-px bg-border dark:bg-white/15" />
+
+            {/* Time Filter */}
+            <div className="inline-flex items-center gap-1 rounded-full border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-black/40 p-1">
+              {(['24h', '7d', '30d', 'all'] as const).map((filter) => (
+                <button
+                  key={filter}
+                  onClick={() => handleTimeFilterChange(filter)}
+                  className={cn(
+                    'px-3 py-1 rounded-full text-xs font-medium transition-all',
+                    timeFilter === filter
+                      ? 'bg-foreground dark:bg-white text-background dark:text-black'
+                      : 'text-muted-foreground hover:text-foreground dark:hover:text-white'
+                  )}
+                >
+                  {filter === 'all' ? 'All Time' : filter.toUpperCase()}
+                </button>
+              ))}
+            </div>
+
+            {/* Divider */}
+            <div className="h-4 w-px bg-border dark:bg-white/15" />
+
+            {/* View Mode */}
+            <ViewModeToggle mode={viewMode} onChange={handleViewModeChange} />
+          </div>
+        </div>
+      </section>
       {error && (
         <Alert className="rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 text-foreground dark:text-white/90 shadow-sm shadow-black/5 dark:shadow-white/5 transition-colors duration-200">
           <AlertDescription>{error}</AlertDescription>
@@ -572,7 +643,7 @@ function DashboardContent() {
       )}
 
       {/* Controls: Search, Filters, Actions */}
-      <Card className="border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-elevated))] dark:bg-black/40 text-foreground dark:text-white shadow-lg backdrop-blur">
+      <Card className="rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 text-foreground dark:text-white shadow-sm shadow-black/5 dark:shadow-white/5 transition-colors duration-200">
         <CardContent className="p-6 pt-0 space-y-6">
           {/* Search and Controls Row */}
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -586,7 +657,7 @@ function DashboardContent() {
                 onKeyDown={handleSearchKeyDown}
                 placeholder="Search by package ID..."
                 className={cn(
-                  'w-full rounded-full border border-border dark:border-white/15 bg-[hsl(var(--surface-muted))] dark:bg-black/60 py-2 pl-11 pr-10 text-sm text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-zinc-500 focus:border-[#D12226] focus:outline-none focus:ring-2 focus:ring-[#D12226]/40',
+                  'w-full rounded-full border border-border dark:border-white/15 bg-[hsl(var(--surface-muted))] dark:bg-black/40 py-2 pl-11 pr-10 text-sm text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-zinc-500 focus:border-[#D12226] focus:outline-none focus:ring-2 focus:ring-[#D12226]/40',
                   isSearching && 'pr-14'
                 )}
               />
@@ -600,44 +671,8 @@ function DashboardContent() {
               </div>
             </div>
 
-            {/* Controls: Network, Sort, View */}
+            {/* Controls: Sort */}
             <div className="flex flex-wrap items-center gap-2">
-              {/* Network Filter */}
-              <div className="inline-flex items-center gap-1 rounded-full border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-black/40 p-1">
-                {(['all', 'mainnet', 'testnet'] as const).map((network) => (
-                  <button
-                    key={network}
-                    onClick={() => handleNetworkFilterChange(network)}
-                    className={cn(
-                      'px-3 py-1 rounded-full text-xs font-medium transition-all',
-                      networkFilter === network
-                        ? 'bg-foreground dark:bg-white text-background dark:text-black'
-                        : 'text-muted-foreground hover:text-foreground dark:hover:text-white'
-                    )}
-                  >
-                    {network === 'all' ? 'All' : network.charAt(0).toUpperCase() + network.slice(1)}
-                  </button>
-                ))}
-              </div>
-
-              {/* Time Filter */}
-              <div className="inline-flex items-center gap-1 rounded-full border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-black/40 p-1">
-                {(['24h', '7d', '30d', 'all'] as const).map((filter) => (
-                  <button
-                    key={filter}
-                    onClick={() => handleTimeFilterChange(filter)}
-                    className={cn(
-                      'px-3 py-1 rounded-full text-xs font-medium transition-all',
-                      timeFilter === filter
-                        ? 'bg-foreground dark:bg-white text-background dark:text-black'
-                        : 'text-muted-foreground hover:text-foreground dark:hover:text-white'
-                    )}
-                  >
-                    {filter === 'all' ? 'All Time' : filter.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-
               {/* Sort Dropdown */}
               <div className="relative">
                 <select
@@ -652,9 +687,6 @@ function DashboardContent() {
                 </select>
                 <ArrowUpDown className="absolute right-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground pointer-events-none" />
               </div>
-
-              {/* View Mode */}
-              <ViewModeToggle mode={viewMode} onChange={handleViewModeChange} />
             </div>
           </div>
 
@@ -680,7 +712,7 @@ function DashboardContent() {
                   <select
                     value={pageSize}
                     onChange={(e) => setPaginationPageSize(Number.parseInt(e.target.value, 10))}
-                    className="h-8 rounded-md border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-muted))] dark:bg-black/60 px-2.5 text-xs sm:text-sm text-foreground dark:text-white transition-colors focus:border-[#D12226] focus:outline-none focus:ring-2 focus:ring-[#D12226]/40"
+                    className="h-8 rounded-md border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-muted))] dark:bg-black/40 px-2.5 text-xs sm:text-sm text-foreground dark:text-white transition-colors focus:border-[#D12226] focus:outline-none focus:ring-2 focus:ring-[#D12226]/40"
                   >
                     {PAGE_SIZE_OPTIONS.map((size) => (
                       <option key={size} value={size}>
@@ -878,10 +910,8 @@ function DashboardContent() {
               <div className="w-[140px] shrink-0">Package</div>
               <div className="flex-1">Summary</div>
               <div className="w-12 shrink-0 text-center">Net</div>
-              <div className="w-12 shrink-0 text-right">
-                <div className="text-[10px]">Deploy</div>
-                <div className="text-[9px] opacity-50">Analyze</div>
-              </div>
+              <div className="w-16 shrink-0 text-right">Deployed</div>
+              <div className="w-16 shrink-0 text-right">Analyzed</div>
               <div className="w-4 shrink-0" />
             </div>
 
@@ -940,7 +970,7 @@ function DashboardContent() {
               <select
                 value={pageSize}
                 onChange={(e) => setPaginationPageSize(Number.parseInt(e.target.value, 10))}
-                    className="h-8 rounded-md border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-muted))] dark:bg-black/60 px-2.5 text-xs sm:text-sm text-foreground dark:text-white transition-colors focus:border-[#D12226] focus:outline-none focus:ring-2 focus:ring-[#D12226]/40"
+                    className="h-8 rounded-md border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-muted))] dark:bg-black/40 px-2.5 text-xs sm:text-sm text-foreground dark:text-white transition-colors focus:border-[#D12226] focus:outline-none focus:ring-2 focus:ring-[#D12226]/40"
               >
                 {PAGE_SIZE_OPTIONS.map((size) => (
                   <option key={size} value={size}>

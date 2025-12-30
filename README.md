@@ -9,12 +9,22 @@ RedFlag monitors new Sui smart-contract deployments, persists on-chain metadata 
 ├── frontend/
 │   ├── app/components/          # shared UI building blocks
 │   ├── app/dashboard/           # dashboard route, types, utilities
-│   ├── app/providers.tsx        # global providers (Privy, theme, data)
+│   ├── app/deployments/         # deployments page with real-time updates
+│   ├── app/providers.tsx        # global providers (theme, data)
 │   └── ...
 ├── backend/
 │   ├── src/index.ts             # Express entrypoint & routing
 │   ├── src/lib/                 # Supabase, Sui, LLM integrations
-│   └── src/workers/             # background monitors
+│   │   ├── sui-client.ts        # Checkpoint-based deployment queries
+│   │   ├── supabase.ts          # Database operations
+│   │   ├── llm-analyzer.ts      # 3-agent orchestration
+│   │   ├── langchain-*.ts       # LangChain implementation
+│   │   ├── static-analyzer.ts   # Deterministic pattern detection
+│   │   └── ...
+│   └── src/workers/
+│       ├── sui-monitor.ts       # Live checkpoint monitor
+│       ├── historical-monitor.ts # Background backfill
+│       └── analysis-worker.ts   # Decoupled LLM analysis
 ├── llm/                         # prompt experimentation & research notes
 ├── package.json                 # workspace scripts
 └── yarn.lock
@@ -27,7 +37,10 @@ The frontend uses the `@/` alias (rooted at `frontend/`) for cross-module import
 ### Backend services (Express + Supabase + Sui)
 
 - Configurable CORS-protected Express API served from `backend/src/index.ts`.
-- **Dual Network Monitors**: Two independent workers poll mainnet and testnet simultaneously with configurable intervals. Deployments are tagged with their network and stored with composite primary keys.
+- **3-Worker Architecture**: Decoupled monitors and analysis for reliability:
+  - **Live Monitors**: Checkpoint-based real-time detection for mainnet and testnet
+  - **Historical Monitors**: Background backfill for data completeness (~7 days default)
+  - **Analysis Worker**: Decoupled LLM processing with concurrency control (max 3 parallel)
 - **3-Agent LLM Chain** (Analyzer → Scorer → Reporter) via OpenRouter with retry/backoff logic.
 - **Map-Reduce Chunked Analysis**: Large contracts with multiple modules are analyzed in parallel, then findings are aggregated. This enables analysis of contracts of any size without token limit issues.
 - Supabase persistence for both raw deployment metadata (`sui_package_deployments`) and generated safety cards (`contract_analyses`).
@@ -102,8 +115,9 @@ The frontend uses the `@/` alias (rooted at `frontend/`) for cross-module import
 | `LLM_MODEL_REPORTER` | No | Override the reporter model. | `mistralai/devstral-2512:free` |
 | `LLM_MODEL_FALLBACK` | No | First fallback model (free). | `xiaomi/mimo-v2-flash:free` |
 | `LLM_MODEL_FALLBACK2` | No | Second fallback model (paid, last resort). | `openai/gpt-oss-120b` |
-| `ENABLE_AUTO_ANALYSIS` | No | Enables the background Sui monitor + automatic LLM analysis. Flip to `false` while developing UI without hitting external services. | `true` |
+| `ENABLE_AUTO_ANALYSIS` | No | Enables all background workers (monitors + analysis). Flip to `false` while developing UI without hitting external services. | `true` |
 | `ENABLE_SUI_RPC` | No | Master kill switch for all Sui RPC calls (health checks, monitor, manual analysis). Set to `false` to avoid network calls locally. | `true` |
+| `ENABLE_HISTORICAL_BACKFILL` | No | Enable historical backfill monitor. Set to `false` to only run live monitoring. | `true` |
 
 **Multi-Network Configuration:**
 
@@ -113,6 +127,14 @@ The frontend uses the `@/` alias (rooted at `frontend/`) for cross-module import
 | `SUI_RPC_URL_MAINNET` | No | Sui mainnet RPC endpoint. | `https://fullnode.mainnet.sui.io:443` |
 | `POLL_INTERVAL_MS_TESTNET` | No | Testnet polling interval in ms (faster for testing). | `15000` |
 | `POLL_INTERVAL_MS_MAINNET` | No | Mainnet polling interval in ms (slower to reduce RPC load). | `30000` |
+
+**Historical Backfill Configuration:**
+
+| Key | Required | Description | Default |
+| --- | --- | --- | --- |
+| `HISTORICAL_POLL_INTERVAL_MS` | No | Backfill polling interval in ms (slower than live). | `60000` |
+| `HISTORICAL_SAFETY_GAP` | No | Pause historical when this many checkpoints from live monitor. | `1000` |
+| `HISTORICAL_BOOTSTRAP_OFFSET` | No | How many checkpoints back to start backfill (~1 ckpt/sec). | `604800` (~7 days) |
 
 **Legacy (deprecated):**
 
@@ -158,18 +180,65 @@ All endpoints that return deployments or analyses support an optional `?network=
 
 ## Background Monitoring & Analysis
 
-The system runs **two independent monitors** for mainnet and testnet:
+The system uses a **3-worker architecture** for reliable monitoring and analysis:
 
-1. `startMonitoring()` (bootstrapped in `src/index.ts`) starts both network monitors concurrently.
-2. Each monitor loads its last processed checkpoint from Supabase (per-network tracking).
-3. Monitors poll their respective Sui RPC endpoints with network-specific intervals (testnet: 15s, mainnet: 30s).
-4. New deployments are tagged with their network and upserted into `sui_package_deployments` with composite primary key `(package_id, network)`.
-5. For each new package, the monitor requests an LLM safety card via `runFullAnalysisChain`.
-6. **Map-Reduce for Large Contracts**: Contracts with multiple modules are chunked and analyzed in parallel, then findings are aggregated.
-7. Results are persisted in `contract_analyses` with composite primary key `(package_id, network)` and exposed through `/api/llm/*` endpoints.
-8. High-risk packages are logged with elevated console output prefixed with network (e.g., `[mainnet] 🚨 HIGH RISK`).
+### Worker Architecture
 
-Set `ENABLE_AUTO_ANALYSIS=false` to skip both workers, or `ENABLE_SUI_RPC=false` to short-circuit every Sui RPC call while working offline.
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      WORKER ARCHITECTURE                         │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐
+│  LIVE MONITOR   │   │HISTORICAL MONITOR│   │ ANALYSIS WORKER │
+│  (per network)  │   │  (per network)   │   │    (shared)     │
+├─────────────────┤   ├─────────────────┤   ├─────────────────┤
+│ • Real-time     │   │ • Background     │   │ • Decoupled     │
+│ • Checkpoint-   │   │   backfill       │   │ • Polls DB for  │
+│   based         │   │ • Slower poll    │   │   pending work  │
+│ • 15s/30s poll  │   │   (60s)          │   │ • Max 3 parallel│
+│ • Forward only  │   │ • Pauses when    │   │ • Error recovery│
+│                 │   │   caught up      │   │                 │
+└────────┬────────┘   └────────┬────────┘   └────────┬────────┘
+         │                     │                     │
+         │     UPSERT          │     UPSERT          │  Query pending
+         ▼                     ▼                     ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    sui_package_deployments                       │
+│                    (package_id, network) PK                      │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Live Monitor (`sui-monitor.ts`)
+
+1. `startMonitoring()` (bootstrapped in `src/index.ts`) starts monitors for all networks concurrently.
+2. Each monitor loads its last processed checkpoint from `monitor_checkpoints` table.
+3. Monitors process checkpoints sequentially from Sui RPC (up to 100 per poll due to RPC limits).
+4. New deployments are tagged with their network and upserted into `sui_package_deployments`.
+5. Analysis is **not** run inline - the analysis worker handles it asynchronously.
+
+### Historical Monitor (`historical-monitor.ts`)
+
+1. `startHistoricalMonitoring()` starts background backfill for all networks.
+2. Starts from configured offset (default: ~7 days back via `HISTORICAL_BOOTSTRAP_OFFSET`).
+3. Runs slower (60s poll) to not interfere with live monitor.
+4. Pauses automatically when caught up to live monitor (within `HISTORICAL_SAFETY_GAP`).
+5. UPSERT ensures no duplicates - same deployments may be found by both monitors.
+
+### Analysis Worker (`analysis-worker.ts`)
+
+1. `startAnalysisWorker()` runs independently of monitors.
+2. Polls database for unanalyzed deployments (via `getUnanalyzedDeployments()`).
+3. Runs up to 3 concurrent analyses (`MAX_CONCURRENT_ANALYSES`).
+4. For each package, runs `runFullAnalysisChain` with Map-Reduce for large contracts.
+5. Results persisted in `contract_analyses` with composite primary key `(package_id, network)`.
+6. High-risk packages logged with elevated console output (e.g., `[mainnet] 🚨 HIGH RISK`).
+
+### Environment Toggles
+
+- `ENABLE_AUTO_ANALYSIS=false` - Disable all workers (monitors + analysis)
+- `ENABLE_SUI_RPC=false` - Kill switch for all Sui RPC calls
+- `ENABLE_HISTORICAL_BACKFILL=false` - Disable historical backfill only
 
 ## Analysis Pipeline Architecture
 
@@ -443,6 +512,22 @@ create table if not exists public.analysis_audit_logs (
   created_at timestamptz default now()
 );
 
+-- Monitor checkpoint tracking (live monitor)
+create table if not exists public.monitor_checkpoints (
+  network text primary key,
+  last_checkpoint text not null,
+  updated_at timestamptz default now()
+);
+
+-- Historical checkpoint tracking (backfill monitor)
+create table if not exists public.historical_checkpoints (
+  network text primary key,
+  last_checkpoint text not null,
+  start_checkpoint text,
+  enabled boolean default true,
+  updated_at timestamptz default now()
+);
+
 -- Indexes for performance (network filtering is common)
 create index if not exists idx_deployments_network_checkpoint on sui_package_deployments(network, checkpoint desc);
 create index if not exists idx_contract_analyses_network on contract_analyses(network);
@@ -472,7 +557,10 @@ Run migrations in order from `backend/migrations/` or apply the schema above dir
 ## Deployment
 
 - **Frontend (Vercel)**: Set `NEXT_PUBLIC_BACKEND_URL` to your deployed backend. Root directory should point to `frontend` with the default Next.js build.
-- **Backend (Railway or similar)**: Deploy from `backend`, supply all environment variables (especially `FRONTEND_URL` for CORS and the multi-network RPC URLs). Both monitors start automatically on boot.
+- **Backend (Railway or similar)**: Deploy from `backend`, supply all environment variables (especially `FRONTEND_URL` for CORS and the multi-network RPC URLs). All workers start automatically on boot:
+  - Live monitors for mainnet and testnet
+  - Historical monitors for backfill (can disable with `ENABLE_HISTORICAL_BACKFILL=false`)
+  - Analysis worker for LLM processing
 - Coordinate updates so Vercel and Railway share the same allowed origins and Supabase credentials.
 
 ## Troubleshooting
@@ -480,7 +568,9 @@ Run migrations in order from `backend/migrations/` or apply the schema above dir
 - **CORS errors**: ensure `FRONTEND_URL` matches the requesting origin exactly (protocol + host + port).
 - **LLM analysis skipped**: check that `OPEN_ROUTER_KEY` is set; the worker logs `⚠️  OPEN_ROUTER_KEY not configured` otherwise.
 - **No deployments stored**: verify Supabase tables exist and the service role key has `insert`/`upsert` permissions.
-- **Monitor idle**: inspect `/api/sui/monitor-status` and server logs; adjust `POLL_INTERVAL_MS` if rate-limited.
+- **Monitor idle**: inspect `/api/sui/monitor-status` and server logs; adjust polling intervals if rate-limited.
+- **Historical monitor paused**: This is expected when it catches up to the live monitor. Check logs for `[HISTORICAL] Caught up to live monitor` messages.
+- **Analysis worker at capacity**: Normal when processing many contracts. Check `getAnalysisWorkerStatus()` for queue stats.
 - **Frontend 500s**: confirm `NEXT_PUBLIC_BACKEND_URL` is reachable and HTTPS when deployed to Vercel.
 - **Large contract analysis**: Contracts with multiple modules are automatically chunked and analyzed in parallel. Check logs for `[MapReduce]` messages to monitor progress.
 
@@ -490,7 +580,8 @@ The following improvements are planned to enhance reliability, observability, an
 
 ### Phase 1: Critical Fixes (Prevent Failures)
 
-- [ ] **Concurrency Control** - Add semaphore to limit parallel LLM calls (max 3-5) to prevent rate limit cascades
+- [x] **Concurrency Control** - Analysis worker limits parallel LLM calls (max 3) to prevent rate limit cascades
+- [x] **Decoupled Analysis** - Analysis runs in separate worker, doesn't block monitoring
 - [ ] **Input Size Limits** - Add truncation for all input fields (functions, structs), not just bytecode
 - [ ] **Global Fallback State** - Track model state globally to prevent per-module fallback cascades
 - [ ] **Retry Loop Prevention** - Add `retry_count` column, skip contracts after N persistent failures
@@ -504,6 +595,7 @@ The following improvements are planned to enhance reliability, observability, an
 
 ### Phase 3: Observability & Control
 
+- [x] **Historical Backfill** - Background worker catches up old deployments for data completeness
 - [ ] **Cost Tracking** - Track tokens per request, log totals, estimate costs
 - [ ] **Circuit Breaker** - Stop using paid model after X uses per hour to control costs
 - [ ] **Error Classification** - Create error taxonomy to distinguish transient vs permanent failures

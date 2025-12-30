@@ -212,22 +212,24 @@ export function CompactContractCard({
           </div>
         </div>
 
-        {/* Time - fixed width with deployment (primary) and analysis (secondary) */}
-        <div className="w-12 shrink-0 text-right space-y-0.5">
+        {/* Deployed Time */}
+        <div className="w-16 shrink-0 text-right">
           {deploymentTime ? (
-            <>
-              <div className="text-sm font-semibold text-foreground dark:text-white tabular-nums">
-                {deploymentTime}
-              </div>
-              <div className="text-[8px] text-muted-foreground/40 dark:text-zinc-700 tabular-nums">
-                {relativeTime}
-              </div>
-            </>
+            <div className="text-xs font-medium text-foreground dark:text-white tabular-nums">
+              {deploymentTime}
+            </div>
           ) : (
-            <div className="text-xs text-muted-foreground/70 dark:text-zinc-500 tabular-nums">
-              {relativeTime}
+            <div className="text-xs text-muted-foreground/30 dark:text-zinc-700 tabular-nums">
+              —
             </div>
           )}
+        </div>
+
+        {/* Analyzed Time */}
+        <div className="w-16 shrink-0 text-right">
+          <div className="text-xs text-muted-foreground dark:text-zinc-400 tabular-nums">
+            {relativeTime}
+          </div>
         </div>
 
         {/* Chevron - fixed width */}
