@@ -55,6 +55,7 @@ const deploymentLegend = [
 
 export default function DeploymentsPage() {
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [networkFilter, setNetworkFilter] = useState<'all' | 'mainnet' | 'testnet'>('all');
 
   return (
     <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 pb-24 transition-colors duration-200 sm:px-8 lg:gap-5 lg:px-16">
@@ -82,6 +83,27 @@ export default function DeploymentsPage() {
             </Link>
             
             <div className="flex flex-wrap items-center gap-3 text-xs">
+              {/* Network Filter */}
+              <div className="inline-flex items-center gap-1 rounded-full border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-black/40 p-1">
+                {(['all', 'mainnet', 'testnet'] as const).map((network) => (
+                  <button
+                    key={network}
+                    onClick={() => setNetworkFilter(network)}
+                    className={cn(
+                      'px-3 py-1 rounded-full text-xs font-medium transition-all',
+                      networkFilter === network
+                        ? 'bg-foreground dark:bg-white text-background dark:text-black'
+                        : 'text-muted-foreground hover:text-foreground dark:hover:text-white'
+                    )}
+                  >
+                    {network === 'all' ? 'All' : network.charAt(0).toUpperCase() + network.slice(1)}
+                  </button>
+                ))}
+              </div>
+
+              {/* Divider */}
+              <div className="h-4 w-px bg-border dark:bg-white/15" />
+
               {/* Auto-refresh Toggle */}
               <button
                 onClick={() => setAutoRefresh(!autoRefresh)}
@@ -129,7 +151,7 @@ export default function DeploymentsPage() {
         </section>
 
         <section className="-mx-4 py-6 px-4 sm:-mx-8 sm:px-8 lg:-mx-16 lg:px-16">
-          <DeploymentsTable autoRefresh={autoRefresh} refreshInterval={30000} />
+          <DeploymentsTable autoRefresh={autoRefresh} refreshInterval={30000} networkFilter={networkFilter} />
         </section>
 
         <section className="-mx-4 grid gap-6 transition-colors duration-200 sm:-mx-8 lg:-mx-16 lg:grid-cols-[1fr_2fr]">
@@ -151,7 +173,10 @@ export default function DeploymentsPage() {
             </ul>
             <div className="flex items-center gap-3 rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-black/40 px-4 py-3 text-xs text-muted-foreground">
               <Globe2 className="h-4 w-4 text-foreground/70 dark:text-white/70" />
-              Monitoring Sui testnet — mainnet support coming soon.
+              {networkFilter === 'all'
+                ? 'Monitoring both Sui mainnet and testnet'
+                : `Monitoring Sui ${networkFilter}`
+              }
             </div>
           </section>
 

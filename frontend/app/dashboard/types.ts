@@ -77,6 +77,14 @@ export interface AnalyzedContract {
     dependency_summary?: DependencySummary;
   };
   analyzed_at: string;
+
+  // Deployment metadata from blockchain (optional for backward compatibility)
+  deployment?: {
+    timestamp: string;
+    deployer_address: string;
+    tx_digest: string;
+    checkpoint: number;
+  } | null;
 }
 
 export interface DashboardData {

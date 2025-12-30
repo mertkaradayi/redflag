@@ -268,7 +268,12 @@ export async function runFullAnalysisChain(packageId: string, network: string, s
     } else {
         console.log('[1/6] Force mode - skipping cache check');
     }
-    
+
+    // Wrap entire analysis in try-catch to save failed status for any error
+    // (including early errors like bytecode fetch failures)
+    let failureAlreadySaved = false;
+    try {
+
     // 2. Fetch package data from Sui
     console.log(`[2/6] Fetching package object from Sui ${network}...`);
     const packageObject = await suiClient.getObject({
@@ -375,13 +380,13 @@ export async function runFullAnalysisChain(packageId: string, network: string, s
     // RUN LANGCHAIN 3-AGENT ANALYSIS
     // ============================================================
     console.log('[4/6] Running LangChain 3-agent analysis...');
-    console.log('[4/6] Using: openai/gpt-oss-120b via DeepInfra (99.98% uptime)');
+    console.log('[4/6] Using: nvidia/nemotron-3-nano-30b-a3b:free via Nvidia');
 
     // Record module and function stats for audit
     const moduleCount = Object.keys(disassembledCode).length;
     audit.recordModuleStats(moduleCount, moduleCount);
     audit.recordFunctionStats(publicFunctions.length, publicFunctions.length);
-    audit.recordModel('openai/gpt-oss-120b');
+    audit.recordModel('nvidia/nemotron-3-nano-30b-a3b:free');
 
     try {
         const safetyCard = await runLangChainAnalysisWithFallback({
@@ -448,8 +453,48 @@ export async function runFullAnalysisChain(packageId: string, network: string, s
         await audit.save();
         console.log(`[DATABASE] Saved FAILED analysis for ${packageId} on ${network}`);
 
+        // Mark as saved so outer catch doesn't save again
+        failureAlreadySaved = true;
+
         // Re-throw error so caller knows it failed
         throw analysisError;
+    }
+
+    } catch (outerError) {
+        // Outer catch for early failures (bytecode fetch, RPC errors, etc.)
+        // that happen before the inner LangChain try-catch
+        //
+        // If failureAlreadySaved is true, the inner catch already handled this
+        // error and saved to DB, so we just re-throw without saving again
+        if (failureAlreadySaved) {
+            throw outerError;
+        }
+
+        const errorMsg = outerError instanceof Error ? outerError.message : String(outerError);
+        console.error(`[FAILED] Early analysis failure for ${packageId}:`, errorMsg);
+
+        // Stop audit timer and record error
+        audit.stopTimer();
+        audit.addError('early_failure', errorMsg);
+
+        // Create minimal failed card
+        const failedCard: SafetyCard = {
+            summary: "Analysis failed during data retrieval. This contract needs manual review.",
+            risky_functions: [],
+            rug_pull_indicators: [],
+            impact_on_user: "Unable to retrieve contract data for analysis.",
+            why_risky_one_liner: "Analysis failed - data retrieval error",
+            risk_score: 0,
+            risk_level: 'low',
+        };
+
+        // Save as FAILED status - prevents infinite retry loop
+        await saveAnalysisResult(packageId, network, failedCard, 'failed', errorMsg);
+        await audit.save();
+        console.log(`[DATABASE] Saved FAILED analysis for ${packageId} on ${network} (early failure)`);
+
+        // Re-throw so caller knows it failed
+        throw outerError;
     }
 }
 

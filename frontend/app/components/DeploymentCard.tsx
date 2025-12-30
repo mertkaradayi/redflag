@@ -56,13 +56,16 @@ const AGE_STYLES: Record<
   },
 };
 
-const DeploymentCard = memo(function DeploymentCard({ deployment, network, tick = 0 }: DeploymentCardProps) {
+const DeploymentCard = memo(function DeploymentCard({ deployment, network: networkProp, tick = 0 }: DeploymentCardProps) {
   const router = useRouter();
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [showFullAddress, setShowFullAddress] = useState(false);
   const [showFullPackageId, setShowFullPackageId] = useState(false);
   const [showFullTxDigest, setShowFullTxDigest] = useState(false);
   const { showToast } = useToast();
+
+  // Prefer deployment's own network field, fall back to prop
+  const network = deployment.network || networkProp;
 
   const suiExplorerUrl = useMemo(() => getSuiExplorerUrl(deployment.tx_digest, network), [deployment.tx_digest, network]);
   const packageExplorerUrl = useMemo(() => getSuiPackageExplorerUrl(deployment.package_id, network), [deployment.package_id, network]);
