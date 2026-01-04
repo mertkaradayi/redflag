@@ -102,7 +102,7 @@ const CATCHUP_THRESHOLD = 200; // Log catchup warning if gap > this
  * - Starts from checkpoint 0 or configured start
  * - Catches up old deployments in background
  */
-const LIVE_BOOTSTRAP_OFFSET = parseInt(process.env.LIVE_BOOTSTRAP_OFFSET || '4000', 10);
+export const LIVE_BOOTSTRAP_OFFSET = parseInt(process.env.LIVE_BOOTSTRAP_OFFSET || '4000', 10);
 const HISTORICAL_START = 0; // Historical always starts from beginning (or configured)
 
 /**

@@ -1,6 +1,6 @@
 import { RunnableSequence } from "@langchain/core/runnables";
 import { StringOutputParser } from "@langchain/core/output_parsers";
-import { createLLM, getModelConfig, getFallbackConfig, getSecondFallbackConfig, shouldFallback, MODEL_PRESETS } from './langchain-llm';
+import { createLLM, getModelConfig, getFallbackConfig, shouldFallback, MODEL_PRESETS } from './langchain-llm';
 import { analyzerPromptTemplate, scorerPromptTemplate, reporterPromptTemplate } from './langchain-prompts';
 import { analyzerParser, scorerParser, reporterParser } from './langchain-schemas';
 import type { AnalyzerResponse, ScorerResponse, ReporterResponse } from './langchain-schemas';
@@ -21,7 +21,7 @@ import {
 } from './confidence-calculator';
 
 // Track which model is being used for logging
-let currentModelType: 'primary' | 'fallback1' | 'fallback2' = 'primary';
+let currentModelType: 'primary' | 'fallback1' = 'primary';
 
 // Helper: Strip markdown code blocks from JSON responses
 function stripMarkdownJson(text: string): string {
@@ -51,14 +51,13 @@ function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Helper: Retry with exponential backoff and two-tier fallback support
+// Helper: Retry with exponential backoff and fallback support
 async function retryWithBackoff<T>(
   fn: () => Promise<T>,
   maxRetries: number = 3,
   initialDelayMs: number = 1000,
   operationName: string = 'operation',
-  fallbackFn?: () => Promise<T>,   // First fallback (Xiaomi free model)
-  fallback2Fn?: () => Promise<T>   // Second fallback (OpenAI paid model)
+  fallbackFn?: () => Promise<T>   // Fallback (Mistral free model)
 ): Promise<T> {
   let lastError: Error | undefined;
 
@@ -68,44 +67,23 @@ async function retryWithBackoff<T>(
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
 
-      // Check if we should fallback to first fallback model (Xiaomi)
+      // Check if we should fallback to Mistral model
       if (fallbackFn && shouldFallback(error)) {
-        console.warn(`[Fallback] ${operationName} hit rate limit or error, trying Xiaomi free model...`);
+        console.warn(`[Fallback] ${operationName} hit rate limit or error, trying Mistral fallback model...`);
         currentModelType = 'fallback1';
 
-        // Try first fallback with its own retry logic
+        // Try fallback with its own retry logic
         try {
           const result = await retryWithBackoff(
             fallbackFn,
             maxRetries,
             initialDelayMs,
-            `${operationName} (fallback1)`,
-            fallback2Fn  // Pass second fallback for if first fallback also fails
+            `${operationName} (fallback)`
           );
           return result;
-        } catch (fallback1Error) {
-          console.warn(`[Fallback] Xiaomi model failed:`, fallback1Error instanceof Error ? fallback1Error.message : fallback1Error);
-
-          // Try second fallback (OpenAI paid) if available
-          if (fallback2Fn && shouldFallback(fallback1Error)) {
-            console.warn(`[Fallback] Trying OpenAI paid model as last resort...`);
-            currentModelType = 'fallback2';
-
-            try {
-              const result = await retryWithBackoff(
-                fallback2Fn,
-                maxRetries,
-                initialDelayMs,
-                `${operationName} (fallback2)`
-              );
-              return result;
-            } catch (fallback2Error) {
-              console.error(`[Fallback] OpenAI paid model also failed:`, fallback2Error instanceof Error ? fallback2Error.message : fallback2Error);
-              throw fallback2Error;
-            }
-          }
-
-          throw fallback1Error;
+        } catch (fallbackError) {
+          console.error(`[Fallback] Mistral model also failed:`, fallbackError instanceof Error ? fallbackError.message : fallbackError);
+          throw fallbackError;
         }
       }
 
@@ -280,11 +258,10 @@ async function analyzeModulesInParallel(
   riskPatterns: string
 ): Promise<AnalyzerResponse> {
   console.log(`[MapReduce] Starting parallel analysis of ${chunks.length} modules...`);
-  console.log(`[MapReduce] Primary: ${MODEL_PRESETS.analyzer.model}, Fallback1: ${MODEL_PRESETS.fallback.model}, Fallback2: ${MODEL_PRESETS.fallback2.model}`);
+  console.log(`[MapReduce] Primary: ${MODEL_PRESETS.analyzer.model}, Fallback: ${MODEL_PRESETS.fallback.model}`);
 
   const analyzerChain = await createAnalyzerChain(0);
-  const fallback1Chain = await createAnalyzerChain(1);
-  const fallback2Chain = await createAnalyzerChain(2);
+  const fallbackChain = await createAnalyzerChain(1);
 
   // Create analysis tasks for each module
   const analysisPromises = chunks.map(async (chunk, index) => {
@@ -305,8 +282,7 @@ async function analyzeModulesInParallel(
         3,
         2000,
         `Analyzer for ${chunk.moduleName}`,
-        () => fallback1Chain.invoke(moduleInput),  // First fallback (Xiaomi)
-        () => fallback2Chain.invoke(moduleInput)   // Second fallback (OpenAI)
+        () => fallbackChain.invoke(moduleInput)   // Fallback (Mistral)
       );
 
       const findings = await safeParseAnalyzerResponse(rawResponse);
@@ -556,13 +532,11 @@ async function safeParseAnalyzerResponse(text: string): Promise<AnalyzerResponse
 }
 
 // Agent 1: Analyzer Chain
-// fallbackLevel: 0 = primary (Mistral), 1 = fallback1 (Xiaomi), 2 = fallback2 (OpenAI)
-async function createAnalyzerChain(fallbackLevel: 0 | 1 | 2 = 0) {
-  const config = fallbackLevel === 2
-    ? getSecondFallbackConfig('analyzer')
-    : fallbackLevel === 1
-      ? getFallbackConfig('analyzer')
-      : getModelConfig('analyzer');
+// fallbackLevel: 0 = primary (Xiaomi), 1 = fallback (Mistral)
+async function createAnalyzerChain(fallbackLevel: 0 | 1 = 0) {
+  const config = fallbackLevel === 1
+    ? getFallbackConfig('analyzer')
+    : getModelConfig('analyzer');
   const llm = createLLM(config);
   const stringParser = new StringOutputParser();
 
@@ -624,13 +598,11 @@ async function safeParseScorerResponse(text: string): Promise<ScorerResponse> {
 }
 
 // Agent 2: Scorer Chain
-// fallbackLevel: 0 = primary (Mistral), 1 = fallback1 (Xiaomi), 2 = fallback2 (OpenAI)
-async function createScorerChain(fallbackLevel: 0 | 1 | 2 = 0) {
-  const config = fallbackLevel === 2
-    ? getSecondFallbackConfig('scorer')
-    : fallbackLevel === 1
-      ? getFallbackConfig('scorer')
-      : getModelConfig('scorer');
+// fallbackLevel: 0 = primary (Xiaomi), 1 = fallback (Mistral)
+async function createScorerChain(fallbackLevel: 0 | 1 = 0) {
+  const config = fallbackLevel === 1
+    ? getFallbackConfig('scorer')
+    : getModelConfig('scorer');
   const llm = createLLM(config);
   const stringParser = new StringOutputParser();
 
@@ -758,13 +730,11 @@ function getDefaultReporterResponse(): ReporterResponse {
 }
 
 // Agent 3: Reporter Chain
-// fallbackLevel: 0 = primary (Mistral), 1 = fallback1 (Xiaomi), 2 = fallback2 (OpenAI)
-async function createReporterChain(fallbackLevel: 0 | 1 | 2 = 0) {
-  const config = fallbackLevel === 2
-    ? getSecondFallbackConfig('reporter')
-    : fallbackLevel === 1
-      ? getFallbackConfig('reporter')
-      : getModelConfig('reporter');
+// fallbackLevel: 0 = primary (Xiaomi), 1 = fallback (Mistral)
+async function createReporterChain(fallbackLevel: 0 | 1 = 0) {
+  const config = fallbackLevel === 1
+    ? getFallbackConfig('reporter')
+    : getModelConfig('reporter');
   const llm = createLLM(config);
   const stringParser = new StringOutputParser();
 
@@ -841,15 +811,13 @@ export async function runLangChainAnalysis(input: ContractAnalysisInput): Promis
       console.log(`[Agent 1] Running Analyzer (${primaryModel})...`);
 
       const analyzerChain = await createAnalyzerChain(0);
-      const fallback1AnalyzerChain = await createAnalyzerChain(1);
-      const fallback2AnalyzerChain = await createAnalyzerChain(2);
+      const fallbackAnalyzerChain = await createAnalyzerChain(1);
       const rawAnalyzerResponse = await retryWithBackoff(
         () => analyzerChain.invoke(input),
         3,
         2000,
         'Analyzer LLM call',
-        () => fallback1AnalyzerChain.invoke(input),  // Fallback 1 (Xiaomi)
-        () => fallback2AnalyzerChain.invoke(input)   // Fallback 2 (OpenAI)
+        () => fallbackAnalyzerChain.invoke(input)  // Fallback (Mistral)
       );
 
       console.log(`[Agent 1] Raw response received (${currentModelType} model), parsing...`);
@@ -924,16 +892,14 @@ export async function runLangChainAnalysis(input: ContractAnalysisInput): Promis
     // Agent 2: Score with retry and fallback
     console.log(`[Agent 2] Running Scorer (${primaryModel})...`);
     const scorerChain = await createScorerChain(0);
-    const fallback1ScorerChain = await createScorerChain(1);
-    const fallback2ScorerChain = await createScorerChain(2);
+    const fallbackScorerChain = await createScorerChain(1);
 
     const rawScorerResponse = await retryWithBackoff(
       () => scorerChain.invoke({ findings }),
       3,
       2000,
       'Scorer LLM call',
-      () => fallback1ScorerChain.invoke({ findings }),  // Fallback 1 (Xiaomi)
-      () => fallback2ScorerChain.invoke({ findings })   // Fallback 2 (OpenAI)
+      () => fallbackScorerChain.invoke({ findings })  // Fallback (Mistral)
     );
 
     console.log(`[Agent 2] Raw response received (${currentModelType} model), parsing...`);
@@ -943,16 +909,14 @@ export async function runLangChainAnalysis(input: ContractAnalysisInput): Promis
     // Agent 3: Report with retry and fallback
     console.log(`[Agent 3] Running Reporter (${primaryModel})...`);
     const reporterChain = await createReporterChain(0);
-    const fallback1ReporterChain = await createReporterChain(1);
-    const fallback2ReporterChain = await createReporterChain(2);
+    const fallbackReporterChain = await createReporterChain(1);
 
     const rawReporterResponse = await retryWithBackoff(
       () => reporterChain.invoke({ findings, score }),
       3,
       2000,
       'Reporter LLM call',
-      () => fallback1ReporterChain.invoke({ findings, score }),  // Fallback 1 (Xiaomi)
-      () => fallback2ReporterChain.invoke({ findings, score })   // Fallback 2 (OpenAI)
+      () => fallbackReporterChain.invoke({ findings, score })  // Fallback (Mistral)
     );
 
     console.log(`[Agent 3] Raw response received (${currentModelType} model), parsing...`);

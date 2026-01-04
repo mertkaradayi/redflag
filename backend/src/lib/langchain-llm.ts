@@ -75,47 +75,38 @@ export function createLLM(config: LLMConfig): ChatOpenAI {
 }
 
 // Model presets for each agent
-// PRIMARY: Free model (nvidia/nemotron-3-nano-30b-a3b:free via Nvidia)
-// FALLBACK 1: Free model (xiaomi/mimo-v2-flash:free via Xiaomi)
-// FALLBACK 2: Free model (mistralai/devstral-2512:free via Mistral)
+// PRIMARY: Xiaomi free model (xiaomi/mimo-v2-flash:free) - reliable JSON output
+// FALLBACK: Mistral free model (mistralai/devstral-2512:free) - coding-focused
 export const MODEL_PRESETS = {
   analyzer: {
-    // Primary: Nvidia free model
-    model: 'nvidia/nemotron-3-nano-30b-a3b:free',
-    temperature: 0.3, // Lower for technical analysis
-    maxTokens: 6000,
-    providerOrder: ['nvidia'],
-    quantizations: ['bf16'],
-  },
-  scorer: {
-    model: 'nvidia/nemotron-3-nano-30b-a3b:free',
-    temperature: 0.2, // Very low for consistent scoring
-    maxTokens: 2000,
-    providerOrder: ['nvidia'],
-    quantizations: ['bf16'],
-  },
-  reporter: {
-    model: 'nvidia/nemotron-3-nano-30b-a3b:free',
-    temperature: 0.7, // Higher for creative writing
-    maxTokens: 4000,
-    providerOrder: ['nvidia'],
-    quantizations: ['bf16'],
-  },
-  // First fallback: Xiaomi's free model
-  fallback: {
+    // Primary: Xiaomi free model (reliable JSON output)
     model: 'xiaomi/mimo-v2-flash:free',
-    temperature: 0.5,
+    temperature: 0.3, // Lower for technical analysis
     maxTokens: 6000,
     providerOrder: ['xiaomi'],
     quantizations: ['fp8'],
   },
-  // Second fallback: Mistral's free model
-  fallback2: {
+  scorer: {
+    model: 'xiaomi/mimo-v2-flash:free',
+    temperature: 0.2, // Very low for consistent scoring
+    maxTokens: 2000,
+    providerOrder: ['xiaomi'],
+    quantizations: ['fp8'],
+  },
+  reporter: {
+    model: 'xiaomi/mimo-v2-flash:free',
+    temperature: 0.7, // Higher for creative writing
+    maxTokens: 4000,
+    providerOrder: ['xiaomi'],
+    quantizations: ['fp8'],
+  },
+  // Fallback: Mistral's free coding model
+  fallback: {
     model: 'mistralai/devstral-2512:free',
     temperature: 0.5,
     maxTokens: 6000,
     providerOrder: ['mistral'],
-  }
+  },
 } as const;
 
 // Environment variable overrides
@@ -132,7 +123,7 @@ export function getModelConfig(agentName: keyof typeof MODEL_PRESETS): LLMConfig
   };
 }
 
-// Get first fallback model config (Xiaomi free model)
+// Get fallback model config (Mistral free model)
 export function getFallbackConfig(agentName: keyof typeof MODEL_PRESETS): LLMConfig {
   const fallback = MODEL_PRESETS.fallback;
   const primary = MODEL_PRESETS[agentName];
@@ -142,20 +133,6 @@ export function getFallbackConfig(agentName: keyof typeof MODEL_PRESETS): LLMCon
     temperature: primary.temperature, // Use agent's preferred temperature
     maxTokens: fallback.maxTokens,
     providerOrder: [...fallback.providerOrder],
-    quantizations: [...fallback.quantizations],
-  };
-}
-
-// Get second fallback model config (Mistral free model - last resort)
-export function getSecondFallbackConfig(agentName: keyof typeof MODEL_PRESETS): LLMConfig {
-  const fallback2 = MODEL_PRESETS.fallback2;
-  const primary = MODEL_PRESETS[agentName];
-
-  return {
-    model: fallback2.model,
-    temperature: primary.temperature, // Use agent's preferred temperature
-    maxTokens: fallback2.maxTokens,
-    providerOrder: [...fallback2.providerOrder],
   };
 }
 
@@ -175,15 +152,13 @@ export function shouldFallback(error: unknown): boolean {
   return FALLBACK_ERROR_MESSAGES.some(pattern => message.includes(pattern));
 }
 
-// Create LLM with two-tier fallback capability
+// Create LLM with fallback capability
 export function createLLMWithFallback(
   primaryConfig: LLMConfig,
-  fallbackConfig: LLMConfig,
-  fallback2Config?: LLMConfig
-): { primary: ChatOpenAI; fallback: ChatOpenAI; fallback2?: ChatOpenAI } {
+  fallbackConfig: LLMConfig
+): { primary: ChatOpenAI; fallback: ChatOpenAI } {
   return {
     primary: createLLM(primaryConfig),
     fallback: createLLM(fallbackConfig),
-    fallback2: fallback2Config ? createLLM(fallback2Config) : undefined,
   };
 }

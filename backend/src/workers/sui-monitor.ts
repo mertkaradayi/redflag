@@ -1,8 +1,17 @@
-import { getDeploymentsFromCheckpoints } from '../lib/sui-client';
-import { upsertDeployments, getMonitorCheckpoint, updateMonitorCheckpoint } from '../lib/supabase';
+import { getDeploymentsFromCheckpoints, LIVE_BOOTSTRAP_OFFSET } from '../lib/sui-client';
+import { upsertDeployments, getMonitorCheckpoint, updateMonitorCheckpoint, resetMonitorCheckpoint } from '../lib/supabase';
 import { SuiClient } from '@mysten/sui/client';
 import { envFlag } from '../lib/env-utils';
 import { getNetworkConfigs, type NetworkConfig, type SuiNetwork } from '../lib/network-config';
+
+/**
+ * Auto-reset threshold: if monitor is more than this many checkpoints behind,
+ * automatically reset to bootstrap near current. Default: 50,000 (~3.5 hours behind)
+ */
+const AUTO_RESET_GAP_THRESHOLD = parseInt(
+  process.env.AUTO_RESET_GAP_THRESHOLD || '50000',
+  10
+);
 
 // Map to track monitor instances per network
 const monitors = new Map<SuiNetwork, { interval: NodeJS.Timeout | null; isRunning: boolean }>();
@@ -113,6 +122,25 @@ async function performMonitoringCheck(config: NetworkConfig): Promise<void> {
 
     // Create network-specific Sui client
     const suiClient = new SuiClient({ url: rpcUrl });
+
+    // Auto-reset check: if we're too far behind, reset and bootstrap fresh
+    if (lastCheckpoint) {
+      const latestCheckpoint = await suiClient.getLatestCheckpointSequenceNumber();
+      const gap = Number(latestCheckpoint) - Number(lastCheckpoint);
+
+      if (gap > AUTO_RESET_GAP_THRESHOLD) {
+        console.warn(`[${network}] ⚠️ Monitor is ${gap.toLocaleString()} checkpoints behind (threshold: ${AUTO_RESET_GAP_THRESHOLD.toLocaleString()})`);
+        console.warn(`[${network}] 🔄 Auto-resetting checkpoint to bootstrap near current (latest - ${LIVE_BOOTSTRAP_OFFSET})`);
+
+        const resetResult = await resetMonitorCheckpoint(network);
+        if (resetResult.success) {
+          console.log(`[${network}] ✅ Checkpoint reset successful - next poll will bootstrap fresh`);
+        } else {
+          console.error(`[${network}] ❌ Failed to reset checkpoint:`, resetResult.error);
+        }
+        return; // Exit this poll cycle - next poll will bootstrap fresh
+      }
+    }
 
     // Fetch new deployments using checkpoint-based approach
     // Note: maxCheckpoints is determined adaptively inside the function based on gap size
