@@ -7,7 +7,7 @@ import { X, Search, Loader2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRi
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+
 import AnalyzedContractCard from '@/app/components/AnalyzedContractCard';
 import { UnanalyzedPackageCard } from '@/app/components/UnanalyzedPackageCard';
 import { SkeletonCard } from '@/app/components/SkeletonCard';
@@ -580,13 +580,39 @@ function DashboardContent() {
           </p>
         </div>
 
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <Link href="/analyze" className="w-full sm:w-auto">
-            <Button className="w-full bg-[#D12226] text-white hover:bg-[#a8181b] sm:w-auto">
-              Start analysis
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </Link>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center w-full lg:w-auto">
+            <Link href="/analyze" className="w-full sm:w-auto">
+              <Button className="w-full bg-[#D12226] text-white hover:bg-[#a8181b] sm:w-auto">
+                Start analysis
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
+
+            {/* Search */}
+            <div className="relative w-full sm:w-80">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground dark:text-zinc-500" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                placeholder="Search by package ID..."
+                className={cn(
+                  'w-full rounded-full border border-border dark:border-white/15 bg-[hsl(var(--surface-muted))] dark:bg-black/40 py-2 pl-11 pr-10 text-sm text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-zinc-500 focus:border-[#D12226] focus:outline-none focus:ring-2 focus:ring-[#D12226]/40',
+                  isSearching && 'pr-14'
+                )}
+              />
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                {isSearching && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground dark:text-zinc-500" />}
+                {searchQuery && (
+                  <button onClick={clearSearch} className="p-1 text-muted-foreground hover:text-foreground dark:hover:text-white transition-colors" aria-label="Clear search">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
 
           <div className="flex flex-wrap items-center gap-3 text-xs">
             {/* Network Filter */}
@@ -631,192 +657,47 @@ function DashboardContent() {
             {/* Divider */}
             <div className="h-4 w-px bg-border dark:bg-white/15" />
 
+            {/* Sort Dropdown */}
+            <div className="relative">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortOption)}
+                className="h-8 appearance-none rounded-full border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-black/40 pl-3 pr-8 text-xs font-medium text-foreground dark:text-white transition-colors focus:border-[#D12226] focus:outline-none focus:ring-2 focus:ring-[#D12226]/40 cursor-pointer"
+              >
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="risk_high">Highest Risk</option>
+                <option value="risk_low">Lowest Risk</option>
+              </select>
+              <ArrowUpDown className="absolute right-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            </div>
+
             {/* View Mode */}
             <ViewModeToggle mode={viewMode} onChange={handleViewModeChange} />
           </div>
         </div>
+
+        {/* Active Search */}
+        {debouncedSearchQuery && (
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-muted))] dark:bg-black/40 px-2.5 py-1 text-[10px] font-medium text-foreground dark:text-white/80">
+              <Search className="h-3 w-3 text-muted-foreground dark:text-zinc-400" />
+              <span>&apos;{debouncedSearchQuery}&apos;</span>
+              <button onClick={clearSearch} className="p-0.5 hover:text-foreground dark:hover:text-white transition-colors" aria-label="Clear search">
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          </div>
+        )}
       </section>
+      
       {error && (
         <Alert className="rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 text-foreground dark:text-white/90 shadow-sm shadow-black/5 dark:shadow-white/5 transition-colors duration-200">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
-      {/* Controls: Search, Filters, Actions */}
-      <Card className="rounded-xl border border-border dark:border-white/10 bg-[hsl(var(--surface-elevated))] dark:bg-white/5 text-foreground dark:text-white shadow-sm shadow-black/5 dark:shadow-white/5 transition-colors duration-200">
-        <CardContent className="p-6 pt-0 space-y-6">
-          {/* Search and Controls Row */}
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            {/* Search */}
-            <div className="relative w-full lg:w-80">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground dark:text-zinc-500" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={handleSearchKeyDown}
-                placeholder="Search by package ID..."
-                className={cn(
-                  'w-full rounded-full border border-border dark:border-white/15 bg-[hsl(var(--surface-muted))] dark:bg-black/40 py-2 pl-11 pr-10 text-sm text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-zinc-500 focus:border-[#D12226] focus:outline-none focus:ring-2 focus:ring-[#D12226]/40',
-                  isSearching && 'pr-14'
-                )}
-              />
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
-                {isSearching && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground dark:text-zinc-500" />}
-                {searchQuery && (
-                  <button onClick={clearSearch} className="p-1 text-muted-foreground hover:text-foreground dark:hover:text-white transition-colors" aria-label="Clear search">
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
-            </div>
 
-            {/* Controls: Sort */}
-            <div className="flex flex-wrap items-center gap-2">
-              {/* Sort Dropdown */}
-              <div className="relative">
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as SortOption)}
-                  className="h-8 appearance-none rounded-full border border-border dark:border-white/10 bg-[hsl(var(--surface-muted))] dark:bg-black/40 pl-3 pr-8 text-xs font-medium text-foreground dark:text-white transition-colors focus:border-[#D12226] focus:outline-none focus:ring-2 focus:ring-[#D12226]/40 cursor-pointer"
-                >
-                  <option value="newest">Newest First</option>
-                  <option value="oldest">Oldest First</option>
-                  <option value="risk_high">Highest Risk</option>
-                  <option value="risk_low">Lowest Risk</option>
-                </select>
-                <ArrowUpDown className="absolute right-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-              </div>
-            </div>
-          </div>
-
-          {/* Active Search */}
-          {debouncedSearchQuery && (
-            <div className="flex flex-wrap items-center gap-2 text-sm">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-muted))] dark:bg-black/40 px-2.5 py-1 text-[10px] font-medium text-foreground dark:text-white/80">
-                <Search className="h-3 w-3 text-muted-foreground dark:text-zinc-400" />
-                <span>&apos;{debouncedSearchQuery}&apos;</span>
-                <button onClick={clearSearch} className="p-0.5 hover:text-foreground dark:hover:text-white transition-colors" aria-label="Clear search">
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            </div>
-          )}
-
-          {/* Pagination */}
-          <div className="flex flex-col gap-3 border-t border-zinc-200/50 dark:border-zinc-800/50 pt-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2">
-              {totalPages > 1 && (
-                <>
-                  <span className="text-xs sm:text-sm text-muted-foreground dark:text-zinc-400 whitespace-nowrap">Show:</span>
-                  <select
-                    value={pageSize}
-                    onChange={(e) => setPaginationPageSize(Number.parseInt(e.target.value, 10))}
-                    className="h-8 rounded-md border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-muted))] dark:bg-black/40 px-2.5 text-xs sm:text-sm text-foreground dark:text-white transition-colors focus:border-[#D12226] focus:outline-none focus:ring-2 focus:ring-[#D12226]/40"
-                  >
-                    {PAGE_SIZE_OPTIONS.map((size) => (
-                      <option key={size} value={size}>
-                        {size}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="text-xs sm:text-sm text-muted-foreground dark:text-zinc-400 hidden sm:inline">per page</span>
-                </>
-              )}
-              <span className="text-sm text-foreground dark:text-white font-medium ml-2">
-                {displayedContracts.length} of {data?.total ?? 0} contracts
-                {totalPages > 1 && ` • Page ${currentPage}/${totalPages}`}
-              </span>
-            </div>
-
-            {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-1 sm:gap-1.5">
-                {currentPage > 4 && totalPages > 7 && (
-                  <>
-                    <button
-                      onClick={() => goToPage(1)}
-                      className="inline-flex items-center justify-center h-8 w-8 p-0 rounded-md border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-muted))] dark:bg-black/40 text-foreground dark:text-white hover:border-[#D12226]/40 dark:hover:border-[#D12226]/60 hover:bg-[#D12226]/5 dark:hover:bg-[#D12226]/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                      aria-label="First page"
-                    >
-                      <ChevronsLeft className="h-3.5 w-3.5" />
-                    </button>
-                    {currentPage > 5 && (
-                      <span className="px-1 text-xs text-muted-foreground dark:text-zinc-400">...</span>
-                    )}
-                  </>
-                )}
-
-                <button
-                  onClick={previousPage}
-                  disabled={!hasPreviousPage}
-                      className="inline-flex items-center justify-center h-8 px-2.5 rounded-md border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-muted))] dark:bg-black/40 text-foreground dark:text-white hover:border-[#D12226]/40 dark:hover:border-[#D12226]/60 hover:bg-[#D12226]/5 dark:hover:bg-[#D12226]/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-30 disabled:cursor-not-allowed"
-                  aria-label="Previous page"
-                >
-                  <ChevronLeft className="h-3.5 w-3.5 mr-0.5" />
-                  <span className="hidden sm:inline text-xs">Prev</span>
-                </button>
-
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: Math.min(7, totalPages) }, (_, i) => {
-                    let pageNum: number;
-                    if (totalPages <= 7) {
-                      pageNum = i + 1;
-                    } else if (currentPage <= 4) {
-                      pageNum = i + 1;
-                    } else if (currentPage >= totalPages - 3) {
-                      pageNum = totalPages - 6 + i;
-                    } else {
-                      pageNum = currentPage - 3 + i;
-                    }
-                    
-                    return (
-                      <button
-                        key={pageNum}
-                        onClick={() => goToPage(pageNum)}
-                        className={cn(
-                          'inline-flex items-center justify-center h-8 min-w-8 px-2 rounded-md text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
-                          currentPage === pageNum
-                            ? 'bg-[#D12226] text-white border border-[#D12226] hover:bg-[#a8181b] shadow-sm focus-visible:ring-[#D12226]/50'
-                            : 'border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-muted))] dark:bg-black/40 text-foreground dark:text-white hover:border-[#D12226]/40 dark:hover:border-[#D12226]/60 hover:bg-[#D12226]/5 dark:hover:bg-[#D12226]/10 focus-visible:ring-ring'
-                        )}
-                        aria-label={`Page ${pageNum}`}
-                        aria-current={currentPage === pageNum ? 'page' : undefined}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <button
-                  onClick={nextPage}
-                  disabled={!hasNextPage}
-                      className="inline-flex items-center justify-center h-8 px-2.5 rounded-md border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-muted))] dark:bg-black/40 text-foreground dark:text-white hover:border-[#D12226]/40 dark:hover:border-[#D12226]/60 hover:bg-[#D12226]/5 dark:hover:bg-[#D12226]/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-30 disabled:cursor-not-allowed"
-                  aria-label="Next page"
-                >
-                  <span className="hidden sm:inline text-xs">Next</span>
-                  <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
-                </button>
-
-                {currentPage < totalPages - 3 && totalPages > 7 && (
-                  <>
-                    {currentPage < totalPages - 4 && (
-                      <span className="px-1 text-xs text-muted-foreground dark:text-zinc-400">...</span>
-                    )}
-                    <button
-                      onClick={() => goToPage(totalPages)}
-                      className="inline-flex items-center justify-center h-8 w-8 p-0 rounded-md border border-zinc-200/50 dark:border-zinc-800/50 bg-[hsl(var(--surface-muted))] dark:bg-black/40 text-foreground dark:text-white hover:border-[#D12226]/40 dark:hover:border-[#D12226]/60 hover:bg-[#D12226]/5 dark:hover:bg-[#D12226]/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                      aria-label="Last page"
-                    >
-                      <ChevronsRight className="h-3.5 w-3.5" />
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
 
       {pauseReason === 'details' && !autoRefresh && (
         <Alert className="border-border/60 dark:border-white/10 bg-card/50 dark:bg-white/5">
