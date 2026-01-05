@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import { testSupabaseConnection, getDeployments, getDeploymentStats, getAnalysisResult, getRecentAnalyses, getHighRiskAnalyses, getRiskLevelCounts, getDeploymentByPackageId, getAllMonitorCheckpoints } from './lib/supabase';
+import { testSupabaseConnection, getDeployments, getDeploymentStats, getAnalysisResult, getRecentAnalyses, getHighRiskAnalyses, getRiskLevelCounts, getDeploymentByPackageId, getAllMonitorCheckpoints, resetMonitorCheckpoint } from './lib/supabase';
 import { testSuiConnection } from './lib/sui-client';
 import { startMonitoring, stopMonitoring, getMonitoringStatus } from './workers/sui-monitor';
 import { startHistoricalMonitoring, stopHistoricalMonitoring, getHistoricalMonitoringStatus } from './workers/historical-monitor';
@@ -864,6 +864,50 @@ app.get('/api/llm/package-status/:packageId', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to get package status',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Admin endpoint to manually reset monitor checkpoint
+// Useful for recovering from stuck monitors or forcing fresh start
+app.post('/api/admin/reset-checkpoint', async (req, res) => {
+  try {
+    const { network } = req.body;
+
+    if (!network || !['mainnet', 'testnet'].includes(network)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid network. Must be "mainnet" or "testnet"',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    console.log(`[Admin] Manual checkpoint reset requested for ${network}`);
+
+    const result = await resetMonitorCheckpoint(network);
+
+    if (result.success) {
+      res.json({
+        success: true,
+        message: `Checkpoint reset for ${network}. Monitor will bootstrap fresh on next poll.`,
+        network,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: result.error || 'Failed to reset checkpoint',
+        network,
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    console.error('❌ Failed to reset checkpoint:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to reset checkpoint',
       error: error instanceof Error ? error.message : 'Unknown error',
       timestamp: new Date().toISOString()
     });

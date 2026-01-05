@@ -1912,6 +1912,48 @@ export async function updateMonitorCheckpoint(
 }
 
 /**
+ * Reset monitor checkpoint for a network
+ * Deletes the checkpoint row, causing monitor to bootstrap fresh on next poll
+ * Used when monitors fall too far behind and need to restart near current
+ */
+export async function resetMonitorCheckpoint(
+  network: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!supabase) {
+      return {
+        success: false,
+        error: 'Supabase client not initialized'
+      };
+    }
+
+    const { error } = await supabase
+      .from('monitor_checkpoints')
+      .delete()
+      .eq('network', network);
+
+    if (error) {
+      console.error(`Failed to reset monitor checkpoint for ${network}:`, error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+
+    console.log(`[${network}] Monitor checkpoint reset - will bootstrap fresh on next poll`);
+    return { success: true };
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Unexpected error in resetMonitorCheckpoint:', error);
+    return {
+      success: false,
+      error: errorMessage
+    };
+  }
+}
+
+/**
  * Get monitor checkpoint status for all networks
  * Used by status endpoints to show monitoring progress
  */
