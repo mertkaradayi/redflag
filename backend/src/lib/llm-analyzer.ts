@@ -380,13 +380,13 @@ export async function runFullAnalysisChain(packageId: string, network: string, s
     // RUN LANGCHAIN 3-AGENT ANALYSIS
     // ============================================================
     console.log('[4/6] Running LangChain 3-agent analysis...');
-    console.log('[4/6] Using: nvidia/nemotron-3-nano-30b-a3b:free via Nvidia');
+    console.log('[4/6] Using: openrouter/free (auto-selects from available free models)');
 
     // Record module and function stats for audit
     const moduleCount = Object.keys(disassembledCode).length;
     audit.recordModuleStats(moduleCount, moduleCount);
     audit.recordFunctionStats(publicFunctions.length, publicFunctions.length);
-    audit.recordModel('nvidia/nemotron-3-nano-30b-a3b:free');
+    audit.recordModel('openrouter/free');
 
     try {
         const safetyCard = await runLangChainAnalysisWithFallback({
