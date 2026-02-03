@@ -1,6 +1,6 @@
 import { RunnableSequence } from "@langchain/core/runnables";
 import { StringOutputParser } from "@langchain/core/output_parsers";
-import { createLLM, getModelConfig, getFallbackConfig, shouldFallback, MODEL_PRESETS } from './langchain-llm';
+import { createLLM, getModelConfig, MODEL_PRESETS } from './langchain-llm';
 import { analyzerPromptTemplate, scorerPromptTemplate, reporterPromptTemplate } from './langchain-prompts';
 import { analyzerParser, scorerParser, reporterParser } from './langchain-schemas';
 import type { AnalyzerResponse, ScorerResponse, ReporterResponse } from './langchain-schemas';
@@ -20,8 +20,6 @@ import {
   type MetricsCollector,
 } from './confidence-calculator';
 
-// Track which model is being used for logging
-let currentModelType: 'primary' | 'fallback1' = 'primary';
 
 // Helper: Strip markdown code blocks from JSON responses
 function stripMarkdownJson(text: string): string {
@@ -51,13 +49,13 @@ function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Helper: Retry with exponential backoff and fallback support
+// Helper: Retry with exponential backoff
+// openrouter/free rotates models on each call, so retries naturally hit different models
 async function retryWithBackoff<T>(
   fn: () => Promise<T>,
   maxRetries: number = 3,
   initialDelayMs: number = 1000,
   operationName: string = 'operation',
-  fallbackFn?: () => Promise<T>   // Fallback (Mistral free model)
 ): Promise<T> {
   let lastError: Error | undefined;
 
@@ -67,26 +65,6 @@ async function retryWithBackoff<T>(
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
 
-      // Check if we should fallback to Mistral model
-      if (fallbackFn && shouldFallback(error)) {
-        console.warn(`[Fallback] ${operationName} hit rate limit or error, trying Mistral fallback model...`);
-        currentModelType = 'fallback1';
-
-        // Try fallback with its own retry logic
-        try {
-          const result = await retryWithBackoff(
-            fallbackFn,
-            maxRetries,
-            initialDelayMs,
-            `${operationName} (fallback)`
-          );
-          return result;
-        } catch (fallbackError) {
-          console.error(`[Fallback] Mistral model also failed:`, fallbackError instanceof Error ? fallbackError.message : fallbackError);
-          throw fallbackError;
-        }
-      }
-
       if (attempt === maxRetries) {
         console.error(`[Retry] ${operationName} failed after ${maxRetries} attempts:`, lastError.message);
         throw lastError;
@@ -94,7 +72,7 @@ async function retryWithBackoff<T>(
 
       const delay = initialDelayMs * Math.pow(2, attempt - 1);
       console.warn(`[Retry] ${operationName} attempt ${attempt}/${maxRetries} failed: ${lastError.message}`);
-      console.warn(`[Retry] Waiting ${delay}ms before retry...`);
+      console.warn(`[Retry] Waiting ${delay}ms before retry (next call may route to a different free model)...`);
       await sleep(delay);
     }
   }
@@ -258,10 +236,9 @@ async function analyzeModulesInParallel(
   riskPatterns: string
 ): Promise<AnalyzerResponse> {
   console.log(`[MapReduce] Starting parallel analysis of ${chunks.length} modules...`);
-  console.log(`[MapReduce] Primary: ${MODEL_PRESETS.analyzer.model}, Fallback: ${MODEL_PRESETS.fallback.model}`);
+  console.log(`[MapReduce] Model: ${MODEL_PRESETS.analyzer.model}`);
 
-  const analyzerChain = await createAnalyzerChain(0);
-  const fallbackChain = await createAnalyzerChain(1);
+  const analyzerChain = await createAnalyzerChain();
 
   // Create analysis tasks for each module
   const analysisPromises = chunks.map(async (chunk, index) => {
@@ -282,13 +259,12 @@ async function analyzeModulesInParallel(
         3,
         2000,
         `Analyzer for ${chunk.moduleName}`,
-        () => fallbackChain.invoke(moduleInput)   // Fallback (Mistral)
       );
 
       const findings = await safeParseAnalyzerResponse(rawResponse);
       const duration = Date.now() - startTime;
 
-      console.log(`[Chunk ${index + 1}/${chunks.length}] ${chunk.moduleName}: ${findings.technical_findings?.length || 0} findings (${duration}ms, ${currentModelType} model)`);
+      console.log(`[Chunk ${index + 1}/${chunks.length}] ${chunk.moduleName}: ${findings.technical_findings?.length || 0} findings (${duration}ms)`);
 
       return {
         moduleName: chunk.moduleName,
@@ -532,11 +508,8 @@ async function safeParseAnalyzerResponse(text: string): Promise<AnalyzerResponse
 }
 
 // Agent 1: Analyzer Chain
-// fallbackLevel: 0 = primary (Xiaomi), 1 = fallback (Mistral)
-async function createAnalyzerChain(fallbackLevel: 0 | 1 = 0) {
-  const config = fallbackLevel === 1
-    ? getFallbackConfig('analyzer')
-    : getModelConfig('analyzer');
+async function createAnalyzerChain() {
+  const config = getModelConfig('analyzer');
   const llm = createLLM(config);
   const stringParser = new StringOutputParser();
 
@@ -598,11 +571,8 @@ async function safeParseScorerResponse(text: string): Promise<ScorerResponse> {
 }
 
 // Agent 2: Scorer Chain
-// fallbackLevel: 0 = primary (Xiaomi), 1 = fallback (Mistral)
-async function createScorerChain(fallbackLevel: 0 | 1 = 0) {
-  const config = fallbackLevel === 1
-    ? getFallbackConfig('scorer')
-    : getModelConfig('scorer');
+async function createScorerChain() {
+  const config = getModelConfig('scorer');
   const llm = createLLM(config);
   const stringParser = new StringOutputParser();
 
@@ -730,11 +700,8 @@ function getDefaultReporterResponse(): ReporterResponse {
 }
 
 // Agent 3: Reporter Chain
-// fallbackLevel: 0 = primary (Xiaomi), 1 = fallback (Mistral)
-async function createReporterChain(fallbackLevel: 0 | 1 = 0) {
-  const config = fallbackLevel === 1
-    ? getFallbackConfig('reporter')
-    : getModelConfig('reporter');
+async function createReporterChain() {
+  const config = getModelConfig('reporter');
   const llm = createLLM(config);
   const stringParser = new StringOutputParser();
 
@@ -770,19 +737,14 @@ function getRiskLevel(score: number): 'low' | 'moderate' | 'high' | 'critical' {
  * - Multiple modules: Uses parallel chunked analysis (Map-Reduce pattern)
  */
 export async function runLangChainAnalysis(input: ContractAnalysisInput): Promise<SafetyCard> {
-  const primaryModel = MODEL_PRESETS.analyzer.model;
-  const fallbackModel = MODEL_PRESETS.fallback.model;
-
-  // Reset model tracking for this analysis run
-  currentModelType = 'primary';
+  const model = MODEL_PRESETS.analyzer.model;
 
   // Initialize metrics collector for confidence scoring
   const metrics = createMetricsCollector();
 
   try {
     console.log('[LangChain] Starting 3-agent analysis...');
-    console.log(`[LangChain] Primary model: ${primaryModel}`);
-    console.log(`[LangChain] Fallback1: ${MODEL_PRESETS.fallback.model}, Fallback2: ${fallbackModel}`);
+    console.log(`[LangChain] Model: ${model} (auto-routes to available free models)`);
 
     // Update metrics from input data
     updateFromBytecode(metrics, input.disassembledCode, input.publicFunctions);
@@ -808,19 +770,17 @@ export async function runLangChainAnalysis(input: ContractAnalysisInput): Promis
     } else {
       // ===== SINGLE-PASS: Traditional analysis =====
       console.log(`[LangChain] Small contract: ${chunks.length} module(s), using single-pass analysis`);
-      console.log(`[Agent 1] Running Analyzer (${primaryModel})...`);
+      console.log(`[Agent 1] Running Analyzer (${model})...`);
 
-      const analyzerChain = await createAnalyzerChain(0);
-      const fallbackAnalyzerChain = await createAnalyzerChain(1);
+      const analyzerChain = await createAnalyzerChain();
       const rawAnalyzerResponse = await retryWithBackoff(
         () => analyzerChain.invoke(input),
         3,
         2000,
         'Analyzer LLM call',
-        () => fallbackAnalyzerChain.invoke(input)  // Fallback (Mistral)
       );
 
-      console.log(`[Agent 1] Raw response received (${currentModelType} model), parsing...`);
+      console.log('[Agent 1] Raw response received, parsing...');
       findings = await safeParseAnalyzerResponse(rawAnalyzerResponse);
     }
 
@@ -889,37 +849,33 @@ export async function runLangChainAnalysis(input: ContractAnalysisInput): Promis
       };
     }
 
-    // Agent 2: Score with retry and fallback
-    console.log(`[Agent 2] Running Scorer (${primaryModel})...`);
-    const scorerChain = await createScorerChain(0);
-    const fallbackScorerChain = await createScorerChain(1);
+    // Agent 2: Score with retry
+    console.log(`[Agent 2] Running Scorer (${model})...`);
+    const scorerChain = await createScorerChain();
 
     const rawScorerResponse = await retryWithBackoff(
       () => scorerChain.invoke({ findings }),
       3,
       2000,
       'Scorer LLM call',
-      () => fallbackScorerChain.invoke({ findings })  // Fallback (Mistral)
     );
 
-    console.log(`[Agent 2] Raw response received (${currentModelType} model), parsing...`);
+    console.log('[Agent 2] Raw response received, parsing...');
     const score = await safeParseScorerResponse(rawScorerResponse);
     console.log(`[Agent 2] Risk score: ${score.risk_score}`);
 
-    // Agent 3: Report with retry and fallback
-    console.log(`[Agent 3] Running Reporter (${primaryModel})...`);
-    const reporterChain = await createReporterChain(0);
-    const fallbackReporterChain = await createReporterChain(1);
+    // Agent 3: Report with retry
+    console.log(`[Agent 3] Running Reporter (${model})...`);
+    const reporterChain = await createReporterChain();
 
     const rawReporterResponse = await retryWithBackoff(
       () => reporterChain.invoke({ findings, score }),
       3,
       2000,
       'Reporter LLM call',
-      () => fallbackReporterChain.invoke({ findings, score })  // Fallback (Mistral)
     );
 
-    console.log(`[Agent 3] Raw response received (${currentModelType} model), parsing...`);
+    console.log('[Agent 3] Raw response received, parsing...');
     const report = await safeParseReporterResponse(rawReporterResponse);
     console.log('[Agent 3] Report generated');
 
